@@ -8,18 +8,17 @@ export const bitcoinTaoChapters: Chapter[] = [
     title: "Chapter 1",
     content: [
       "The coin that can be forked",
-      "is not the eternal coin",
+      "is not the eternal coin.",
       "The chain that can be 51% attacked",
       "is not the eternal chain.",
       "",
-      "The coin is both real and imagined",
-      "As imiagined, it is the coinbase of the Genesis block",
-      "as real, it is the root of 10,000 Merkle trees",
+      "The coin is both real and imagined.",
+      "As imagined, it is the coinbase of the Genesis block;",
+      "as real, it is the root of 10,000 Merkle trees.",
       "",
-      "Ever ticking, one can see the timechain",
-      "Ever stacking, one sees only low-time preference",
-      "And the peer-to-peer connection is the tunnel",
-       "to all consensus."
+      "Ever ticking, one can see the timechain;",
+      "Ever stacking, one sees only low-time preference.",
+      "And the peer-to-peer connection is the tunnel to all consensus."
     ]
   },
   {
