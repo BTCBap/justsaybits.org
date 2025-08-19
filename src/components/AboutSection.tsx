@@ -18,7 +18,7 @@ const AboutSection: React.FC<AboutProps> = ({ navigateTo }) => {
       </div>
       <div className="flex flex-col md:flex-row items-center md:items-start md:space-x-6">
         <img 
-          src="images/bitcoinzen.jpg"
+          src="/images/bitcoinzen.jpg"
           alt="The Bitcoin Zen-ist" 
           className="w-96 h-auto md:w-96 rounded-lg mb-6 md:mb-0 shadow-md object-cover"
         />

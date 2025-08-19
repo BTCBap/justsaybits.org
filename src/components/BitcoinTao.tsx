@@ -36,7 +36,7 @@ const BitcoinTao: React.FC = () => {
     }),
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 50; // pixels
     if (info.offset.x < -swipeThreshold) {
       navigateChapter(1); // Swiped left for next chapter

@@ -2,7 +2,7 @@
   "name": "justsaybits.org",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://btcbap.github.io/react-gh-pages",
+  "homepage": "https://btcbap.github.io/justsaybits.org",
   "type": "module",
   "scripts": {
     "dev": "vite",

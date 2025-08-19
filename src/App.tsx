@@ -109,7 +109,7 @@ const App: React.FC = () => {
       <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
       <MusicPlayer isPlaying={isMusicPlaying} />
 
-      <audio id="background-audio" loop src="audio/wanted_outlaw.mp3" preload="metadata"></audio>
+      <audio id="background-audio" loop src="/audio/wanted_outlaw.mp3" preload="metadata"></audio>
     </div>
   );
 };
