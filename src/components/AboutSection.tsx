@@ -13,7 +13,7 @@ const AboutSection: React.FC<AboutProps> = ({ navigateTo }) => {
       </h1>
       <div className="text-lg text-light-text dark:text-dark-text">
         <p>Built with no goal, updated when it’s time.</p>
-        <p>If you seek inspiration, <button className="hover:text-dark-accent" onClick={() => navigateTo(View.BOOK)}>The Bitcoin Tao</button> tab is waiting.</p>
+        <p>If you seek inspiration, <button className="hover:text-dark-accent" onClick={() => navigateTo(View.BOOK)}>The Bitcoin Tao</button> is waiting.</p>
         <p className=" mb-8">Go visit The Space in Denver.</p>
       </div>
       <div className="flex flex-col md:flex-row items-center md:items-start md:space-x-6">
