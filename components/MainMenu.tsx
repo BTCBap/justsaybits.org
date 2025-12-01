@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Section } from '../types';
 import { soundManager } from '../utils/SoundManager';
+import { hapticManager } from '../utils/HapticManager';
 
 interface MainMenuProps {
   sections: Section[];
@@ -12,13 +13,20 @@ interface MainMenuProps {
 
 const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, onActiveIndexChange }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  
+
   // Layout State
   const [spacing, setSpacing] = useState(180);
   const [menuScale, setMenuScale] = useState(1);
   const [menuYOffset, setMenuYOffset] = useState(0);
   const [footerBottom, setFooterBottom] = useState(48); // px (starts at bottom-12 = 3rem = 48px)
   const [hideClock, setHideClock] = useState(false);
+
+  // Swipe gesture tracking
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const touchEndY = useRef<number>(0);
+  const MIN_SWIPE_DISTANCE = 50; // minimum distance for a swipe to register
 
   // Responsive Layout Logic
   useEffect(() => {
@@ -85,14 +93,56 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
     if (e.key === 'ArrowRight') {
       onActiveIndexChange((activeIndex + 1) % sections.length);
       soundManager.playHover();
+      hapticManager.light();
     } else if (e.key === 'ArrowLeft') {
       onActiveIndexChange((activeIndex - 1 + sections.length) % sections.length);
       soundManager.playHover();
+      hapticManager.light();
     } else if (e.key === 'Enter') {
       soundManager.playSelect();
+      hapticManager.medium();
       onSelect(sections[activeIndex].id);
     }
   }, [sections, activeIndex, onSelect, onActiveIndexChange]);
+
+  // Touch handlers for swipe detection
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    const deltaX = touchStartX.current - touchEndX.current;
+    const deltaY = touchStartY.current - touchEndY.current;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    // Only process horizontal swipes (more horizontal than vertical movement)
+    if (absDeltaX > absDeltaY && absDeltaX > MIN_SWIPE_DISTANCE) {
+      if (deltaX > 0) {
+        // Swipe left - go to next item
+        onActiveIndexChange((activeIndex + 1) % sections.length);
+        soundManager.playHover();
+        hapticManager.swipe();
+      } else {
+        // Swipe right - go to previous item
+        onActiveIndexChange((activeIndex - 1 + sections.length) % sections.length);
+        soundManager.playHover();
+        hapticManager.swipe();
+      }
+    }
+
+    // Reset touch positions
+    touchStartX.current = 0;
+    touchStartY.current = 0;
+    touchEndX.current = 0;
+    touchEndY.current = 0;
+  };
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -101,23 +151,29 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
 
   const handleItemClick = (index: number) => {
     soundManager.playSelect();
+    hapticManager.medium();
     onActiveIndexChange(index);
     onSelect(sections[index].id);
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden z-50">
-      
+    <div
+      className="relative w-full h-full flex items-center justify-center overflow-hidden z-50"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+
       {/* Background Orbit Line */}
-      <div 
-        className="absolute w-[120vw] h-[60vh] border border-blue-500/10 rounded-[100%] rotate-12 blur-sm transform -translate-y-10" 
+      <div
+        className="absolute w-[120vw] h-[60vh] border border-blue-500/10 rounded-[100%] rotate-12 blur-sm transform -translate-y-10"
         style={{ transform: `scale(${menuScale}) translateY(${menuYOffset}px) rotate(12deg)` }}
       />
 
       {/* 3D Carousel Simulation */}
-      <div 
+      <div
         className="relative w-full perspective-1000 transition-all duration-300 h-64 origin-center"
-        style={{ 
+        style={{
             transform: `scale(${menuScale}) translateY(${menuYOffset}px)`
         }}
       >

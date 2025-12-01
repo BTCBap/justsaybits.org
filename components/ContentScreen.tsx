@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, Variants } from 'framer-motion';
 import { ArrowLeft, LayoutGrid, TrendingUp, ExternalLink } from 'lucide-react';
-import { 
-  PORTFOLIO_DATA, 
-  INVESTMENT_DATA, 
-  BOOK_DATA, 
-  WRITING_DATA, 
-  WORK_DATA, 
-  SOCIAL_LINKS 
+import {
+  PORTFOLIO_DATA,
+  INVESTMENT_DATA,
+  BOOK_DATA,
+  WRITING_DATA,
+  WORK_DATA,
+  SOCIAL_LINKS
 } from '../constants';
 import { Section, WritingItem } from '../types';
 import { soundManager } from '../utils/SoundManager';
+import { hapticManager } from '../utils/HapticManager';
 
 interface ContentScreenProps {
   section: Section;
@@ -59,6 +60,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   const handleBack = () => {
     soundManager.playBack();
+    hapticManager.medium();
     if (selectedWriting) {
       setSelectedWriting(null);
     } else {
@@ -80,6 +82,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const handleTabChange = (tab: 'projects' | 'investments') => {
     if (portfolioTab !== tab) {
       soundManager.playHover();
+      hapticManager.light();
       setPortfolioTab(tab);
     }
   };
@@ -88,13 +91,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const renderSocials = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
       {SOCIAL_LINKS.map((link, i) => (
-        <a 
-          key={i} 
+        <a
+          key={i}
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
           className="group block bg-blue-900/20 border border-blue-500/30 p-6 hover:bg-blue-800/40 transition-all duration-200"
-          onMouseEnter={() => soundManager.playHover()}
+          onMouseEnter={() => {
+            soundManager.playHover();
+            hapticManager.light();
+          }}
+          onClick={() => hapticManager.medium()}
         >
           <div className="text-blue-400 text-xs tracking-widest uppercase mb-1">{link.platform}</div>
           <div className="text-xl font-mono text-white group-hover:ps2-text-shadow flex items-center justify-between">
@@ -343,12 +350,16 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     return (
         <div className="space-y-8">
           {WRITING_DATA.map((post, i) => (
-            <article 
-                key={i} 
+            <article
+                key={i}
                 className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-                onMouseEnter={() => soundManager.playHover()}
+                onMouseEnter={() => {
+                  soundManager.playHover();
+                  hapticManager.light();
+                }}
                 onClick={() => {
                     soundManager.playSelect();
+                    hapticManager.medium();
                     setSelectedWriting(post);
                 }}
             >
