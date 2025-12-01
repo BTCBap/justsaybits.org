@@ -11,6 +11,10 @@ import { soundManager } from './utils/SoundManager';
 const App: React.FC = () => {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [bootComplete, setBootComplete] = useState(false);
+  const [activeMenuIndex, setActiveMenuIndex] = useState(() => {
+    const aboutIndex = SECTIONS.findIndex(s => s.id === 'about');
+    return aboutIndex >= 0 ? aboutIndex : 0;
+  });
 
   const activeSection = SECTIONS.find(s => s.id === activeSectionId);
 
@@ -67,9 +71,11 @@ const App: React.FC = () => {
               exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)", transition: { duration: 0.5 } }}
               transition={{ duration: 0.8 }}
             >
-              <MainMenu 
-                sections={SECTIONS} 
-                onSelect={(id) => setActiveSectionId(id)} 
+              <MainMenu
+                sections={SECTIONS}
+                onSelect={(id) => setActiveSectionId(id)}
+                activeIndex={activeMenuIndex}
+                onActiveIndexChange={setActiveMenuIndex}
               />
             </motion.div>
           ) : null}

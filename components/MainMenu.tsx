@@ -6,13 +6,11 @@ import { soundManager } from '../utils/SoundManager';
 interface MainMenuProps {
   sections: Section[];
   onSelect: (sectionId: string) => void;
+  activeIndex: number;
+  onActiveIndexChange: (index: number) => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect }) => {
-  const [activeIndex, setActiveIndex] = useState(() => {
-    const aboutIndex = sections.findIndex(s => s.id === 'about');
-    return aboutIndex >= 0 ? aboutIndex : 0;
-  });
+const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, onActiveIndexChange }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   // Layout State
@@ -85,16 +83,16 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect }) => {
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'ArrowRight') {
-      setActiveIndex((prev) => (prev + 1) % sections.length);
+      onActiveIndexChange((activeIndex + 1) % sections.length);
       soundManager.playHover();
     } else if (e.key === 'ArrowLeft') {
-      setActiveIndex((prev) => (prev - 1 + sections.length) % sections.length);
+      onActiveIndexChange((activeIndex - 1 + sections.length) % sections.length);
       soundManager.playHover();
-    } else if (e.key === 'Enter' || e.key === ' ') {
+    } else if (e.key === 'Enter') {
       soundManager.playSelect();
       onSelect(sections[activeIndex].id);
     }
-  }, [sections, activeIndex, onSelect]);
+  }, [sections, activeIndex, onSelect, onActiveIndexChange]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -103,7 +101,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect }) => {
 
   const handleItemClick = (index: number) => {
     soundManager.playSelect();
-    setActiveIndex(index); 
+    onActiveIndexChange(index);
     onSelect(sections[index].id);
   };
 
@@ -269,19 +267,31 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect }) => {
 // Simple Clock Component
 const Clock: React.FC = () => {
     const [time, setTime] = useState(new Date());
-    
+
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
+    const timeString = time.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    });
+
+    const dateString = time.toLocaleDateString(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+
     return (
         <>
-            <div className="text-3xl font-bold tracking-widest ps2-text-shadow">
-                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div className="text-2xl font-bold tracking-widest ps2-text-shadow">
+                {timeString}
             </div>
             <div className="text-sm tracking-widest uppercase opacity-70">
-                {time.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
+                {dateString}
             </div>
         </>
     );

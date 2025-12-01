@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, Variants } from 'framer-motion';
 import { ArrowLeft, LayoutGrid, TrendingUp, ExternalLink } from 'lucide-react';
 import { 
@@ -56,7 +56,7 @@ const scrollbarStyles = `
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [portfolioTab, setPortfolioTab] = useState<'projects' | 'investments'>('projects');
   const [selectedWriting, setSelectedWriting] = useState<WritingItem | null>(null);
-  
+
   const handleBack = () => {
     soundManager.playBack();
     if (selectedWriting) {
@@ -65,6 +65,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       onBack();
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Backspace') {
+        handleBack();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWriting, onBack]);
 
   const handleTabChange = (tab: 'projects' | 'investments') => {
     if (portfolioTab !== tab) {
@@ -100,8 +111,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       <div className="border-b border-blue-500/30 pb-6">
         <h3 className="text-blue-400 uppercase tracking-widest text-sm mb-4 font-bold">Mission Directive</h3>
         <p className="text-xl leading-relaxed text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
-          Dedicated to advancing individual sovereignty through technology. My focus is on building resilient systems that prioritize user privacy, data ownership, and decentralized financial tools.
-        </p>
+          Dedicated to advancing individual sovereignty through cryptography. </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -109,11 +119,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Core Beliefs</h3>
            <ul className="space-y-3 text-sm">
              {[
-               "Financial freedom through Bitcoin and self-custody",
+               "Financial freedom from centralized authority",
                "Data ownership and privacy as fundamental rights",
                "Time is our scarcest asset",
-               "Critical thinking and AI literacy are essential tools",
-               "Financial systems should be open and accessible to all"
+               "Critical thinking and AI literacy are the major skills you'll need to thrive",
+               "Tools should be open and accessible to all"
              ].map((belief, i) => (
                <li key={i} className="flex items-start">
                  <span className="mr-2 text-blue-500">▶</span>
@@ -126,10 +136,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Current Objectives</h3>
            <ul className="space-y-3 text-sm">
              {[
-               "Building self-hosted data solutions",
-               "Creating local AI assistants for sovereignty",
-               "Promoting Bitcoin adoption as freedom tech",
-               "Prioritizing long-term value creation"
+               "Building open source tools",
+               "Leveraging AI and automation to win back time",
+               "Promoting Bitcoin adoption and freedom technologies",
+               "Prioritizing long-term value creation over short-term gains",
              ].map((goal, i) => (
                <li key={i} className="flex items-start">
                  <span className="mr-2 text-blue-500">◉</span>
@@ -143,7 +153,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       <div className="bg-blue-900/10 border border-blue-500/20 p-6 rounded-sm mt-8">
          <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-2">Log Entry: Background</h3>
          <p className="text-sm leading-relaxed text-blue-200/80 font-mono">
-            After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My work is now dedicated to building alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
+            After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
          </p>
       </div>
 

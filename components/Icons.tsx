@@ -28,14 +28,13 @@ export const IconSocial: React.FC<IconProps> = ({ className }) => (
 export const IconAbout: React.FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 64 64" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <GlowFilter />
-    {/* Memory Card Shape */}
-    <path d="M12 16h40v40H12z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.1" filter="url(#glow)" />
-    <path d="M16 12h32v8H16z" fill="currentColor" fillOpacity="0.3" />
-    {/* Connector Pins */}
-    <rect x="20" y="50" width="4" height="6" fill="currentColor" />
-    <rect x="28" y="50" width="4" height="6" fill="currentColor" />
-    <rect x="36" y="50" width="4" height="6" fill="currentColor" />
-    <rect x="44" y="50" width="4" height="6" fill="currentColor" />
+    {/* User Profile Icon */}
+    {/* Head */}
+    <circle cx="32" cy="20" r="10" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" filter="url(#glow)" />
+    {/* Shoulders/Body - 3D effect */}
+    <path d="M12 52c0-11 9-20 20-20s20 9 20 20" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.1" filter="url(#glow)" />
+    {/* Inner detail for depth */}
+    <path d="M18 52c0-8 6.5-14 14-14s14 6 14 14" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4" />
   </svg>
 );
 
@@ -73,14 +72,21 @@ export const IconInvestments: React.FC<IconProps> = ({ className }) => (
 export const IconBook: React.FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 64 64" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <GlowFilter />
-    {/* 3D Book */}
-    <path d="M16 12h24l8 8v32h-24l-8-8V12z" stroke="currentColor" strokeWidth="2" filter="url(#glow)" />
-    <path d="M16 12l8 8" stroke="currentColor" />
-    <path d="M40 12l8 8" stroke="currentColor" />
-    <path d="M40 44l8 8" stroke="currentColor" />
-    <path d="M24 20h16" stroke="currentColor" strokeOpacity="0.5" />
-    <path d="M24 28h16" stroke="currentColor" strokeOpacity="0.5" />
-    <path d="M24 36h16" stroke="currentColor" strokeOpacity="0.5" />
+    {/* Open Book - centered */}
+    {/* Left page */}
+    <path d="M12 14 L12 50 L30 46 L30 10 Z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="2" filter="url(#glow)" />
+    {/* Right page */}
+    <path d="M34 10 L34 46 L52 50 L52 14 Z" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="2" filter="url(#glow)" />
+    {/* Spine/binding */}
+    <line x1="32" y1="10" x2="32" y2="47" stroke="currentColor" strokeWidth="2" strokeOpacity="0.4" />
+    {/* Page lines (left) */}
+    <line x1="16" y1="20" x2="26" y2="19" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
+    <line x1="16" y1="26" x2="26" y2="25" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
+    <line x1="16" y1="32" x2="26" y2="31" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
+    {/* Page lines (right) */}
+    <line x1="38" y1="19" x2="48" y2="20" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
+    <line x1="38" y1="25" x2="48" y2="26" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
+    <line x1="38" y1="31" x2="48" y2="32" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
   </svg>
 );
 
@@ -98,13 +104,18 @@ export const IconWritings: React.FC<IconProps> = ({ className }) => (
 export const IconHistory: React.FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 64 64" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <GlowFilter />
-    {/* Clock/Hourglass hybrid */}
-    <circle cx="32" cy="32" r="24" stroke="currentColor" strokeWidth="2" filter="url(#glow)" />
-    <path d="M32 8v24l12 12" stroke="currentColor" strokeWidth="2" />
-    <circle cx="32" cy="32" r="2" fill="currentColor" />
-    <path d="M32 8a2 2 0 0 1 0 4 2 2 0 0 1 0-4" fill="currentColor" />
-    <path d="M32 52a2 2 0 0 1 0 4 2 2 0 0 1 0-4" fill="currentColor" />
-    <path d="M52 32a2 2 0 0 1 4 0 2 2 0 0 1-4 0" fill="currentColor" />
-    <path d="M8 32a2 2 0 0 1 4 0 2 2 0 0 1-4 0" fill="currentColor" />
+    {/* 3D Briefcase - centered */}
+    {/* Main body */}
+    <rect x="10" y="28" width="44" height="24" rx="2" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="2" filter="url(#glow)" />
+    {/* Top depth/3D effect */}
+    <path d="M10 28 L14 24 L58 24 L54 28 Z" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.5" />
+    {/* Side depth */}
+    <path d="M54 28 L58 24 L58 48 L54 52 Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1" />
+    {/* Handle */}
+    <path d="M26 28 L26 20 C26 16 28 14 30 14 L34 14 C36 14 38 16 38 20 L38 28" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+    {/* Lock/Clasp */}
+    <rect x="30" y="36" width="4" height="6" fill="currentColor" fillOpacity="0.6" rx="1" />
+    {/* Horizontal line detail */}
+    <line x1="10" y1="40" x2="54" y2="40" stroke="currentColor" strokeWidth="1" strokeOpacity="0.3" />
   </svg>
 );
