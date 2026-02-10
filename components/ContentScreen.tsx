@@ -334,9 +334,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                  </div>
              </div>
              
-             {/* Content - preserving whitespace */}
+             {/* Content - preserving whitespace, with **bold** support */}
              <div className="whitespace-pre-wrap leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50">
-                 {selectedWriting.content}
+                 {selectedWriting.content.split(/(\*\*.*?\*\*)/g).map((part, i) =>
+                   part.startsWith('**') && part.endsWith('**')
+                     ? <span key={i} className="font-bold text-white text-base md:text-lg tracking-wide uppercase">{part.slice(2, -2)}</span>
+                     : <span key={i}>{part}</span>
+                 )}
              </div>
 
              {/* Footer decoration */}

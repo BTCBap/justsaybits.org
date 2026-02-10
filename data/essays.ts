@@ -11,6 +11,66 @@ import { WritingItem } from '../types';
 
 export const ESSAYS: WritingItem[] = [
   {
+    title: "Self-Custody Is Losing Its Luster at the Worst Possible Time",
+    date: "Feb 03, 2026",
+    readTime: "6 min",
+    excerpt: "The exact moment the world most needs sovereign, bearer-form money is the moment people stopped caring about holding it.",
+    slug: "self-custody-losing-luster",
+    content: `ETFs passed, institutions showed up, and your coworker who used to ask "is Bitcoin a scam?" now has some in his Fidelity account. We won, apparently.
+
+Somewhere in that victory lap, holding your own keys quietly became the weird thing to do. The tinfoil-hat option, the thing your friend's friend still does because he "doesn't trust anyone." Everyone else moved on to buying Bitcoin the same way they buy an index fund. No seed phrases, no hardware wallets, no thinking required.
+
+I get it. The path of least resistance showed up and people took it. That's not a criticism, that's just what people do.
+
+But the timing is terrible.
+
+**Everyone Relaxed**
+
+FTX collapsed just over three years ago. Creditors are only now clawing back partial recoveries, but the lesson feels distant. Exchanges feel safe again, custodial products multiplied, and the ETF made Bitcoin feel like a stock, something that lives in your brokerage app with a ticker symbol and a fact sheet. The novelty has worn off on Wall Street, but the conversation never circled back to self-custody. It just moved on.
+
+Holding your own keys went from "the point of Bitcoin" to a power-user feature, which is a strange thing to call the reason it exists. What started as a movement turned into a product race, and the product that won was the one that made Bitcoin work exactly like the system it was built to replace.
+
+**What's Actually Happening Right Now**
+
+The surveillance infrastructure around us didn't pause because Bitcoin got legitimized. It accelerated. Flock Safety cameras are installed in over 5,000 U.S. cities now. Automated license plate readers log where your car was and when. "Pattern-of-life analysis," a phrase that used to live in military intelligence briefings, is now a bullet point in municipal police software demos. Predictive policing tools decide who gets extra scrutiny based on algorithms nobody outside the vendor has audited.
+
+AI isn't a research concept anymore. It's deployed, analyzing behavioral patterns in real time, modeling not just what you did but what you'll probably do next.
+
+Stablecoins and CBDC pilot programs are building the infrastructure for programmable money, the kind that can be frozen or restricted. Not by a judge with a warrant, but by code. China's digital yuan already does this, the ECB's digital euro is in development, and in the U.S. the same infrastructure is arriving through private stablecoins like USDT, USDC, and PYUSD, programmable dollars already at scale.
+
+Jeff Booth talks about technology as a deflationary force, but the same exponential curve that makes things cheaper also makes monitoring cheaper. Surveillance scales the way software scales: once the system is built, the cost of watching one more person approaches zero.
+
+None of this is conspiratorial, or even evil. These are companies building products and governments buying them.
+
+**Self-Custody Isn't the Paranoid Option**
+
+Bitcoin was never about "number go up." It was that no one can take this from you or tell you what to do with it, and that required you to hold the thing.
+
+When money becomes programmable and surveillance becomes the default, the only money that's yours is the money you hold yourself. Everything else is a promise from a third party that they'll honor your balance and not change the terms, and that promise is only as good as the political environment it exists in.
+
+The case for holding your own keys didn't weaken because BlackRock started offering an ETF. It got stronger. The world just got distracted.
+
+If someone had described this future to you five years ago, you would've said "this is exactly why Bitcoin matters." All of that came true, and we handed the Bitcoin to asset managers and called it progress.
+
+**The Irony**
+
+The exact moment the world most needs money no one else controls is the moment people stopped caring about holding it.
+
+Exposure isn't ownership. A paper claim on Bitcoin held by Coinbase is not the same as holding your own keys. The ETF brought Bitcoin into the mainstream by stripping out the property that made it yours, so it could be regulated and behave like everything else.
+
+It's not your BTC if BlackRock holds it.
+
+The people who've been around long enough remember why they got here, but everyone who came in through the ETF never heard the pitch. They bought Bitcoin the same way they bought SPY, and they'll get the same financial freedom from it (which is none).
+
+**The Window Is Open**
+
+The world doesn't get less surveilled from here. Right now, you can still move Bitcoin off exchanges and take custody yourself. The tooling is better than it was even two years ago. You don't need to be technical, you just need to decide it matters.
+
+But regulations are tightening and KYC requirements get more granular every year. That window won't stay open forever, and the time to take it seriously is while most people are looking the other way.
+
+Self-custody didn't lose its relevance. Everyone else just lost the plot.`
+  },
+  {
     title: "Volatility as Information",
     date: "Dec 01, 2025",
     readTime: "3 min",
