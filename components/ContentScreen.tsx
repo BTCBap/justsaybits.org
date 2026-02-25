@@ -291,30 +291,58 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   const renderBooks = () => (
     <div className="flex items-center justify-center h-full">
-      {BOOK_DATA.map((book, i) => (
-        <div key={i} className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-center bg-black/40 p-12 border border-blue-500/30 rounded-lg" onMouseEnter={() => soundManager.playHover()}>
-          <div className={`w-48 h-72 shrink-0 ${book.coverColor} shadow-[0_0_30px_rgba(234,88,12,0.3)] flex items-center justify-center text-center p-4 border-2 border-white/10 rotate-[-2deg]`}>
-            <div className="w-full h-full border border-white/20 flex flex-col items-center justify-center">
-                <span className="text-xl font-bold text-white/90 uppercase tracking-widest font-serif">{book.title}</span>
-                <span className="mt-4 text-xs text-white/70 uppercase tracking-widest">{book.author}</span>
+      {BOOK_DATA.map((book, i) => {
+        const handleOpen = () => {
+          if (book.url) window.open(book.url, '_blank', 'noopener,noreferrer');
+        };
+        return (
+          <div
+            key={i}
+            className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-center bg-black/40 p-12 border border-blue-500/30 rounded-lg"
+            onMouseEnter={() => soundManager.playHover()}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleOpen(); }}
+            tabIndex={book.url ? 0 : undefined}
+          >
+            <div
+              className={`w-48 h-72 shrink-0 ${book.coverImage ? '' : book.coverColor} shadow-[0_0_30px_rgba(234,88,12,0.3)] flex items-center justify-center text-center border-2 border-white/10 rotate-[-2deg] overflow-hidden ${book.url ? 'cursor-pointer' : ''}`}
+              onClick={handleOpen}
+            >
+              {book.coverImage ? (
+                <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full p-4 border border-white/20 flex flex-col items-center justify-center">
+                  <span className="text-xl font-bold text-white/90 uppercase tracking-widest font-serif">{book.title}</span>
+                  <span className="mt-4 text-xs text-white/70 uppercase tracking-widest">{book.author}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+              <h3 className="text-4xl font-serif text-white mb-1">{book.title}</h3>
+              {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
+              <div className="text-xl text-blue-400 mb-6">{book.author}</div>
+
+              <div className="bg-blue-900/30 border border-blue-500/50 px-6 py-4 rounded mb-6">
+                <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-6">
+                <span className="uppercase tracking-widest text-sm font-bold text-white/50">Available Now</span>
+                <span className="h-px w-8 bg-blue-500/50"></span>
+                <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
+              </div>
+
+              {book.url && (
+                <button
+                  onClick={handleOpen}
+                  className="uppercase tracking-widest text-sm font-bold text-blue-400 border border-blue-500/50 px-6 py-2 rounded hover:bg-blue-500/20 transition-colors"
+                >
+                  Get the Book →
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex flex-col items-center md:items-start text-center md:text-left">
-            <h3 className="text-4xl font-serif text-white mb-2">{book.title}</h3>
-            <div className="text-xl text-blue-400 mb-6">{book.author}</div>
-            
-            <div className="bg-blue-900/30 border border-blue-500/50 px-6 py-4 rounded mb-6">
-                <p className="text-lg text-blue-100 italic">"{book.thoughts}"</p>
-            </div>
-            
-            <div className="flex items-center space-x-2 text-yellow-500">
-               <span className="uppercase tracking-widest text-sm font-bold text-white/50">Release Date</span>
-               <span className="h-px w-8 bg-blue-500/50"></span>
-               <span className="font-mono text-white">March 2026</span>
-            </div>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 

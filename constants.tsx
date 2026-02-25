@@ -40,12 +40,15 @@ export const INVESTMENT_DATA: InvestmentItem[] = [
 ];
 
 export const BOOK_DATA: BookItem[] = [
-  { 
-    title: "The Bitcoin Tao", 
-    author: "Zach Wischler", 
-    rating: 5, 
-    thoughts: "Coming March 2026. A philosophical exploration of decentralized consensus.", 
-    coverColor: "bg-orange-600" 
+  {
+    title: "The Bitcoin Tao",
+    author: "Zach Wischler",
+    rating: 5,
+    subtitle: "The Book of the Bitcoin Way and Its Virtue",
+    thoughts: "Where ancient wisdom meets the future of money. The Bitcoin Tao explores the profound parallels between Taoist philosophy and the principles that underpin Bitcoin — decentralization, harmony, patience, and the natural order of sound money. This is more than a book. It's a meditation on why Bitcoin isn't just a technology, but a return to the way things were always meant to be.",
+    coverColor: "bg-orange-600",
+    coverImage: "/bitcoin-tao-cover.jpeg",
+    url: "https://store.bitcoinmagazine.com/pages/the-bitcoin-tao",
   },
 ];
 

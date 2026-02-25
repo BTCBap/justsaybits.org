@@ -27,10 +27,13 @@ export interface InvestmentItem {
 
 export interface BookItem {
   title: string;
+  subtitle?: string;
   author: string;
   rating: number; // 1-5
   thoughts: string;
   coverColor: string;
+  coverImage?: string;
+  url?: string;
 }
 
 export interface WritingItem {
