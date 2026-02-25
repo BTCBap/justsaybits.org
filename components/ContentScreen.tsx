@@ -65,7 +65,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     if (!essayMounted.current) { essayMounted.current = true; return; }
     const url = selectedEssay ? `/essays/${selectedEssay.slug}` : '/essays';
     const title = selectedEssay ? selectedEssay.title : 'Essays';
-    window.umami?.track({ url, title });
+    window.umami?.track(props => ({ ...props, url, title }));
   }, [selectedEssay, section.id]);
 
   const handleBack = () => {

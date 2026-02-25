@@ -1,7 +1,7 @@
 declare global {
   interface Window {
     umami?: {
-      track: (eventOrPayload: string | { url?: string; title?: string; referrer?: string }, data?: Record<string, unknown>) => void;
+      track: (eventOrPayload: string | Record<string, unknown> | ((props: Record<string, unknown>) => Record<string, unknown>), data?: Record<string, unknown>) => void;
     };
   }
 }
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     const title = activeSectionId
       ? (SECTIONS.find(s => s.id === activeSectionId)?.title ?? activeSectionId)
       : 'Home';
-    window.umami?.track({ url, title });
+    window.umami?.track(props => ({ ...props, url, title }));
   }, [activeSectionId, bootComplete]);
 
   // Resume AudioContext on first interaction
