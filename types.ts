@@ -36,7 +36,7 @@ export interface BookItem {
   url?: string;
 }
 
-export interface WritingItem {
+export interface EssayItem {
   title: string;
   date: string;
   readTime: string;

@@ -5,10 +5,10 @@ import {
   IconPortfolio,
   IconInvestments,
   IconBook,
-  IconWritings,
+  IconEssays,
   IconHistory
 } from './components/Icons';
-import { Section, PortfolioItem, InvestmentItem, BookItem, WritingItem, JobItem } from './types';
+import { Section, PortfolioItem, InvestmentItem, BookItem, EssayItem, JobItem } from './types';
 import { ESSAYS } from './data/essays';
 
 // --- Content Data ---
@@ -53,7 +53,7 @@ export const BOOK_DATA: BookItem[] = [
 ];
 
 // Essays are now maintained in ./data/essays.ts for easier management
-export const WRITING_DATA: WritingItem[] = ESSAYS;
+export const ESSAY_DATA: EssayItem[] = ESSAYS;
 
 export const WORK_DATA: JobItem[] = [
   {
@@ -119,5 +119,5 @@ export const SECTIONS: Section[] = [
   { id: 'work', title: 'Work', icon: IconHistory, description: 'Career History', color: 'cyan', component: null },
   { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'green', component: null },
   { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'red', component: null },
-  { id: 'writings', title: 'Essays', icon: IconWritings, description: 'Thoughts & Blogs', color: 'indigo', component: null },
+  { id: 'essays', title: 'Essays', icon: IconEssays, description: 'Thoughts & Blogs', color: 'indigo', component: null },
 ];

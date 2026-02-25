@@ -1,15 +1,15 @@
-import { WritingItem } from '../types';
+import { EssayItem } from '../types';
 
 /**
  * Essay data for the site.
  * To add a new essay:
  * 1. Add a new object to the ESSAYS array below
- * 2. Follow the WritingItem type structure
+ * 2. Follow the EssayItem type structure
  * 3. Ensure the slug is unique and URL-friendly
  * 4. Estimate readTime based on ~200-250 words per minute
  */
 
-export const ESSAYS: WritingItem[] = [
+export const ESSAYS: EssayItem[] = [
   {
     title: "Self-Custody Is Losing Its Luster at the Worst Possible Time",
     date: "Feb 03, 2026",

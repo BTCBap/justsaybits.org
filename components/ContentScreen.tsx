@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, Variants } from 'framer-motion';
 import { ArrowLeft, LayoutGrid, TrendingUp, ExternalLink } from 'lucide-react';
 import {
   PORTFOLIO_DATA,
   INVESTMENT_DATA,
   BOOK_DATA,
-  WRITING_DATA,
+  ESSAY_DATA,
   WORK_DATA,
   SOCIAL_LINKS
 } from '../constants';
-import { Section, WritingItem } from '../types';
+import { Section, EssayItem } from '../types';
 import { soundManager } from '../utils/SoundManager';
 import { hapticManager } from '../utils/HapticManager';
 
@@ -56,13 +56,23 @@ const scrollbarStyles = `
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [portfolioTab, setPortfolioTab] = useState<'projects' | 'investments'>('projects');
-  const [selectedWriting, setSelectedWriting] = useState<WritingItem | null>(null);
+  const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
+  const essayMounted = useRef(false);
+
+  // Track virtual pageviews for essay navigation (skip initial mount — section open is tracked by App.tsx)
+  useEffect(() => {
+    if (section.id !== 'essays') return;
+    if (!essayMounted.current) { essayMounted.current = true; return; }
+    const url = selectedEssay ? `/essays/${selectedEssay.slug}` : '/essays';
+    const title = selectedEssay ? selectedEssay.title : 'Essays';
+    window.umami?.track({ url, title });
+  }, [selectedEssay, section.id]);
 
   const handleBack = () => {
     soundManager.playBack();
     hapticManager.medium();
-    if (selectedWriting) {
-      setSelectedWriting(null);
+    if (selectedEssay) {
+      setSelectedEssay(null);
     } else {
       onBack();
     }
@@ -77,7 +87,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWriting, onBack]);
+  }, [selectedEssay, onBack]);
 
   const handleTabChange = (tab: 'projects' | 'investments') => {
     if (portfolioTab !== tab) {
@@ -101,7 +111,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
             soundManager.playHover();
             hapticManager.light();
           }}
-          onClick={() => hapticManager.medium()}
+          onClick={() => { hapticManager.medium(); window.umami?.track('social-click', { platform: link.platform }); }}
         >
           <div className="text-blue-400 text-xs tracking-widest uppercase mb-1">{link.platform}</div>
           <div className="text-xl font-mono text-white group-hover:ps2-text-shadow flex items-center justify-between">
@@ -277,7 +287,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                   </div>
                 </div>
                 {item.url && (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label={`View ${item.title}`}></a>
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label={`View ${item.title}`} onClick={() => window.umami?.track('portfolio-project-click', { title: item.title })}></a>
                 )}
               </div>
             ))}
@@ -293,7 +303,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     <div className="flex items-center justify-center h-full">
       {BOOK_DATA.map((book, i) => {
         const handleOpen = () => {
-          if (book.url) window.open(book.url, '_blank', 'noopener,noreferrer');
+          if (book.url) {
+            window.umami?.track('book-purchase-click', { title: book.title });
+            window.open(book.url, '_blank', 'noopener,noreferrer');
+          }
         };
         return (
           <div
@@ -346,25 +359,25 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     </div>
   );
 
-  const renderWritings = () => {
-    if (selectedWriting) {
+  const renderEssays = () => {
+    if (selectedEssay) {
        return (
          <div className="max-w-3xl mx-auto font-mono text-blue-100 h-full overflow-auto pr-4 ps2-scroll">
              {/* Header */}
              <div className="border-b border-blue-500/30 pb-4 mb-6 sticky top-0 bg-[#050a14] z-10 pt-2">
-                 <h3 className="text-2xl font-bold text-white mb-2 uppercase tracking-wide leading-tight">{selectedWriting.title}</h3>
+                 <h3 className="text-2xl font-bold text-white mb-2 uppercase tracking-wide leading-tight">{selectedEssay.title}</h3>
                  <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
-                    <span>{selectedWriting.date}</span>
+                    <span>{selectedEssay.date}</span>
                     <span className="text-blue-600">//</span>
-                    <span>{selectedWriting.readTime} read</span>
+                    <span>{selectedEssay.readTime} read</span>
                     <span className="text-blue-600">//</span>
-                    <span>{selectedWriting.slug.toUpperCase()}</span>
+                    <span>{selectedEssay.slug.toUpperCase()}</span>
                  </div>
              </div>
-             
+
              {/* Content - preserving whitespace, with **bold** support */}
              <div className="whitespace-pre-wrap leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50">
-                 {selectedWriting.content.split(/(\*\*.*?\*\*)/g).map((part, i) =>
+                 {selectedEssay.content.split(/(\*\*.*?\*\*)/g).map((part, i) =>
                    part.startsWith('**') && part.endsWith('**')
                      ? <span key={i} className="font-bold text-white text-base md:text-lg tracking-wide uppercase">{part.slice(2, -2)}</span>
                      : <span key={i}>{part}</span>
@@ -381,7 +394,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
     return (
         <div className="space-y-8">
-          {WRITING_DATA.map((post, i) => (
+          {ESSAY_DATA.map((post, i) => (
             <article
                 key={i}
                 className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
@@ -392,7 +405,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                 onClick={() => {
                     soundManager.playSelect();
                     hapticManager.medium();
-                    setSelectedWriting(post);
+                    setSelectedEssay(post);
                 }}
             >
               <div className="flex items-baseline justify-between mb-2 border-b border-blue-500/30 pb-2">
@@ -456,7 +469,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       case 'about': return renderAbout();
       case 'portfolio': return renderPortfolio();
       case 'book': return renderBooks();
-      case 'writings': return renderWritings();
+      case 'essays': return renderEssays();
       case 'work': return renderWork();
       default: return <div>Under Construction</div>;
     }
@@ -501,7 +514,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               <ArrowLeft className="w-4 h-4" />
             </div>
             <span className="uppercase tracking-widest font-mono text-xs">
-              {selectedWriting ? "Return to List" : "Back to System"}
+              {selectedEssay ? "Return to List" : "Back to System"}
             </span>
           </button>
         </div>

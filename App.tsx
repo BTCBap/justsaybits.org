@@ -1,3 +1,11 @@
+declare global {
+  interface Window {
+    umami?: {
+      track: (eventOrPayload: string | { url?: string; title?: string; referrer?: string }, data?: Record<string, unknown>) => void;
+    };
+  }
+}
+
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -17,6 +25,16 @@ const App: React.FC = () => {
   });
 
   const activeSection = SECTIONS.find(s => s.id === activeSectionId);
+
+  // Track virtual pageviews on section navigation
+  useEffect(() => {
+    if (!bootComplete) return;
+    const url = activeSectionId ? `/${activeSectionId}` : '/';
+    const title = activeSectionId
+      ? (SECTIONS.find(s => s.id === activeSectionId)?.title ?? activeSectionId)
+      : 'Home';
+    window.umami?.track({ url, title });
+  }, [activeSectionId, bootComplete]);
 
   // Resume AudioContext on first interaction
   useEffect(() => {
