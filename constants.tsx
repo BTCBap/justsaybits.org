@@ -15,12 +15,12 @@ import { ESSAYS } from './data/essays';
 
 export const PORTFOLIO_DATA: PortfolioItem[] = [
   {
-    title: "Hax Wallet",
+    title: "Hax",
     role: "Contributor",
     year: "2025",
     description: "A surprisingly feature-rich open source bitcoin TUI wallet built with modern standards.",
     tech: ["Bitcoin", "Go", "TUI"],
-    url: "https://github.com/hax-wallet/hax-wallet"
+    url: "https://github.com/BTCBap/hax"
   },
   {
     title: "The Space",
@@ -48,7 +48,7 @@ export const BOOK_DATA: BookItem[] = [
     thoughts: "Where ancient wisdom meets the future of money. The Bitcoin Tao explores the profound parallels between Taoist philosophy and the principles that underpin Bitcoin — decentralization, harmony, patience, and the natural order of sound money. This is more than a book. It's a meditation on why Bitcoin isn't just a technology, but a return to the way things were always meant to be.",
     coverColor: "bg-orange-600",
     coverImage: "/bitcoin-tao-cover.jpeg",
-    url: "https://store.bitcoinmagazine.com/pages/the-bitcoin-tao",
+    url: "https://amzn.to/4ej0RbJ",
   },
 ];
 
