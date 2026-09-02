@@ -16,7 +16,7 @@ import { ESSAYS } from './data/essays';
 export const PORTFOLIO_DATA: PortfolioItem[] = [
   {
     title: "Hax",
-    role: "Contributor",
+    role: "Creator",
     year: "2025",
     description: "A surprisingly feature-rich open source bitcoin TUI wallet built with modern standards.",
     tech: ["Bitcoin", "Go", "TUI"],
@@ -57,12 +57,19 @@ export const ESSAY_DATA: EssayItem[] = ESSAYS;
 
 export const WORK_DATA: JobItem[] = [
   {
+    company: "Swan Bitcoin",
+    role: "Managing Director, Swan Private",
+    period: "Sep 2026 - Present",
+    location: "Denver, Colorado, United States",
+    highlights: []
+  },
+  {
     company: "Casa Inc.",
-    period: "4 yrs 8 mos",
+    period: "5 yrs 3 mos",
     location: "Denver, Colorado, United States",
     highlights: [],
     subRoles: [
-      { title: "Director of Sales", period: "Dec 2025 - Present" },
+      { title: "Director of Sales", period: "Dec 2025 - Jul 2026" },
       { title: "Sales Manager", period: "Apr 2024 - Dec 2025" },
       { title: "Account Executive", period: "Apr 2021 - Mar 2024" }
     ]
@@ -70,14 +77,14 @@ export const WORK_DATA: JobItem[] = [
   {
     company: "The Space Education Foundation",
     role: "President",
-    period: "Jan 2023 - Present",
+    period: "Jan 2023 - Jan 2026",
     location: "Denver, Colorado, United States",
     highlights: []
   },
   {
     company: "The Space",
     role: "Co-Founder and Board Member",
-    period: "Apr 2024 - Present",
+    period: "Apr 2024 - Jan 2026",
     location: "Denver, Colorado, United States",
     highlights: []
   },

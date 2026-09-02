@@ -126,9 +126,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const renderAbout = () => (
     <div className="max-w-3xl mx-auto space-y-8 text-blue-100 font-light">
       <div className="border-b border-blue-500/30 pb-6">
-        <h3 className="text-blue-400 uppercase tracking-widest text-sm mb-4 font-bold">Mission Directive</h3>
         <p className="text-xl leading-relaxed text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
-          Dedicated to advancing individual sovereignty through cryptography. </p>
+          Dedicated to advancing individual sovereignty through cryptography.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -167,19 +167,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </div>
       </div>
 
-      <div className="bg-blue-900/10 border border-blue-500/20 p-6 rounded-sm mt-8">
-         <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-2">Log Entry: Background</h3>
-         <p className="text-sm leading-relaxed text-blue-200/80 font-mono">
-            After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
-         </p>
-      </div>
-
-      <div className="mt-8 border-t border-blue-500/30 pt-4 flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]" />
-          <span className="font-mono text-xs text-green-400/80 uppercase tracking-wider">System Status: Sovereign</span>
-        </div>
-      </div>
+      <p className="text-sm leading-relaxed text-blue-200/80">
+        After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
+      </p>
     </div>
   );
 
@@ -365,28 +355,21 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
          <div className="max-w-3xl mx-auto font-mono text-blue-100 h-full overflow-auto pr-4 ps2-scroll">
              {/* Header */}
              <div className="border-b border-blue-500/30 pb-4 mb-6 sticky top-0 bg-[#050a14] z-10 pt-2">
-                 <h3 className="text-2xl font-bold text-white mb-2 uppercase tracking-wide leading-tight">{selectedEssay.title}</h3>
+                 <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
                  <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
                     <span>{selectedEssay.date}</span>
                     <span className="text-blue-600">//</span>
                     <span>{selectedEssay.readTime} read</span>
-                    <span className="text-blue-600">//</span>
-                    <span>{selectedEssay.slug.toUpperCase()}</span>
                  </div>
              </div>
 
              {/* Content - preserving whitespace, with **bold** support */}
-             <div className="whitespace-pre-wrap leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50">
+             <div className="whitespace-pre-wrap leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8">
                  {selectedEssay.content.split(/(\*\*.*?\*\*)/g).map((part, i) =>
                    part.startsWith('**') && part.endsWith('**')
-                     ? <span key={i} className="font-bold text-white text-base md:text-lg tracking-wide uppercase">{part.slice(2, -2)}</span>
+                     ? <span key={i} className="font-bold text-white text-base md:text-lg tracking-wide">{part.slice(2, -2)}</span>
                      : <span key={i}>{part}</span>
                  )}
-             </div>
-
-             {/* Footer decoration */}
-             <div className="mt-12 pt-8 border-t border-blue-500/20 text-center pb-8">
-                 <span className="animate-pulse text-blue-500 text-xl">_</span>
              </div>
          </div>
        );
@@ -493,9 +476,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
             <h2 className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow">
               {section.title}
             </h2>
-          </div>
-          <div className="text-xs font-mono text-blue-500/60">
-            SYS.VER.2.0 // MEMORY_BLOCK_0{section.id.length}
           </div>
         </div>
 
