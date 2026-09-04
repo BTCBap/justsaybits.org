@@ -10,6 +10,7 @@ import {
   GraduationCap,
   MonitorPlay,
   BookOpen,
+  MessageCircle,
 } from 'lucide-react';
 import {
   PORTFOLIO_DATA,
@@ -23,8 +24,9 @@ import {
   LECTURES,
   TUTORIALS,
   READING_LIST,
+  POSTS,
 } from '../constants';
-import { Section, EssayItem, MediaItem, ReadingItem, ContentTab } from '../types';
+import { Section, EssayItem, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
 import { soundManager } from '../utils/SoundManager';
 import { hapticManager } from '../utils/HapticManager';
 
@@ -50,11 +52,17 @@ const containerVariants: Variants = {
 
 const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'essays', label: 'Essays', icon: FileText },
+  { id: 'posts', label: 'Posts', icon: MessageCircle },
   { id: 'podcasts', label: 'Podcasts', icon: Mic },
   { id: 'lectures', label: 'Lectures', icon: GraduationCap },
   { id: 'tutorials', label: 'Tutorials', icon: MonitorPlay },
   { id: 'reading', label: 'Reading', icon: BookOpen },
 ];
+
+const postEngagement = (p: PostItem) =>
+  p.likes + p.reposts * 2 + p.replies + (p.quotes ?? 0) + (p.bookmarks ?? 0);
+
+const RANKED_POSTS = [...POSTS].sort((a, b) => postEngagement(b) - postEngagement(a));
 
 const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
   const re = /(\*\*[\s\S]*?\*\*|\*[^*\n]+?\*|\[[^\]]+\]\([^)]+\))/g;
@@ -139,7 +147,7 @@ const EssayBody: React.FC<{ content: string }> = ({ content }) => {
             <img
               src={data.src}
               alt={data.alt || data.caption || ''}
-              className="max-w-full w-full border border-blue-500/20"
+              className="max-w-full w-full h-auto object-contain border border-blue-500/20"
             />
             {data.caption && (
               <figcaption className="mt-2 text-xs text-blue-400/80 font-mono italic">
@@ -291,6 +299,48 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     </a>
   );
 
+  const renderPostCard = (item: PostItem) => {
+    const raw = item.text.trim() || 'View post';
+    const title = raw.length > 160 ? `${raw.slice(0, 157).trimEnd()}…` : raw;
+    return (
+    <a
+      key={item.id}
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
+      onMouseEnter={() => {
+        soundManager.playHover();
+        hapticManager.light();
+      }}
+      onClick={() => { hapticManager.medium(); }}
+    >
+      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
+          {title}
+        </h3>
+        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
+      </div>
+      {item.image && (
+        <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
+          <img
+            src={item.image}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="max-h-96 max-w-full w-auto h-auto object-contain"
+          />
+        </div>
+      )}
+      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
+        <span>@BTCBap</span>
+        <span className="mx-2">::</span>
+        <span>{item.likes.toLocaleString()} likes</span>
+        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </a>
+    );
+  };
+
   const renderReadingCard = (item: ReadingItem) => (
     <a
       key={item.url}
@@ -345,6 +395,16 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   const renderAbout = () => (
     <div className="max-w-3xl mx-auto space-y-8 text-blue-100 font-light">
+      <div className="flex justify-center">
+        <div className="border border-blue-500/40 p-1 bg-black/40 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
+          <img
+            src="/about-portrait.png"
+            alt="Zach Wischler"
+            className="block w-36 md:w-40 h-auto"
+          />
+        </div>
+      </div>
+
       <div className="border-b border-blue-500/30 pb-6">
         <p className="text-xl leading-relaxed text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
           Dedicated to advancing individual sovereignty through cryptography.
@@ -581,6 +641,16 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                     <span className="text-blue-600">//</span>
                     <span>{selectedEssay.readTime} read</span>
                  </div>
+                 {selectedEssay.sourceUrl && (
+                   <a
+                     href={selectedEssay.sourceUrl}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="inline-block mt-2 text-xs text-blue-400 font-mono hover:text-white underline underline-offset-2"
+                   >
+                     {selectedEssay.sourceLabel || 'Published elsewhere'}
+                   </a>
+                 )}
              </div>
 
              {/* Content - preserving whitespace, with **bold**, links, and Substack media */}
@@ -617,6 +687,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                 <span className="mx-2">::</span>
                 <span>{post.readTime} READ</span>
               </div>
+              {post.sourceUrl && (
+                <a
+                  href={post.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2"
+                >
+                  {post.sourceLabel || 'Published elsewhere'}
+                </a>
+              )}
             </article>
           ))}
         </div>
@@ -656,6 +737,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       transition={{ duration: 0.3 }}
     >
       {contentTab === 'essays' && renderEssays()}
+      {contentTab === 'posts' && (
+        <div className="space-y-4">
+          <p className="text-blue-400/80 text-xs font-mono uppercase tracking-widest">
+            Top posts by engagement · {RANKED_POSTS.length} from @BTCBap
+          </p>
+          {RANKED_POSTS.map(item => renderPostCard(item))}
+        </div>
+      )}
       {contentTab === 'podcasts' && (
         <div className="space-y-10">
           <div>

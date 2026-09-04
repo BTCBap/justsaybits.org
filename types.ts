@@ -43,6 +43,8 @@ export interface EssayItem {
   excerpt: string;
   slug: string;
   content: string;
+  sourceLabel?: string;
+  sourceUrl?: string;
 }
 
 export interface MediaItem {
@@ -59,7 +61,20 @@ export interface ReadingItem {
   date: string;
 }
 
-export type ContentTab = 'essays' | 'podcasts' | 'lectures' | 'tutorials' | 'reading';
+export interface PostItem {
+  id: string;
+  text: string;
+  date: string;
+  likes: number;
+  reposts: number;
+  replies: number;
+  quotes?: number;
+  bookmarks?: number;
+  image?: string;
+  url: string;
+}
+
+export type ContentTab = 'essays' | 'posts' | 'podcasts' | 'lectures' | 'tutorials' | 'reading';
 
 export interface JobItem {
   company: string;

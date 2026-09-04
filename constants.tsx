@@ -17,6 +17,7 @@ import {
   TUTORIALS,
   READING_LIST,
 } from './data/media';
+import { POSTS } from './data/posts';
 
 export {
   PODCASTS_VALUE_STACK,
@@ -24,6 +25,7 @@ export {
   LECTURES,
   TUTORIALS,
   READING_LIST,
+  POSTS,
 };
 
 // --- Content Data ---

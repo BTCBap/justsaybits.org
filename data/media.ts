@@ -293,10 +293,28 @@ export const PODCASTS_VALUE_STACK: MediaItem[] = [
 
 export const PODCASTS_APPEARANCES: MediaItem[] = [
   {
+    "title": "Zach Wischler: Bitcoin self custody protects you when hackers target people | RoxomTV News",
+    "date": "Apr 18, 2026",
+    "source": "RoxomTV News",
+    "url": "https://youtu.be/hDhwSC2M6KY"
+  },
+  {
+    "title": "Why 99% of Advisors Will Be Unemployed in 3 Years",
+    "date": "Jan 21, 2026",
+    "source": "Bitcoin for Financial Services",
+    "url": "https://youtu.be/sSYbcL2C6LY"
+  },
+  {
     "title": "The Space Denver and Working with Bitcoiners with Zach W. (@BTCBap) | The CBP (Bitcoin Podcast)",
     "date": "Jan 30, 2025",
     "source": "Canadian Bitcoiners",
     "url": "https://youtu.be/wyKIzII_QVk"
+  },
+  {
+    "title": "Self Custody & Multi Sig with Zach @ValueStackPod  - State of Bitcoin Ep 49",
+    "date": "Nov 17, 2022",
+    "source": "Brandon Keys - Green Candle",
+    "url": "https://www.youtube.com/live/PY-DNv-uQIY"
   },
   {
     "title": "Bitcoin is Freedom with @BTCBap - State of Bitcoin Ep. 24",
@@ -309,24 +327,6 @@ export const PODCASTS_APPEARANCES: MediaItem[] = [
     "date": "Mar 03, 2021",
     "source": "Bitcoin Magazine",
     "url": "https://youtu.be/75jWyRWPjYE"
-  },
-  {
-    "title": "Self Custody & Multi Sig with Zach @ValueStackPod  - State of Bitcoin Ep 49",
-    "date": "Nov 17, 2022",
-    "source": "Brandon Keys - Green Candle",
-    "url": "https://www.youtube.com/live/PY-DNv-uQIY"
-  },
-  {
-    "title": "Why 99% of Advisors Will Be Unemployed in 3 Years",
-    "date": "Jan 21, 2026",
-    "source": "Bitcoin for Financial Services",
-    "url": "https://youtu.be/sSYbcL2C6LY"
-  },
-  {
-    "title": "Zach Wischler: Bitcoin self custody protects you when hackers target people | RoxomTV News",
-    "date": "Apr 18, 2026",
-    "source": "RoxomTV News",
-    "url": "https://youtu.be/hDhwSC2M6KY"
   }
 ];
 
@@ -494,16 +494,10 @@ export const TUTORIALS: MediaItem[] = [
 
 export const READING_LIST: ReadingItem[] = [
   {
-    "title": "Tao Te Ching",
-    "author": "Laozi",
-    "date": "300 BCE",
-    "url": "https://www.gutenberg.org/files/216/216-h/216-h.htm"
-  },
-  {
-    "title": "A Cypherpunk's Manifesto",
-    "author": "Eric Hughes",
-    "date": "Mar 09, 1993",
-    "url": "https://www.activism.net/cypherpunk/manifesto.html"
+    "title": "Situational Awareness",
+    "author": "Leopold Aschenbrenner",
+    "date": "Jun 2024",
+    "url": "https://situational-awareness.ai/wp-content/uploads/2024/06/situationalawareness.pdf"
   },
   {
     "title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
@@ -512,9 +506,15 @@ export const READING_LIST: ReadingItem[] = [
     "url": "https://bitcoin.org/bitcoin.pdf"
   },
   {
-    "title": "Situational Awareness",
-    "author": "Leopold Aschenbrenner",
-    "date": "Jun 2024",
-    "url": "https://situational-awareness.ai/wp-content/uploads/2024/06/situationalawareness.pdf"
+    "title": "A Cypherpunk's Manifesto",
+    "author": "Eric Hughes",
+    "date": "Mar 09, 1993",
+    "url": "https://www.activism.net/cypherpunk/manifesto.html"
+  },
+  {
+    "title": "Tao Te Ching",
+    "author": "Laozi",
+    "date": "300 BCE",
+    "url": "https://www.gutenberg.org/files/216/216-h/216-h.htm"
   }
 ];
