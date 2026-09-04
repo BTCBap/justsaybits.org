@@ -568,7 +568,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
        return (
          <div className="max-w-3xl mx-auto font-mono text-blue-100">
              {/* Header */}
-             <div className="border-b border-blue-500/30 pb-4 mb-6 sticky top-0 bg-[#050a14] z-10 pt-2">
+             <div className="border-b border-blue-500/30 pb-4 mb-6 pt-2">
                  <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
                  <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
                     <span>{selectedEssay.date}</span>
