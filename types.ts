@@ -56,6 +56,7 @@ export interface ReadingItem {
   title: string;
   author: string;
   url: string;
+  date: string;
 }
 
 export type ContentTab = 'essays' | 'podcasts' | 'lectures' | 'tutorials' | 'reading';

@@ -303,6 +303,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {item.title}
         </h3>
+        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
       </div>
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
         <span>{item.author}</span>

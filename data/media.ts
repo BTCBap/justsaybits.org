@@ -494,18 +494,27 @@ export const TUTORIALS: MediaItem[] = [
 
 export const READING_LIST: ReadingItem[] = [
   {
+    "title": "Tao Te Ching",
+    "author": "Laozi",
+    "date": "300 BCE",
+    "url": "https://www.gutenberg.org/files/216/216-h/216-h.htm"
+  },
+  {
     "title": "A Cypherpunk's Manifesto",
     "author": "Eric Hughes",
+    "date": "Mar 09, 1993",
     "url": "https://www.activism.net/cypherpunk/manifesto.html"
   },
   {
     "title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
     "author": "Satoshi Nakamoto",
+    "date": "Oct 31, 2008",
     "url": "https://bitcoin.org/bitcoin.pdf"
   },
   {
     "title": "Situational Awareness",
     "author": "Leopold Aschenbrenner",
+    "date": "Jun 2024",
     "url": "https://situational-awareness.ai/wp-content/uploads/2024/06/situationalawareness.pdf"
   }
 ];
