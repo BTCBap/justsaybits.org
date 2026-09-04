@@ -474,6 +474,6 @@ export const READING_LIST: ReadingItem[] = [
   {
     "title": "Situational Awareness",
     "author": "Leopold Aschenbrenner",
-    "url": "https://situational-awareness.ai/"
+    "url": "https://situational-awareness.ai/wp-content/uploads/2024/06/situationalawareness.pdf"
   }
 ];
