@@ -1,15 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, Variants } from 'framer-motion';
-import { ArrowLeft, LayoutGrid, TrendingUp, ExternalLink } from 'lucide-react';
+import {
+  ArrowLeft,
+  LayoutGrid,
+  TrendingUp,
+  ExternalLink,
+  FileText,
+  Mic,
+  GraduationCap,
+  MonitorPlay,
+  BookOpen,
+} from 'lucide-react';
 import {
   PORTFOLIO_DATA,
   INVESTMENT_DATA,
   BOOK_DATA,
   ESSAY_DATA,
   WORK_DATA,
-  SOCIAL_LINKS
+  SOCIAL_LINKS,
+  PODCASTS_VALUE_STACK,
+  PODCASTS_APPEARANCES,
+  LECTURES,
+  TUTORIALS,
+  READING_LIST,
 } from '../constants';
-import { Section, EssayItem } from '../types';
+import { Section, EssayItem, MediaItem, ReadingItem, ContentTab } from '../types';
 import { soundManager } from '../utils/SoundManager';
 import { hapticManager } from '../utils/HapticManager';
 
@@ -31,6 +46,141 @@ const containerVariants: Variants = {
     filter: "blur(10px)",
     transition: { duration: 0.3 } 
   }
+};
+
+const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'essays', label: 'Essays', icon: FileText },
+  { id: 'podcasts', label: 'Podcasts', icon: Mic },
+  { id: 'lectures', label: 'Lectures', icon: GraduationCap },
+  { id: 'tutorials', label: 'Tutorials', icon: MonitorPlay },
+  { id: 'reading', label: 'Reading', icon: BookOpen },
+];
+
+const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
+  const re = /(\*\*[\s\S]*?\*\*|\*[^*\n]+?\*|\[[^\]]+\]\([^)]+\))/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let i = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) {
+      parts.push(text.slice(last, m.index));
+    }
+    const tok = m[0];
+    if (tok.startsWith('**') && tok.endsWith('**') && tok.length >= 4) {
+      parts.push(
+        <span key={`${keyPrefix}-b-${i++}`} className="font-bold text-white text-base md:text-lg tracking-wide">
+          {tok.slice(2, -2)}
+        </span>
+      );
+    } else if (tok.startsWith('*') && tok.endsWith('*') && tok.length >= 2) {
+      parts.push(<em key={`${keyPrefix}-i-${i++}`}>{tok.slice(1, -1)}</em>);
+    } else {
+      const lm = tok.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (lm) {
+        parts.push(
+          <a
+            key={`${keyPrefix}-a-${i++}`}
+            href={lm[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 underline underline-offset-2 hover:text-white"
+          >
+            {lm[1]}
+          </a>
+        );
+      } else {
+        parts.push(tok);
+      }
+    }
+    last = m.index + tok.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+};
+
+const EssayBody: React.FC<{ content: string }> = ({ content }) => {
+  const nodes: React.ReactNode[] = [];
+  const re = /%%(YOUTUBE|IMAGE|TWEET):([\s\S]*?)%%/g;
+  let last = 0;
+  let i = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) {
+    if (m.index > last) {
+      const text = content.slice(last, m.index);
+      if (text.length) {
+        nodes.push(
+          <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
+            {renderInline(text, `t${i}`)}
+          </div>
+        );
+      }
+    }
+    try {
+      const data = JSON.parse(m[2]);
+      if (m[1] === 'YOUTUBE' && data.id) {
+        const start = data.start ? `&start=${encodeURIComponent(data.start)}` : '';
+        nodes.push(
+          <div key={`yt-${i++}`} className="my-6 w-full overflow-hidden border border-blue-500/30 bg-black/40">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube-nocookie.com/embed/${data.id}?rel=0${start}`}
+                title="YouTube video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        );
+      } else if (m[1] === 'IMAGE' && data.src) {
+        nodes.push(
+          <figure key={`img-${i++}`} className="my-6">
+            <img
+              src={data.src}
+              alt={data.alt || data.caption || ''}
+              className="max-w-full w-full border border-blue-500/20"
+            />
+            {data.caption && (
+              <figcaption className="mt-2 text-xs text-blue-400/80 font-mono italic">
+                {renderInline(data.caption, `cap${i}`)}
+              </figcaption>
+            )}
+          </figure>
+        );
+      } else if (m[1] === 'TWEET') {
+        nodes.push(
+          <a
+            key={`tw-${i++}`}
+            href={data.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="my-6 block border border-blue-500/30 bg-blue-900/10 p-4 hover:border-blue-400 transition-colors"
+          >
+            <div className="text-white font-bold">{data.name}</div>
+            {data.username && (
+              <div className="text-xs text-blue-400 font-mono mb-2">@{data.username}</div>
+            )}
+            <p className="text-sm text-blue-100 whitespace-pre-wrap">{data.text}</p>
+          </a>
+        );
+      }
+    } catch {
+      // skip malformed media tokens
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) {
+    const text = content.slice(last);
+    if (text.length) {
+      nodes.push(
+        <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
+          {renderInline(text, `t${i}`)}
+        </div>
+      );
+    }
+  }
+  return <>{nodes}</>;
 };
 
 const scrollbarStyles = `
@@ -56,17 +206,20 @@ const scrollbarStyles = `
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [portfolioTab, setPortfolioTab] = useState<'projects' | 'investments'>('projects');
+  const [contentTab, setContentTab] = useState<ContentTab>('essays');
   const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
-  const essayMounted = useRef(false);
+  const contentMounted = useRef(false);
 
-  // Track virtual pageviews for essay navigation (skip initial mount — section open is tracked by App.tsx)
+  // Track virtual pageviews for content tabs / essay reader (skip initial mount — section open is tracked by App.tsx)
   useEffect(() => {
-    if (section.id !== 'essays') return;
-    if (!essayMounted.current) { essayMounted.current = true; return; }
-    const url = selectedEssay ? `/essays/${selectedEssay.slug}` : '/essays';
-    const title = selectedEssay ? selectedEssay.title : 'Essays';
+    if (section.id !== 'content') return;
+    if (!contentMounted.current) { contentMounted.current = true; return; }
+    const url = selectedEssay
+      ? `/content/essays/${selectedEssay.slug}`
+      : `/content/${contentTab}`;
+    const title = selectedEssay ? selectedEssay.title : `Content / ${contentTab}`;
     window.umami?.track(props => ({ ...props, url, title }));
-  }, [selectedEssay, section.id]);
+  }, [selectedEssay, contentTab, section.id]);
 
   const handleBack = () => {
     soundManager.playBack();
@@ -96,6 +249,66 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       setPortfolioTab(tab);
     }
   };
+
+  const handleContentTabChange = (tab: ContentTab) => {
+    if (contentTab !== tab) {
+      soundManager.playHover();
+      hapticManager.light();
+      setContentTab(tab);
+      setSelectedEssay(null);
+    }
+  };
+
+  const renderMediaCard = (item: MediaItem, extra?: string) => (
+    <a
+      key={item.url}
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
+      onMouseEnter={() => {
+        soundManager.playHover();
+        hapticManager.light();
+      }}
+      onClick={() => { hapticManager.medium(); }}
+    >
+      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
+          {item.title}
+        </h3>
+        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>}
+      </div>
+      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
+        <span>{extra || item.source}</span>
+        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </a>
+  );
+
+  const renderReadingCard = (item: ReadingItem) => (
+    <a
+      key={item.url}
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
+      onMouseEnter={() => {
+        soundManager.playHover();
+        hapticManager.light();
+      }}
+      onClick={() => { hapticManager.medium(); }}
+    >
+      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
+          {item.title}
+        </h3>
+      </div>
+      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
+        <span>{item.author}</span>
+        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </a>
+  );
 
   // Render Helpers
   const renderSocials = () => (
@@ -363,13 +576,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                  </div>
              </div>
 
-             {/* Content - preserving whitespace, with **bold** support */}
-             <div className="whitespace-pre-wrap leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8">
-                 {selectedEssay.content.split(/(\*\*.*?\*\*)/g).map((part, i) =>
-                   part.startsWith('**') && part.endsWith('**')
-                     ? <span key={i} className="font-bold text-white text-base md:text-lg tracking-wide">{part.slice(2, -2)}</span>
-                     : <span key={i}>{part}</span>
-                 )}
+             {/* Content - preserving whitespace, with **bold**, links, and Substack media */}
+             <div className="leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8">
+                 <EssayBody content={selectedEssay.content} />
              </div>
          </div>
        );
@@ -406,6 +615,76 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </div>
     );
   };
+
+  const renderContentHub = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center space-x-6 md:space-x-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto ps2-scroll">
+        {CONTENT_TABS.map(tab => {
+          const Icon = tab.icon;
+          const active = contentTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleContentTabChange(tab.id)}
+              className={`flex items-center space-x-2 pb-3 transition-all duration-300 shrink-0 ${
+                active
+                  ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
+                  : 'text-blue-500/50 hover:text-blue-300'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="uppercase tracking-widest text-sm font-bold">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <motion.div
+        key={selectedEssay ? selectedEssay.slug : contentTab}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex-grow overflow-auto ps2-scroll"
+      >
+        {contentTab === 'essays' && renderEssays()}
+        {contentTab === 'podcasts' && (
+          <div className="space-y-10">
+            <div>
+              <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
+                Value Stack (host)
+              </h3>
+              <div className="space-y-4">
+                {PODCASTS_VALUE_STACK.map(item => renderMediaCard(item))}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
+                Guest appearances
+              </h3>
+              <div className="space-y-4">
+                {PODCASTS_APPEARANCES.map(item => renderMediaCard(item))}
+              </div>
+            </div>
+          </div>
+        )}
+        {contentTab === 'lectures' && (
+          <div className="space-y-4">
+            {LECTURES.map(item => renderMediaCard(item))}
+          </div>
+        )}
+        {contentTab === 'tutorials' && (
+          <div className="space-y-4">
+            {TUTORIALS.map(item => renderMediaCard(item))}
+          </div>
+        )}
+        {contentTab === 'reading' && (
+          <div className="space-y-4">
+            {READING_LIST.map(item => renderReadingCard(item))}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
 
   const renderWork = () => (
     <div className="space-y-4 max-w-4xl mx-auto">
@@ -452,7 +731,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       case 'about': return renderAbout();
       case 'portfolio': return renderPortfolio();
       case 'book': return renderBooks();
-      case 'essays': return renderEssays();
+      case 'content': return renderContentHub();
       case 'work': return renderWork();
       default: return <div>Under Construction</div>;
     }

@@ -45,6 +45,21 @@ export interface EssayItem {
   content: string;
 }
 
+export interface MediaItem {
+  title: string;
+  url: string;
+  source: string;
+  date?: string;
+}
+
+export interface ReadingItem {
+  title: string;
+  author: string;
+  url: string;
+}
+
+export type ContentTab = 'essays' | 'podcasts' | 'lectures' | 'tutorials' | 'reading';
+
 export interface JobItem {
   company: string;
   role?: string; // Optional if using subRoles

@@ -5,11 +5,26 @@ import {
   IconPortfolio,
   IconInvestments,
   IconBook,
-  IconEssays,
+  IconContent,
   IconHistory
 } from './components/Icons';
 import { Section, PortfolioItem, InvestmentItem, BookItem, EssayItem, JobItem } from './types';
 import { ESSAYS } from './data/essays';
+import {
+  PODCASTS_VALUE_STACK,
+  PODCASTS_APPEARANCES,
+  LECTURES,
+  TUTORIALS,
+  READING_LIST,
+} from './data/media';
+
+export {
+  PODCASTS_VALUE_STACK,
+  PODCASTS_APPEARANCES,
+  LECTURES,
+  TUTORIALS,
+  READING_LIST,
+};
 
 // --- Content Data ---
 
@@ -126,5 +141,5 @@ export const SECTIONS: Section[] = [
   { id: 'work', title: 'Work', icon: IconHistory, description: 'Career History', color: 'cyan', component: null },
   { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'green', component: null },
   { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'red', component: null },
-  { id: 'essays', title: 'Essays', icon: IconEssays, description: 'Thoughts & Blogs', color: 'indigo', component: null },
+  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'indigo', component: null },
 ];

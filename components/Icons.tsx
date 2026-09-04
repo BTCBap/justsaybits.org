@@ -101,6 +101,8 @@ export const IconEssays: React.FC<IconProps> = ({ className }) => (
   </svg>
 );
 
+export const IconContent = IconEssays;
+
 export const IconHistory: React.FC<IconProps> = ({ className }) => (
   <svg viewBox="0 0 64 64" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <GlowFilter />
