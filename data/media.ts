@@ -425,36 +425,43 @@ export const LECTURES: MediaItem[] = [
 export const TUTORIALS: MediaItem[] = [
   {
     "title": "Liana Miniscript wallet",
+    "date": "Aug 09, 2023",
     "source": "Value Stack",
     "url": "https://youtu.be/tE1KgBR_L1Y"
   },
   {
     "title": "Padawan App testnet wallet",
+    "date": "May 16, 2023",
     "source": "Value Stack",
     "url": "https://youtu.be/K_P2qpc-_GM"
   },
   {
     "title": "Watchtower for Lightning (Umbrel)",
+    "date": "Oct 14, 2021",
     "source": "Value Stack",
     "url": "https://youtu.be/tmgh18QE4eA"
   },
   {
     "title": "Foundation Passport hardware review",
+    "date": "Jun 28, 2021",
     "source": "Value Stack",
     "url": "https://youtu.be/G2zWGCCF8mo"
   },
   {
     "title": "Amboss.Space demo",
+    "date": "Jun 18, 2021",
     "source": "Value Stack",
     "url": "https://youtu.be/jVBS0nqI-D4"
   },
   {
     "title": "Save on fees | mempool.space",
+    "date": "Mar 27, 2021",
     "source": "Value Stack",
     "url": "https://youtu.be/iEt_2ZzOfQs"
   },
   {
     "title": "Building an Umbrel bitcoin node",
+    "date": "Feb 15, 2021",
     "source": "Value Stack",
     "url": "https://youtu.be/AZIrxMwwxw0"
   }
