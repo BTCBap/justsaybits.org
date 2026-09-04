@@ -294,31 +294,37 @@ export const PODCASTS_VALUE_STACK: MediaItem[] = [
 export const PODCASTS_APPEARANCES: MediaItem[] = [
   {
     "title": "The Space Denver and Working with Bitcoiners with Zach W. (@BTCBap) | The CBP (Bitcoin Podcast)",
+    "date": "Jan 30, 2025",
     "source": "Canadian Bitcoiners",
     "url": "https://youtu.be/wyKIzII_QVk"
   },
   {
     "title": "Bitcoin is Freedom with @BTCBap - State of Bitcoin Ep. 24",
+    "date": "Jun 02, 2022",
     "source": "Brandon Keys - Green Candle",
     "url": "https://www.youtube.com/live/kIusrkvhDRY"
   },
   {
     "title": "Leaving The Legacy Financial System For Bitcoin With BTC Bap: Meet The Taco Plebs",
+    "date": "Mar 03, 2021",
     "source": "Bitcoin Magazine",
     "url": "https://youtu.be/75jWyRWPjYE"
   },
   {
     "title": "Self Custody & Multi Sig with Zach @ValueStackPod  - State of Bitcoin Ep 49",
+    "date": "Nov 17, 2022",
     "source": "Brandon Keys - Green Candle",
     "url": "https://www.youtube.com/live/PY-DNv-uQIY"
   },
   {
     "title": "Why 99% of Advisors Will Be Unemployed in 3 Years",
+    "date": "Jan 21, 2026",
     "source": "Bitcoin for Financial Services",
     "url": "https://youtu.be/sSYbcL2C6LY"
   },
   {
     "title": "Zach Wischler: Bitcoin self custody protects you when hackers target people | RoxomTV News",
+    "date": "Apr 18, 2026",
     "source": "RoxomTV News",
     "url": "https://youtu.be/hDhwSC2M6KY"
   }
@@ -327,96 +333,115 @@ export const PODCASTS_APPEARANCES: MediaItem[] = [
 export const LECTURES: MediaItem[] = [
   {
     "title": "Bitcoin Basics for Artists August 2025",
+    "date": "Nov 11, 2025",
     "source": "The Space",
     "url": "https://youtu.be/74crXMIs-Lg"
   },
   {
     "title": "Bitcoin Wallets: A Deep Dive on Keys, HD Paths, RBF & Security | February 2025",
+    "date": "May 23, 2025",
     "source": "The Space",
     "url": "https://youtu.be/xtMPbdeRGks"
   },
   {
     "title": "Seed Phrase Workshop",
+    "date": "Oct 10, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/oxDGgVt0lgk"
   },
   {
     "title": "Bitcoin and Finance",
+    "date": "May 12, 2024",
     "source": "Wyatt O'Rourke",
     "url": "https://youtu.be/thIOWBn4db4"
   },
   {
     "title": "Robert Warren - Microeconomics of Bitcoin Mining",
+    "date": "Oct 10, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/IgecaWXo0Qc"
   },
   {
     "title": "Making Bitcoin Quantum Resistant with Surmount Systems",
+    "date": "Sep 17, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/lFBq6PssP40"
   },
   {
     "title": "Bitcoin Estate Planning with Matt McClintock",
+    "date": "Jul 16, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/JJCXL9EX3u4"
   },
   {
     "title": "ASIC Heat Re-use with Tyler Stevens",
+    "date": "Jun 14, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/WzHTVY5VvAw"
   },
   {
     "title": "Banking on Bitcoin with Eric Yakes",
+    "date": "Apr 12, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/2YWHUSDlNwQ"
   },
   {
     "title": "Bitcoin ASIC Architecture and Firmware LuxOS - David Urlacher | Denver BitDevs March 2024",
+    "date": "Mar 12, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/tPpUuNfollE"
   },
   {
     "title": "Bitcoin Mining Derivatives, Hashrate Forwards, and Hashprice - Dan Rosen | Denver BitDevs March 2024",
+    "date": "Mar 12, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/HDdnVGm0M5U"
   },
   {
     "title": "Lightning Integration for Business — Sam Korn",
+    "date": "Feb 07, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/xHfARIJCYVE"
   },
   {
     "title": "Lightning Liquidity and Channel Management",
+    "date": "Feb 06, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/tY96Oj6jPbs"
   },
   {
     "title": "Lightning Implementations — David Croisant",
+    "date": "Feb 05, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/hYcxoPJ8o0k"
   },
   {
     "title": "Self-Hosted Computing — Matt Hill",
+    "date": "Dec 12, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/hgAJwZv86XQ"
   },
   {
     "title": "RGB Protocol — Hunter Beast",
+    "date": "Nov 07, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/oeoBSYB0H7U"
   },
   {
     "title": "Mining AMA — Shanon Squires",
+    "date": "Sep 12, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/7nhMVBhEBPk"
   },
   {
     "title": "Mining Basics — Tyler Bain",
+    "date": "Sep 12, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/Y1OiBLiXkVk"
   },
   {
     "title": "Mining by Scales — Rob Warren",
+    "date": "Sep 12, 2023",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/UNyLinB4NuE"
   }
