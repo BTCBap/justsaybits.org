@@ -616,9 +616,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     );
   };
 
-  const renderContentHub = () => (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center space-x-6 md:space-x-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto ps2-scroll">
+  const renderContentTabs = () => (
+    <div className="shrink-0 border-b border-blue-500/30 px-4 md:px-6 bg-[#050a14]">
+      <div className="flex items-end gap-4 md:gap-8 overflow-x-auto pt-3">
         {CONTENT_TABS.map(tab => {
           const Icon = tab.icon;
           const active = contentTab === tab.id;
@@ -626,64 +626,65 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
             <button
               key={tab.id}
               onClick={() => handleContentTabChange(tab.id)}
-              className={`flex items-center space-x-2 pb-3 transition-all duration-300 shrink-0 ${
+              className={`flex items-center space-x-2 px-1 pb-3 pt-1 transition-all duration-300 shrink-0 border-b-2 -mb-px ${
                 active
-                  ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
-                  : 'text-blue-500/50 hover:text-blue-300'
+                  ? 'text-white border-blue-400 ps2-text-shadow'
+                  : 'text-blue-400/70 border-transparent hover:text-blue-200'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              <span className="uppercase tracking-widest text-sm font-bold">{tab.label}</span>
+              <Icon className="w-4 h-4 shrink-0" />
+              <span className="uppercase tracking-widest text-sm font-bold leading-none">{tab.label}</span>
             </button>
           );
         })}
       </div>
-
-      <motion.div
-        key={selectedEssay ? selectedEssay.slug : contentTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex-grow overflow-auto ps2-scroll"
-      >
-        {contentTab === 'essays' && renderEssays()}
-        {contentTab === 'podcasts' && (
-          <div className="space-y-10">
-            <div>
-              <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-                Value Stack (host)
-              </h3>
-              <div className="space-y-4">
-                {PODCASTS_VALUE_STACK.map(item => renderMediaCard(item))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-                Guest appearances
-              </h3>
-              <div className="space-y-4">
-                {PODCASTS_APPEARANCES.map(item => renderMediaCard(item))}
-              </div>
-            </div>
-          </div>
-        )}
-        {contentTab === 'lectures' && (
-          <div className="space-y-4">
-            {LECTURES.map(item => renderMediaCard(item))}
-          </div>
-        )}
-        {contentTab === 'tutorials' && (
-          <div className="space-y-4">
-            {TUTORIALS.map(item => renderMediaCard(item))}
-          </div>
-        )}
-        {contentTab === 'reading' && (
-          <div className="space-y-4">
-            {READING_LIST.map(item => renderReadingCard(item))}
-          </div>
-        )}
-      </motion.div>
     </div>
+  );
+
+  const renderContentHub = () => (
+    <motion.div
+      key={selectedEssay ? selectedEssay.slug : contentTab}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {contentTab === 'essays' && renderEssays()}
+      {contentTab === 'podcasts' && (
+        <div className="space-y-10">
+          <div>
+            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
+              Value Stack (host)
+            </h3>
+            <div className="space-y-4">
+              {PODCASTS_VALUE_STACK.map(item => renderMediaCard(item))}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
+              Guest appearances
+            </h3>
+            <div className="space-y-4">
+              {PODCASTS_APPEARANCES.map(item => renderMediaCard(item))}
+            </div>
+          </div>
+        </div>
+      )}
+      {contentTab === 'lectures' && (
+        <div className="space-y-4">
+          {LECTURES.map(item => renderMediaCard(item))}
+        </div>
+      )}
+      {contentTab === 'tutorials' && (
+        <div className="space-y-4">
+          {TUTORIALS.map(item => renderMediaCard(item))}
+        </div>
+      )}
+      {contentTab === 'reading' && (
+        <div className="space-y-4">
+          {READING_LIST.map(item => renderReadingCard(item))}
+        </div>
+      )}
+    </motion.div>
   );
 
   const renderWork = () => (
@@ -758,8 +759,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           </div>
         </div>
 
+        {section.id === 'content' && renderContentTabs()}
+
         {/* Content Body */}
-        <div className="flex-grow overflow-auto p-6 md:p-10 relative ps2-scroll">
+        <div className="flex-grow overflow-auto p-6 md:p-10 relative ps2-scroll min-h-0">
           {getContent()}
         </div>
 
@@ -767,13 +770,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         <div className="h-14 border-t border-blue-500/30 flex items-center px-6 bg-black/40 text-sm">
           <button 
             onClick={handleBack}
-            className="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors group"
+            className="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
           >
-            <div className="w-6 h-6 rounded-full border border-blue-400 flex items-center justify-center group-hover:bg-blue-500/20">
-              <ArrowLeft className="w-4 h-4" />
-            </div>
+            <ArrowLeft className="w-4 h-4" />
             <span className="uppercase tracking-widest font-mono text-xs">
-              {selectedEssay ? "Return to List" : "Back to System"}
+              {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
         </div>
