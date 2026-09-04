@@ -210,6 +210,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [contentTab, setContentTab] = useState<ContentTab>('essays');
   const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
   const contentMounted = useRef(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo(0, 0);
+  }, [selectedEssay, contentTab, section.id]);
 
   // Track virtual pageviews for content tabs / essay reader (skip initial mount — section open is tracked by App.tsx)
   useEffect(() => {
@@ -764,7 +769,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         {section.id === 'content' && renderContentTabs()}
 
         {/* Content Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-10 relative ps2-scroll">
+        <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-10 relative ps2-scroll">
           {getContent()}
         </div>
 
