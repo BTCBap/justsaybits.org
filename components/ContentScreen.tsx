@@ -201,6 +201,7 @@ const scrollbarStyles = `
   .ps2-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
+    scrollbar-gutter: stable;
   }
 `;
 
@@ -565,7 +566,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const renderEssays = () => {
     if (selectedEssay) {
        return (
-         <div className="max-w-3xl mx-auto font-mono text-blue-100 h-full overflow-auto pr-4 ps2-scroll">
+         <div className="max-w-3xl mx-auto font-mono text-blue-100">
              {/* Header */}
              <div className="border-b border-blue-500/30 pb-4 mb-6 sticky top-0 bg-[#050a14] z-10 pt-2">
                  <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
@@ -617,8 +618,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   };
 
   const renderContentTabs = () => (
-    <div className="shrink-0 border-b border-blue-500/30 px-4 md:px-6 bg-[#050a14]">
-      <div className="flex items-end gap-4 md:gap-8 overflow-x-auto pt-3">
+    <div className="shrink-0 border-b border-blue-500/30 px-3 md:px-6 bg-[#050a14] overflow-hidden">
+      <div className="flex w-full items-end">
         {CONTENT_TABS.map(tab => {
           const Icon = tab.icon;
           const active = contentTab === tab.id;
@@ -626,14 +627,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
             <button
               key={tab.id}
               onClick={() => handleContentTabChange(tab.id)}
-              className={`flex items-center space-x-2 px-1 pb-3 pt-1 transition-all duration-300 shrink-0 border-b-2 -mb-px ${
+              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 md:gap-2 px-1 pb-3 pt-3 transition-all duration-300 border-b-2 -mb-px ${
                 active
                   ? 'text-white border-blue-400 ps2-text-shadow'
                   : 'text-blue-400/70 border-transparent hover:text-blue-200'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              <span className="uppercase tracking-widest text-sm font-bold leading-none">{tab.label}</span>
+              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -740,17 +741,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   return (
     <motion.div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-12 bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-stretch justify-center p-4 md:p-12 bg-black/80 backdrop-blur-md"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
       <style>{scrollbarStyles}</style>
-      <div className="w-full max-w-5xl h-full flex flex-col max-h-[90vh] border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
+      <div className="w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
         
         {/* Header */}
-        <div className="h-16 border-b border-blue-500/30 flex items-center justify-between px-6 bg-gradient-to-r from-blue-900/20 to-transparent">
+        <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center justify-between px-6 bg-gradient-to-r from-blue-900/20 to-transparent overflow-hidden">
           <div className="flex items-center space-x-4">
             <section.icon className="w-6 h-6 text-blue-400" />
             <h2 className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow">
@@ -762,12 +763,12 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         {section.id === 'content' && renderContentTabs()}
 
         {/* Content Body */}
-        <div className="flex-grow overflow-auto p-6 md:p-10 relative ps2-scroll min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-10 relative ps2-scroll">
           {getContent()}
         </div>
 
         {/* Footer Controls */}
-        <div className="h-14 border-t border-blue-500/30 flex items-center px-6 bg-black/40 text-sm">
+        <div className="shrink-0 border-t border-blue-500/30 flex items-center px-6 py-4 bg-black/40 text-sm">
           <button 
             onClick={handleBack}
             className="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"

@@ -332,12 +332,12 @@ export const LECTURES: MediaItem[] = [
   },
   {
     "title": "Bitcoin Wallets: A Deep Dive on Keys, HD Paths, RBF & Security | February 2025",
-    "source": "Value Stack",
+    "source": "The Space",
     "url": "https://youtu.be/xtMPbdeRGks"
   },
   {
     "title": "Seed Phrase Workshop",
-    "source": "Value Stack / Denver BitDevs",
+    "source": "Denver BitDevs",
     "url": "https://youtu.be/oxDGgVt0lgk"
   },
   {
