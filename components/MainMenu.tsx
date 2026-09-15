@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { soundManager } from '../utils/SoundManager';
 import { hapticManager } from '../utils/HapticManager';
@@ -89,21 +90,27 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const goToAdjacent = useCallback((direction: 1 | -1, haptic: 'light' | 'swipe' = 'light') => {
+    onActiveIndexChange((activeIndex + direction + sections.length) % sections.length);
+    soundManager.playHover();
+    if (haptic === 'swipe') {
+      hapticManager.swipe();
+    } else {
+      hapticManager.light();
+    }
+  }, [activeIndex, sections.length, onActiveIndexChange]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'ArrowRight') {
-      onActiveIndexChange((activeIndex + 1) % sections.length);
-      soundManager.playHover();
-      hapticManager.light();
+      goToAdjacent(1);
     } else if (e.key === 'ArrowLeft') {
-      onActiveIndexChange((activeIndex - 1 + sections.length) % sections.length);
-      soundManager.playHover();
-      hapticManager.light();
+      goToAdjacent(-1);
     } else if (e.key === 'Enter') {
       soundManager.playSelect();
       hapticManager.medium();
       onSelect(sections[activeIndex].id);
     }
-  }, [sections, activeIndex, onSelect, onActiveIndexChange]);
+  }, [sections, activeIndex, onSelect, goToAdjacent]);
 
   // Touch handlers for swipe detection
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -126,14 +133,10 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
     if (absDeltaX > absDeltaY && absDeltaX > MIN_SWIPE_DISTANCE) {
       if (deltaX > 0) {
         // Swipe left - go to next item
-        onActiveIndexChange((activeIndex + 1) % sections.length);
-        soundManager.playHover();
-        hapticManager.swipe();
+        goToAdjacent(1, 'swipe');
       } else {
         // Swipe right - go to previous item
-        onActiveIndexChange((activeIndex - 1 + sections.length) % sections.length);
-        soundManager.playHover();
-        hapticManager.swipe();
+        goToAdjacent(-1, 'swipe');
       }
     }
 
@@ -292,6 +295,45 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
         </div>
       </div>
 
+      <button
+        type="button"
+        aria-label="Previous section"
+        onClick={(e) => {
+          e.stopPropagation();
+          goToAdjacent(-1);
+        }}
+        className="hidden md:flex absolute left-4 lg:left-10 top-1/2 -translate-y-1/2 z-[110]
+          w-14 h-14 items-center justify-center
+          rounded-full border border-white/30
+          bg-gradient-to-br from-blue-500/30 to-transparent backdrop-blur-md
+          text-white/80 hover:text-white hover:border-white
+          hover:shadow-[0_0_25px_rgba(50,100,255,0.5)]
+          focus-visible:outline-none focus-visible:border-white
+          focus-visible:shadow-[0_0_25px_rgba(50,100,255,0.5)]
+          transition-all duration-300"
+      >
+        <ChevronLeft className="w-8 h-8" strokeWidth={2.25} />
+      </button>
+      <button
+        type="button"
+        aria-label="Next section"
+        onClick={(e) => {
+          e.stopPropagation();
+          goToAdjacent(1);
+        }}
+        className="hidden md:flex absolute right-4 lg:right-10 top-1/2 -translate-y-1/2 z-[110]
+          w-14 h-14 items-center justify-center
+          rounded-full border border-white/30
+          bg-gradient-to-br from-blue-500/30 to-transparent backdrop-blur-md
+          text-white/80 hover:text-white hover:border-white
+          hover:shadow-[0_0_25px_rgba(50,100,255,0.5)]
+          focus-visible:outline-none focus-visible:border-white
+          focus-visible:shadow-[0_0_25px_rgba(50,100,255,0.5)]
+          transition-all duration-300"
+      >
+        <ChevronRight className="w-8 h-8" strokeWidth={2.25} />
+      </button>
+
       {/* Date/Time */}
       <div className={`absolute top-8 right-8 text-right font-mono text-blue-200/80 select-none ${hideClock ? 'hidden' : 'block'}`}>
         <Clock />
@@ -309,8 +351,22 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
             </span>
             <span className="flex items-center">
                 <span className="flex space-x-1 mr-2">
-                     <span className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold">←</span>
-                     <span className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold">→</span>
+                     <button
+                       type="button"
+                       aria-label="Previous section"
+                       onClick={() => goToAdjacent(-1)}
+                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white transition-colors"
+                     >
+                       ←
+                     </button>
+                     <button
+                       type="button"
+                       aria-label="Next section"
+                       onClick={() => goToAdjacent(1)}
+                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white transition-colors"
+                     >
+                       →
+                     </button>
                 </span>
                 Navigate
             </span>

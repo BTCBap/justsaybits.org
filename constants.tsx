@@ -32,6 +32,14 @@ export {
 
 export const PORTFOLIO_DATA: PortfolioItem[] = [
   {
+    title: "Bitcoin Birth Certificate",
+    role: "Creator",
+    year: "2026",
+    description: "Hash a baby's birth details onto the Bitcoin blockchain for an immutable, privacy-preserving cryptographic proof and a printable birth certificate. Non-custodial and fully client-side.",
+    tech: ["Bitcoin", "Privacy", "Client-side"],
+    url: "https://bitcoinbirthcertificate.com"
+  },
+  {
     title: "Hax",
     role: "Creator",
     year: "2025",
@@ -52,7 +60,7 @@ export const PORTFOLIO_DATA: PortfolioItem[] = [
 export const INVESTMENT_DATA: InvestmentItem[] = [
   { asset: "Personal Capital", type: "Equity", status: "Acquired" },
   { asset: "Casa Inc.", type: "Equity", status: "Active" },
-  { asset: "Foundation Devices", type: "Seed", status: "Active" },
+  { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
   { asset: "Strike Inc.", type: "Series A", status: "Active" },
 ];
 
