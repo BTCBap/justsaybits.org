@@ -836,7 +836,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   return (
     <motion.div 
-      className="fixed inset-0 z-50 flex items-stretch justify-center p-4 md:p-12 bg-black/80 backdrop-blur-md"
+      className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/80 backdrop-blur-md"
+      style={{ height: 'var(--app-height)' }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"

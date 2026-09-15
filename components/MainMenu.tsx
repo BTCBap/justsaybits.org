@@ -19,7 +19,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
   const [spacing, setSpacing] = useState(180);
   const [menuScale, setMenuScale] = useState(1);
   const [menuYOffset, setMenuYOffset] = useState(0);
-  const [footerBottom, setFooterBottom] = useState(48); // px (starts at bottom-12 = 3rem = 48px)
+  const [footerBottom, setFooterBottom] = useState(48); // px padding from the visible bottom
   const [hideClock, setHideClock] = useState(false);
 
   // Swipe gesture tracking
@@ -32,8 +32,8 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
   // Responsive Layout Logic
   useEffect(() => {
     const handleResize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = window.visualViewport?.width ?? window.innerWidth;
+      const h = window.visualViewport?.height ?? window.innerHeight;
       
       // Defaults for Desktop
       let newScale = 1;
@@ -43,39 +43,28 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
       let shouldHideClock = false;
 
       if (w < 768) {
-        // --- MOBILE ---
-        if (h < 500 && w > h) {
-          // Landscape Mobile (Short height)
-          // Aggressive scaling to fit vertically without overlapping footer
-          newScale = 0.55; 
-          newSpacing = 220; 
-          newYOffset = -25; // Push menu up
-          newFooterBottom = 16; // Push footer down (bottom-4)
-          shouldHideClock = true;
-        } else {
-          // Portrait Mobile (Narrow width)
-          // Moderate scaling to prevent horizontal clipping
-          newScale = 0.75; 
-          newSpacing = 140; // Tighter spacing
-          newYOffset = 0;
-          newFooterBottom = 48;
-        }
+        newSpacing = 140;
+        newScale = 0.75;
+        newFooterBottom = 16;
+      } else if (w < 1024) {
+        newSpacing = 300;
+      } else if (w < 1400) {
+        newSpacing = 400;
       } else {
-        // --- DESKTOP / TABLET ---
-        // Width based spacing
-        if (w < 1024) {
-           newSpacing = 300;
-        } else if (w < 1400) {
-           newSpacing = 400;
-        } else {
-           newSpacing = 500;
-        }
+        newSpacing = 500;
+      }
 
-        // Height based scaling (Short laptops/windows)
-        if (h < 700) {
-            newScale = 0.85;
-            newFooterBottom = 24;
-        }
+      // Short viewports (landscape phones, small windows) — keep the
+      // bottom controls visible and the carousel above them.
+      if (h < 500) {
+        newScale = 0.55;
+        newSpacing = Math.min(newSpacing, 220);
+        newYOffset = -25;
+        newFooterBottom = 16;
+        shouldHideClock = true;
+      } else if (h < 700 && w >= 768) {
+        newScale = 0.85;
+        newFooterBottom = 24;
       }
 
       setMenuScale(newScale);
@@ -87,7 +76,11 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
 
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const goToAdjacent = useCallback((direction: 1 | -1, haptic: 'light' | 'swipe' = 'light') => {
@@ -335,14 +328,20 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
       </button>
 
       {/* Date/Time */}
-      <div className={`absolute top-8 right-8 text-right font-mono text-blue-200/80 select-none ${hideClock ? 'hidden' : 'block'}`}>
+      <div
+        className={`absolute right-8 text-right font-mono text-blue-200/80 select-none ${hideClock ? 'hidden' : 'block'}`}
+        style={{ top: 'calc(2rem + env(safe-area-inset-top, 0px))' }}
+      >
         <Clock />
       </div>
 
-      {/* Helper Text - Dynamic Bottom Position */}
+      {/* Helper Text - pinned to the visible bottom, above the home indicator */}
       <div 
-        className="absolute w-full text-center transition-all duration-300"
-        style={{ bottom: `${footerBottom}px` }}
+        className="absolute inset-x-0 w-full text-center transition-all duration-300"
+        style={{
+          bottom: 0,
+          paddingBottom: `calc(${footerBottom}px + env(safe-area-inset-bottom, 0px))`,
+        }}
       >
         <div className="flex items-center justify-center space-x-8 text-sm text-blue-400/60 font-mono uppercase tracking-widest">
             <span className="flex items-center">

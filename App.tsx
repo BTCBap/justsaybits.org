@@ -54,7 +54,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
+    <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
       
       <AnimatePresence mode='wait'>
         {!bootComplete && (

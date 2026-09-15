@@ -2,18 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>justsaybits.org</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script defer src="https://cloud.umami.is/script.js" data-website-id="66646b18-ce80-450c-8302-3d95de037410" data-auto-track="false"></script>
     <style>
+      :root {
+        --app-height: 100vh;
+        --app-height: 100dvh;
+      }
+      html, body, #root {
+        height: 100%;
+        height: var(--app-height);
+        max-height: var(--app-height);
+        overflow: hidden;
+      }
       body {
         margin: 0;
         background-color: #000;
         color: white;
         font-family: 'Inter', sans-serif;
-        overflow: hidden;
+        overscroll-behavior: none;
       }
       /* Custom Scrollbar for content */
       ::-webkit-scrollbar {
@@ -48,6 +58,19 @@
 </head>
   <body>
     <div id="root"></div>
+  <script>
+    (function () {
+      function setAppHeight() {
+        var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', h + 'px');
+      }
+      setAppHeight();
+      window.addEventListener('resize', setAppHeight);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setAppHeight);
+      }
+    })();
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
