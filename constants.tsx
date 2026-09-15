@@ -58,7 +58,7 @@ export const PORTFOLIO_DATA: PortfolioItem[] = [
 ];
 
 export const INVESTMENT_DATA: InvestmentItem[] = [
-  { asset: "Personal Capital", type: "Equity", status: "Acquired" },
+  { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
   { asset: "Casa Inc.", type: "Equity", status: "Active" },
   { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
   { asset: "Strike Inc.", type: "Series A", status: "Active" },
