@@ -409,8 +409,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       <div className="flex justify-center">
         <div className="border border-blue-500/40 p-1 bg-black/40 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
           <img
-            src="/about-portrait.png"
-            alt="Zach Wischler"
+            src="/about-portrait.webp"
+            alt="Pencil sketch portrait of Zach Wischler"
+            width={320}
+            height={320}
             className="block w-36 md:w-40 h-auto"
           />
         </div>
