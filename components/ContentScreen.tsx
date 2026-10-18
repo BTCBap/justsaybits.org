@@ -222,7 +222,7 @@ const scrollbarStyles = `
   }
 `;
 
-type PortfolioTab = 'projects' | 'design' | 'investments';
+type PortfolioTab = 'projects' | 'investments' | 'design';
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
@@ -543,17 +543,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           <span className="uppercase tracking-widest text-sm font-bold">Projects</span>
         </button>
         <button
-          onClick={() => handleTabChange('design')}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'design'
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <PenTool className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
-        </button>
-        <button
           onClick={() => handleTabChange('investments')}
           className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'investments' 
@@ -563,6 +552,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         >
           <TrendingUp className="w-4 h-4" />
           <span className="uppercase tracking-widest text-sm font-bold">Investments</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('design')}
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
+            portfolioTab === 'design'
+              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
+              : 'text-blue-500/50 hover:text-blue-300'
+          }`}
+        >
+          <PenTool className="w-4 h-4" />
+          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
         </button>
       </div>
 
