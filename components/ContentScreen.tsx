@@ -11,10 +11,12 @@ import {
   MonitorPlay,
   BookOpen,
   MessageCircle,
+  PenTool,
 } from 'lucide-react';
 import {
   PORTFOLIO_DATA,
   INVESTMENT_DATA,
+  DESIGN_DATA,
   BOOK_DATA,
   ESSAY_DATA,
   WORK_DATA,
@@ -206,8 +208,6 @@ const scrollbarStyles = `
   .ps2-scroll::-webkit-scrollbar-thumb:hover {
     background: rgba(100, 150, 255, 0.4);
   }
-  .ps2-scroll {
-    scrollbar-width: thin;
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -215,13 +215,17 @@ const scrollbarStyles = `
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+  .ps2-scroll {
+    scrollbar-width: thin;
     scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
     scrollbar-gutter: stable;
   }
 `;
 
+type PortfolioTab = 'projects' | 'design' | 'investments';
+
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
-  const [portfolioTab, setPortfolioTab] = useState<'projects' | 'investments'>('projects');
+  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
   const [contentTab, setContentTab] = useState<ContentTab>('essays');
   const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
   const contentMounted = useRef(false);
@@ -263,7 +267,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedEssay, onBack]);
 
-  const handleTabChange = (tab: 'projects' | 'investments') => {
+  const handleTabChange = (tab: PortfolioTab) => {
     if (portfolioTab !== tab) {
       soundManager.playHover();
       hapticManager.light();
@@ -495,13 +499,41 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     </div>
   );
 
+  const renderDesigns = () => (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+      {DESIGN_DATA.map(item => (
+        <figure
+          key={item.image}
+          className="bg-black/40 border border-blue-500/30 flex flex-col hover:border-blue-400 transition-colors"
+          onMouseEnter={() => soundManager.playHover()}
+        >
+          <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
+            <img
+              src={item.image}
+              alt={item.alt}
+              width={item.width}
+              height={item.height}
+              loading="lazy"
+              decoding="async"
+              className="max-w-full max-h-full w-auto h-auto object-contain"
+            />
+          </div>
+          <figcaption className="p-3 md:p-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-3">
+            <span className="text-sm md:text-lg font-bold leading-snug text-white ps2-text-shadow">{item.title}</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-blue-400 shrink-0">{item.type}</span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+
   const renderPortfolio = () => (
     <div className="flex flex-col h-full">
       {/* Tabs */}
-      <div className="flex items-center space-x-8 mb-8 border-b border-blue-500/30 px-2">
+      <div className="shrink-0 flex items-center gap-6 md:gap-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => handleTabChange('projects')}
-          className={`flex items-center space-x-2 pb-3 transition-all duration-300 ${
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'projects' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
               : 'text-blue-500/50 hover:text-blue-300'
@@ -511,8 +543,19 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           <span className="uppercase tracking-widest text-sm font-bold">Projects</span>
         </button>
         <button
+          onClick={() => handleTabChange('design')}
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
+            portfolioTab === 'design'
+              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
+              : 'text-blue-500/50 hover:text-blue-300'
+          }`}
+        >
+          <PenTool className="w-4 h-4" />
+          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
+        </button>
+        <button
           onClick={() => handleTabChange('investments')}
-          className={`flex items-center space-x-2 pb-3 transition-all duration-300 ${
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'investments' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
               : 'text-blue-500/50 hover:text-blue-300'
@@ -569,6 +612,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               </div>
             ))}
           </div>
+        ) : portfolioTab === 'design' ? (
+          renderDesigns()
         ) : (
           renderInvestmentTable()
         )}
