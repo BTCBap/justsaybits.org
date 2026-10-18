@@ -91,7 +91,7 @@ export const DESIGN_DATA: DesignItem[] = [
     height: 280,
   },
   {
-    title: "X Profile Picture",
+    title: "@bitcoin_lane Profile Picture",
     type: "Profile picture",
     image: "/designs/x-profile-picture.webp",
     alt: "Circular profile picture of a father and young child with glowing red laser eyes in front of a bitcoin volcano",

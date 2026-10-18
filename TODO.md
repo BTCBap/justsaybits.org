@@ -13,5 +13,5 @@
 
 # Portfolio
 
-- [x] Add a Design tab under Portfolio (logos and X profile picture)
+- [x] Add a Design tab under Portfolio (logos and @bitcoin_lane profile picture)
 - [ ] Add a favicon (/favicon.ico currently 404s)
