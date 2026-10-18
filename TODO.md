@@ -21,3 +21,4 @@
 - [x] Open Graph and Twitter card link previews (public/og-image.jpg, 1200x630)
 - [x] Self-host essay images under public/essays/<slug>/ (WebP)
 - [x] `npm run deploy` publishes to gh-pages through the origin remote
+- [x] Pencil-sketch portrait used for the About photo, favicon/app icons and link preview
