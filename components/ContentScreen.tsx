@@ -208,6 +208,13 @@ const scrollbarStyles = `
   }
   .ps2-scroll {
     scrollbar-width: thin;
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
     scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
     scrollbar-gutter: stable;
   }
@@ -286,11 +293,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {item.title}
         </h3>
-        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>}
+        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>}
       </div>
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
         <span>{extra || item.source}</span>
@@ -315,11 +322,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {title}
         </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
+        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
       </div>
       {item.image && (
         <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
@@ -354,11 +361,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {item.title}
         </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
+        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
       </div>
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
         <span>{item.author}</span>
@@ -677,9 +684,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                     setSelectedEssay(post);
                 }}
             >
-              <div className="flex items-baseline justify-between mb-2 border-b border-blue-500/30 pb-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
-                <span className="font-mono text-xs text-blue-500">{post.date}</span>
+                <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
               </div>
               <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
               <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
@@ -705,23 +712,28 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   };
 
   const renderContentTabs = () => (
-    <div className="shrink-0 border-b border-blue-500/30 px-3 md:px-6 bg-[#050a14] overflow-hidden">
-      <div className="flex w-full items-end">
+    <div className="shrink-0 border-b border-blue-500/30 bg-[#050a14]">
+      <div className="flex w-full items-end overflow-x-auto no-scrollbar px-3 md:px-6" role="tablist">
         {CONTENT_TABS.map(tab => {
           const Icon = tab.icon;
           const active = contentTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => handleContentTabChange(tab.id)}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 md:gap-2 px-1 pb-3 pt-3 transition-all duration-300 border-b-2 -mb-px ${
+              role="tab"
+              aria-selected={active}
+              onClick={(e) => {
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                handleContentTabChange(tab.id);
+              }}
+              className={`shrink-0 md:flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-1 pb-3 pt-3 transition-all duration-300 border-b-2 whitespace-nowrap ${
                 active
                   ? 'text-white border-blue-400 ps2-text-shadow'
                   : 'text-blue-400/70 border-transparent hover:text-blue-200'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none truncate">{tab.label}</span>
+              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none">{tab.label}</span>
             </button>
           );
         })}
