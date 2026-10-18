@@ -14,7 +14,7 @@
 # Portfolio
 
 - [x] Add a Design tab under Portfolio (logos and @bitcoin_lane profile picture)
-- [x] Add a favicon (favicon.ico, favicon.svg, icon-192.png, apple-touch-icon.png)
+- [x] Add a favicon (favicon.ico 16-256, favicon-32/96/192/512.png, apple-touch-icon.png, site.webmanifest)
 
 # Site
 
