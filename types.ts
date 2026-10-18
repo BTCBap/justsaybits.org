@@ -18,6 +18,15 @@ export interface PortfolioItem {
   url?: string;
 }
 
+export interface DesignItem {
+  title: string;
+  type: string;
+  image: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 export interface InvestmentItem {
   asset: string;
   ticker?: string;

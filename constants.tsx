@@ -8,7 +8,7 @@ import {
   IconContent,
   IconHistory
 } from './components/Icons';
-import { Section, PortfolioItem, InvestmentItem, BookItem, EssayItem, JobItem } from './types';
+import { Section, PortfolioItem, DesignItem, InvestmentItem, BookItem, EssayItem, JobItem } from './types';
 import { ESSAYS } from './data/essays';
 import {
   PODCASTS_VALUE_STACK,
@@ -57,6 +57,49 @@ export const PORTFOLIO_DATA: PortfolioItem[] = [
   }
 ];
 
+export const DESIGN_DATA: DesignItem[] = [
+  {
+    title: "Value Stack",
+    type: "Logo",
+    image: "/designs/value-stack-logo.webp",
+    alt: "Value Stack, A Bitcoin Podcast logo: white text on an orange square",
+    width: 400,
+    height: 400,
+  },
+  {
+    title: "Bitcoin for Bullies",
+    type: "Logo",
+    image: "/designs/bitcoin-for-bullies-logo.webp",
+    alt: "Bitcoin for Bullies logo: a bully dog face wearing sunglasses with orange bitcoin symbols on the lenses",
+    width: 480,
+    height: 480,
+  },
+  {
+    title: "Denver BitDevs",
+    type: "Logo",
+    image: "/designs/denver-bitdevs-logo.webp",
+    alt: "Denver BitDevs logo: a bitcoin symbol over mountains and pine trees inside an orange circle",
+    width: 400,
+    height: 400,
+  },
+  {
+    title: "Satoshi Pacioli Accounting",
+    type: "Logo",
+    image: "/designs/satoshi-pacioli-accounting-logo.webp",
+    alt: "Satoshi Pacioli Accounting logo: orange script lettering with a green bitcoin-style S",
+    width: 720,
+    height: 280,
+  },
+  {
+    title: "@bitcoin_lane Profile Picture",
+    type: "Profile picture",
+    image: "/designs/x-profile-picture.webp",
+    alt: "Circular profile picture of a father and young child with glowing red laser eyes in front of a bitcoin volcano",
+    width: 372,
+    height: 372,
+  },
+];
+
 export const INVESTMENT_DATA: InvestmentItem[] = [
   { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
   { asset: "Casa Inc.", type: "Equity", status: "Active" },
@@ -85,7 +128,7 @@ export const WORK_DATA: JobItem[] = [
     company: "Swan Bitcoin",
     role: "Managing Director, Swan Private",
     period: "Sep 2026 - Present",
-    location: "Denver, Colorado, United States",
+    location: "New Orleans, Louisiana, United States",
     highlights: []
   },
   {

@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist -r $(git config remote.github.url)"
+    "deploy": "gh-pages -d dist -o origin -b gh-pages"
   },
   "dependencies": {
     "framer-motion": "^12.23.24",

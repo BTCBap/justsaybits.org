@@ -11,10 +11,12 @@ import {
   MonitorPlay,
   BookOpen,
   MessageCircle,
+  PenTool,
 } from 'lucide-react';
 import {
   PORTFOLIO_DATA,
   INVESTMENT_DATA,
+  DESIGN_DATA,
   BOOK_DATA,
   ESSAY_DATA,
   WORK_DATA,
@@ -206,6 +208,13 @@ const scrollbarStyles = `
   .ps2-scroll::-webkit-scrollbar-thumb:hover {
     background: rgba(100, 150, 255, 0.4);
   }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .ps2-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
@@ -213,8 +222,10 @@ const scrollbarStyles = `
   }
 `;
 
+type PortfolioTab = 'projects' | 'investments' | 'design';
+
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
-  const [portfolioTab, setPortfolioTab] = useState<'projects' | 'investments'>('projects');
+  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
   const [contentTab, setContentTab] = useState<ContentTab>('essays');
   const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
   const contentMounted = useRef(false);
@@ -256,7 +267,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedEssay, onBack]);
 
-  const handleTabChange = (tab: 'projects' | 'investments') => {
+  const handleTabChange = (tab: PortfolioTab) => {
     if (portfolioTab !== tab) {
       soundManager.playHover();
       hapticManager.light();
@@ -286,11 +297,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {item.title}
         </h3>
-        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>}
+        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>}
       </div>
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
         <span>{extra || item.source}</span>
@@ -315,11 +326,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {title}
         </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
+        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
       </div>
       {item.image && (
         <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
@@ -354,11 +365,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       }}
       onClick={() => { hapticManager.medium(); }}
     >
-      <div className="flex items-baseline justify-between gap-4 mb-2 border-b border-blue-500/30 pb-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
           {item.title}
         </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0">{item.date}</span>
+        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
       </div>
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
         <span>{item.author}</span>
@@ -488,13 +499,41 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     </div>
   );
 
+  const renderDesigns = () => (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+      {DESIGN_DATA.map(item => (
+        <figure
+          key={item.image}
+          className="bg-black/40 border border-blue-500/30 flex flex-col hover:border-blue-400 transition-colors"
+          onMouseEnter={() => soundManager.playHover()}
+        >
+          <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
+            <img
+              src={item.image}
+              alt={item.alt}
+              width={item.width}
+              height={item.height}
+              loading="lazy"
+              decoding="async"
+              className="max-w-full max-h-full w-auto h-auto object-contain"
+            />
+          </div>
+          <figcaption className="p-3 md:p-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-3">
+            <span className="text-sm md:text-lg font-bold leading-snug text-white ps2-text-shadow">{item.title}</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-blue-400 shrink-0">{item.type}</span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+
   const renderPortfolio = () => (
     <div className="flex flex-col h-full">
       {/* Tabs */}
-      <div className="flex items-center space-x-8 mb-8 border-b border-blue-500/30 px-2">
+      <div className="shrink-0 flex items-center gap-6 md:gap-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => handleTabChange('projects')}
-          className={`flex items-center space-x-2 pb-3 transition-all duration-300 ${
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'projects' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
               : 'text-blue-500/50 hover:text-blue-300'
@@ -505,7 +544,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </button>
         <button
           onClick={() => handleTabChange('investments')}
-          className={`flex items-center space-x-2 pb-3 transition-all duration-300 ${
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'investments' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
               : 'text-blue-500/50 hover:text-blue-300'
@@ -513,6 +552,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         >
           <TrendingUp className="w-4 h-4" />
           <span className="uppercase tracking-widest text-sm font-bold">Investments</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('design')}
+          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
+            portfolioTab === 'design'
+              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
+              : 'text-blue-500/50 hover:text-blue-300'
+          }`}
+        >
+          <PenTool className="w-4 h-4" />
+          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
         </button>
       </div>
 
@@ -562,6 +612,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               </div>
             ))}
           </div>
+        ) : portfolioTab === 'design' ? (
+          renderDesigns()
         ) : (
           renderInvestmentTable()
         )}
@@ -570,7 +622,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   );
 
   const renderBooks = () => (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center min-h-full">
       {BOOK_DATA.map((book, i) => {
         const handleOpen = () => {
           if (book.url) {
@@ -581,7 +633,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         return (
           <div
             key={i}
-            className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-center bg-black/40 p-12 border border-blue-500/30 rounded-lg"
+            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg"
             onMouseEnter={() => soundManager.playHover()}
             onKeyDown={(e) => { if (e.key === 'Enter') handleOpen(); }}
             tabIndex={book.url ? 0 : undefined}
@@ -600,15 +652,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               )}
             </div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-4xl font-serif text-white mb-1">{book.title}</h3>
+              <h3 className="text-3xl md:text-4xl font-serif text-white mb-1">{book.title}</h3>
               {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
               <div className="text-xl text-blue-400 mb-6">{book.author}</div>
 
-              <div className="bg-blue-900/30 border border-blue-500/50 px-6 py-4 rounded mb-6">
+              <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
                 <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
               </div>
 
-              <div className="flex items-center space-x-2 mb-6">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
                 <span className="uppercase tracking-widest text-sm font-bold text-white/50">Available Now</span>
                 <span className="h-px w-8 bg-blue-500/50"></span>
                 <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
@@ -677,9 +729,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                     setSelectedEssay(post);
                 }}
             >
-              <div className="flex items-baseline justify-between mb-2 border-b border-blue-500/30 pb-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
-                <span className="font-mono text-xs text-blue-500">{post.date}</span>
+                <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
               </div>
               <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
               <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
@@ -705,23 +757,28 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   };
 
   const renderContentTabs = () => (
-    <div className="shrink-0 border-b border-blue-500/30 px-3 md:px-6 bg-[#050a14] overflow-hidden">
-      <div className="flex w-full items-end">
+    <div className="shrink-0 border-b border-blue-500/30 bg-[#050a14]">
+      <div className="flex w-full items-end overflow-x-auto no-scrollbar px-3 md:px-6" role="tablist">
         {CONTENT_TABS.map(tab => {
           const Icon = tab.icon;
           const active = contentTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => handleContentTabChange(tab.id)}
-              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 md:gap-2 px-1 pb-3 pt-3 transition-all duration-300 border-b-2 -mb-px ${
+              role="tab"
+              aria-selected={active}
+              onClick={(e) => {
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                handleContentTabChange(tab.id);
+              }}
+              className={`shrink-0 md:flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-1 pb-3 pt-3 transition-all duration-300 border-b-2 whitespace-nowrap ${
                 active
                   ? 'text-white border-blue-400 ps2-text-shadow'
                   : 'text-blue-400/70 border-transparent hover:text-blue-200'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none truncate">{tab.label}</span>
+              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none">{tab.label}</span>
             </button>
           );
         })}

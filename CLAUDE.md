@@ -5,7 +5,7 @@
 
   Deployment:
   - Using GitHub Pages for hosting
-  - Deploy command: npm run deploy
+  - Deploy command: npm run deploy (builds, then publishes dist/ to the gh-pages branch on origin; public/CNAME is copied into dist/)
   - Only deploy when explicitly requested
 
   General Practice:
