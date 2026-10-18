@@ -570,7 +570,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   );
 
   const renderBooks = () => (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center min-h-full">
       {BOOK_DATA.map((book, i) => {
         const handleOpen = () => {
           if (book.url) {
@@ -581,7 +581,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         return (
           <div
             key={i}
-            className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-center bg-black/40 p-12 border border-blue-500/30 rounded-lg"
+            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg"
             onMouseEnter={() => soundManager.playHover()}
             onKeyDown={(e) => { if (e.key === 'Enter') handleOpen(); }}
             tabIndex={book.url ? 0 : undefined}
@@ -600,15 +600,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               )}
             </div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-4xl font-serif text-white mb-1">{book.title}</h3>
+              <h3 className="text-3xl md:text-4xl font-serif text-white mb-1">{book.title}</h3>
               {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
               <div className="text-xl text-blue-400 mb-6">{book.author}</div>
 
-              <div className="bg-blue-900/30 border border-blue-500/50 px-6 py-4 rounded mb-6">
+              <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
                 <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
               </div>
 
-              <div className="flex items-center space-x-2 mb-6">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
                 <span className="uppercase tracking-widest text-sm font-bold text-white/50">Available Now</span>
                 <span className="h-px w-8 bg-blue-500/50"></span>
                 <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
