@@ -85,7 +85,7 @@ export const WORK_DATA: JobItem[] = [
     company: "Swan Bitcoin",
     role: "Managing Director, Swan Private",
     period: "Sep 2026 - Present",
-    location: "Denver, Colorado, United States",
+    location: "New Orleans, Louisiana, United States",
     highlights: []
   },
   {
