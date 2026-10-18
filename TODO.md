@@ -10,3 +10,8 @@
         - [x] Cypherpunk's Manifesto Eric Hughes (<https://www.activism.net/cypherpunk/manifesto.html>)
         - [x] The Bitcoin Whitepaper Satoshi Nakamoto
         - [x] Situational Awareness Leopold Aschenbrenner
+
+# Portfolio
+
+- [x] Add a Design tab under Portfolio (logos and X profile picture)
+- [ ] Add a favicon (/favicon.ico currently 404s)
