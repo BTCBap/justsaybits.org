@@ -108,7 +108,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
       haptic: haptic ? 'tick' : undefined,
     });
     if (source !== 'hover' && source !== 'focus') {
-      announce(`${section.title} — ${section.description}`);
+      announce(section.title);
     }
   }, [sections, onActiveIndexChange]);
 
@@ -325,9 +325,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 <h2 className="mt-1 text-[28px] font-light uppercase leading-tight tracking-[0.16em] text-white md:text-[36px]">
                   {activeSection.title}
                 </h2>
-                <p className="mt-1.5 min-h-[1.35rem] text-[14px] font-light leading-snug text-[var(--text-secondary)]">
-                  {activeSection.description}
-                </p>
                 <button
                   type="button"
                   onClick={() => openAt(activeIndex, 'pointer')}
