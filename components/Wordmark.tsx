@@ -32,7 +32,6 @@ const Wordmark: React.FC<WordmarkProps> = ({ decorative = false, className = '' 
     </svg>
     <span className="boot-wordmark__text" aria-hidden="true">
       <span className="boot-wordmark__name">JUSTSAYBITS</span>
-      <span className="boot-wordmark__tag">PERSONAL SYSTEM</span>
     </span>
   </span>
 );

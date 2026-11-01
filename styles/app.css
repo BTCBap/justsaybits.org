@@ -428,14 +428,6 @@ html[data-motion="reduced"] .panel-shift {
   color: #f2f8ff;
 }
 
-.boot-wordmark__tag {
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(204, 228, 255, 0.8);
-}
-
 /* --- Monolith field ------------------------------------------------------ */
 
 .boot__scene {
