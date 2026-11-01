@@ -38,28 +38,38 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
     let cssWidth = 0;
     let cssHeight = 0;
     let dpr = 1;
-    let backgroundGradient: CanvasGradient | null = null;
-    let centerGradient: CanvasGradient | null = null;
+    // The fog, horizon and vignette are static, so they are painted once into
+    // an offscreen plate and blitted per frame instead of rebuilding gradients.
+    let plate: HTMLCanvasElement | null = null;
+    let bloomGradient: CanvasGradient | null = null;
+
+    // A fixed seed keeps the monolith field composed the same way on every
+    // load, so the background reads as a designed place rather than noise.
+    let seed = 0x9e3779b9;
+    const random = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
 
     // Towers (floating pillars / memory blocks). Positions are ratios so they
     // cover any viewport; the depth sort is fixed and done once.
     const towers = Array.from({ length: 50 }, () => ({
-      xRatio: (Math.random() - 0.5) * 2.5,
-      z: Math.random() * 800 + 200,
-      yRatio: (Math.random() - 0.5) * 1.5,
-      width: Math.random() * 40 + 30,
-      height: Math.random() * 300 + 100,
-      speed: Math.random() * 0.003 + 0.0015,
-      offset: Math.random() * Math.PI * 2,
+      xRatio: (random() - 0.5) * 2.5,
+      z: random() * 800 + 200,
+      yRatio: (random() - 0.5) * 1.5,
+      width: random() * 40 + 30,
+      height: random() * 300 + 100,
+      speed: random() * 0.003 + 0.0015,
+      offset: random() * Math.PI * 2,
     })).sort((a, b) => b.z - a.z);
 
     // Orbiting particles ("seven stars").
     const electrons = Array.from({ length: 7 }, () => ({
-      angle: Math.random() * Math.PI * 2,
-      radiusRatio: Math.random() * 0.25 + 0.15,
-      tilt: (Math.random() - 0.5) * 0.5,
-      speed: (Math.random() * 0.003 + 0.001) * (Math.random() > 0.5 ? 1 : -1),
-      yOffsetRatio: (Math.random() - 0.5) * 0.4,
+      angle: random() * Math.PI * 2,
+      radiusRatio: random() * 0.25 + 0.15,
+      tilt: (random() - 0.5) * 0.5,
+      speed: (random() * 0.003 + 0.001) * (random() > 0.5 ? 1 : -1),
+      yOffsetRatio: (random() - 0.5) * 0.4,
     }));
 
     // One small sprite replaces a per-particle shadowBlur.
@@ -76,16 +86,53 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       glowCtx.fillRect(0, 0, 64, 64);
     }
 
-    const buildGradients = () => {
-      backgroundGradient = ctx.createRadialGradient(cssWidth / 2, cssHeight / 2, 0, cssWidth / 2, cssHeight / 2, cssWidth);
-      backgroundGradient.addColorStop(0, '#0f172a');
-      backgroundGradient.addColorStop(0.6, '#000000');
-      backgroundGradient.addColorStop(1, '#000000');
+    const buildPlate = () => {
+      plate = document.createElement('canvas');
+      plate.width = canvas.width;
+      plate.height = canvas.height;
+      const plateCtx = plate.getContext('2d');
+      if (!plateCtx) return;
+      plateCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+      const cx = cssWidth / 2;
+      const cy = cssHeight / 2;
       const minDim = Math.min(cssWidth, cssHeight);
-      centerGradient = ctx.createRadialGradient(cssWidth / 2, cssHeight / 2, 0, cssWidth / 2, cssHeight / 2, minDim * 0.58);
-      centerGradient.addColorStop(0, 'rgba(40, 80, 200, 0.08)');
-      centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      // Deep PS2 blue fog: one blue field, no purple, near-black at the rim.
+      const fog = plateCtx.createRadialGradient(cx, cssHeight * 0.44, 0, cx, cssHeight * 0.44, Math.max(cssWidth, cssHeight) * 0.78);
+      fog.addColorStop(0, '#0b2040');
+      fog.addColorStop(0.42, '#061226');
+      fog.addColorStop(0.78, '#020812');
+      fog.addColorStop(1, '#01040a');
+      plateCtx.fillStyle = fog;
+      plateCtx.fillRect(0, 0, cssWidth, cssHeight);
+
+      // A low horizon band, the PS2 boot's brightest quiet line.
+      const horizon = plateCtx.createLinearGradient(0, cssHeight * 0.5, 0, cssHeight * 0.82);
+      horizon.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      horizon.addColorStop(0.62, 'rgba(74, 142, 236, 0.05)');
+      horizon.addColorStop(0.74, 'rgba(120, 180, 255, 0.08)');
+      horizon.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      plateCtx.fillStyle = horizon;
+      plateCtx.fillRect(0, 0, cssWidth, cssHeight);
+
+      // Calm the edges so the centre keeps the light.
+      const vignette = plateCtx.createRadialGradient(cx, cy, minDim * 0.25, cx, cy, Math.max(cssWidth, cssHeight) * 0.8);
+      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vignette.addColorStop(0.62, 'rgba(0, 0, 0, 0.16)');
+      vignette.addColorStop(1, 'rgba(0, 0, 0, 0.56)');
+      plateCtx.fillStyle = vignette;
+      plateCtx.fillRect(0, 0, cssWidth, cssHeight);
+    };
+
+    const buildGradients = () => {
+      const minDim = Math.min(cssWidth, cssHeight);
+
+      // The single bloom behind the composition carries the light.
+      bloomGradient = ctx.createRadialGradient(cssWidth / 2, cssHeight / 2, 0, cssWidth / 2, cssHeight / 2, minDim * 0.62);
+      bloomGradient.addColorStop(0, 'rgba(56, 124, 224, 0.13)');
+      bloomGradient.addColorStop(0.55, 'rgba(24, 70, 150, 0.06)');
+      bloomGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     };
 
     const resize = () => {
@@ -96,6 +143,7 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       canvas.width = Math.round(cssWidth * dpr);
       canvas.height = Math.round(cssHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildPlate();
       buildGradients();
       draw();
     };
@@ -105,17 +153,21 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       const h = cssHeight;
       const minDim = Math.min(w, h);
 
-      if (backgroundGradient) {
-        ctx.fillStyle = backgroundGradient;
-        ctx.fillRect(0, 0, w, h);
+      // One slow camera pan: the field drifts rather than bobbing in place.
+      const camX = Math.sin(time * 0.0008) * 0.035;
+      const camY = Math.cos(time * 0.0006) * 0.02;
+      const dolly = 1 + Math.sin(time * 0.0005) * 0.012;
+
+      if (plate) {
+        ctx.drawImage(plate, 0, 0, w, h);
       }
 
-      if (centerGradient) {
-        const pulseScale = 1 + Math.sin(time * 0.01) * 0.08;
-        ctx.globalAlpha = 0.65 + Math.sin(time * 0.01) * 0.25;
-        ctx.fillStyle = centerGradient;
+      if (bloomGradient) {
+        const pulseScale = 1 + Math.sin(time * 0.01) * 0.06;
+        ctx.globalAlpha = 0.7 + Math.sin(time * 0.01) * 0.2;
+        ctx.fillStyle = bloomGradient;
         ctx.beginPath();
-        ctx.arc(w / 2, h / 2, minDim * 0.5 * pulseScale, 0, Math.PI * 2);
+        ctx.arc(w / 2, h / 2, minDim * 0.52 * pulseScale, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
       }
@@ -125,9 +177,9 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
 
       towers.forEach(tower => {
         const yBob = Math.sin(time * tower.speed + tower.offset) * 50;
-        const xWorld = tower.xRatio * w;
-        const yWorld = tower.yRatio * h + yBob;
-        const scale = 400 / tower.z;
+        const xWorld = tower.xRatio * w - camX * w;
+        const yWorld = tower.yRatio * h + yBob - camY * h;
+        const scale = (400 / tower.z) * dolly;
         const x2d = cx + xWorld * scale;
         const y2d = cy + yWorld * scale;
         const w2d = tower.width * scale;
@@ -135,7 +187,7 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
 
         if (scale > 0 && x2d > -w2d && x2d < w + w2d && y2d > -h2d && y2d < h + h2d) {
           const alpha = Math.min(1, Math.max(0, scale * 0.4));
-          ctx.fillStyle = `rgba(100, 150, 255, ${alpha * 0.1})`;
+          ctx.fillStyle = `rgba(110, 168, 255, ${alpha * 0.1})`;
           ctx.fillRect(x2d - w2d / 2, y2d - h2d / 2, w2d, h2d);
           ctx.strokeStyle = `rgba(150, 200, 255, ${alpha * 0.25})`;
           ctx.lineWidth = 1;
@@ -152,8 +204,8 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
         const y3d = z3d * elec.tilt + yOffset;
         const zDepth = 400 + z3d * 0.5;
         const scale = 400 / zDepth;
-        const px = cx + x3d * scale;
-        const py = cy + y3d * scale;
+        const px = cx + x3d * scale - camX * minDim * 0.5;
+        const py = cy + y3d * scale - camY * minDim * 0.5;
         const size = Math.max(0.5, 2 * scale);
         const alpha = Math.min(1, scale);
 

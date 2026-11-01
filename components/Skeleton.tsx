@@ -50,7 +50,7 @@ export const ScreenSkeleton: React.FC = () => (
     aria-label="Loading section"
   >
     <span className="sr-only">Loading section…</span>
-    <div className="screen-panel skeleton-screen w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
+    <div className="screen-panel skeleton-screen w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[var(--bg)] shadow-[0_0_50px_rgba(110,168,255,0.14)]">
       <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center gap-4 px-6 bg-gradient-to-r from-blue-900/20 to-transparent">
         <span className="skeleton-square" aria-hidden="true" />
         <SkeletonLine width="10rem" className="skeleton-line--title" />

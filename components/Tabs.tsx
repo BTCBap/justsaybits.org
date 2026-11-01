@@ -65,7 +65,7 @@ const Tabs: React.FC<TabsProps> = ({
     <div
       role="tablist"
       aria-label={label}
-      className={`tabs ${containerClass} w-full border-b border-blue-400/25 bg-[#050a14] px-1 md:px-4 ${className}`}
+      className={`tabs ${containerClass} w-full border-b border-blue-400/25 bg-[var(--bg)] px-1 md:px-4 ${className}`}
     >
       {items.map((item, index) => {
         const active = item.id === activeId;

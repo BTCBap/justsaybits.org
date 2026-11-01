@@ -50,7 +50,7 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
         aria-modal="true"
         aria-labelledby="notfound-title"
         tabIndex={-1}
-        className="screen-panel w-full max-w-3xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)] focus:outline-none"
+        className="screen-panel w-full max-w-3xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[var(--bg)] shadow-[0_0_50px_rgba(110,168,255,0.14)] focus:outline-none"
       >
         <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center px-6 bg-gradient-to-r from-blue-900/20 to-transparent">
           <h1

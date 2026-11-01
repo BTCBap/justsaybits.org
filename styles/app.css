@@ -45,8 +45,17 @@
   --type-20: 1.25rem;
   --type-28: 1.75rem;
   --type-36: 2.25rem;
+  /* Long-form prose is the one deliberate step outside the system scale. */
+  --type-prose: 1.0625rem;
 
   --measure: 65ch;
+  color-scheme: dark;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --type-prose: 1.125rem;
+  }
 }
 
 .ps2-label {
@@ -96,20 +105,30 @@ html {
 }
 
 body {
+  background-color: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans);
+}
+
+::selection {
+  background: rgba(110, 168, 255, 0.32);
+  color: var(--text);
 }
 
 /* Fallback field behind the canvas so the first paint is already blue-black. */
 .ps2-backdrop {
-  background: radial-gradient(circle at 50% 50%, #0f172a 0%, #000 68%);
+  background:
+    radial-gradient(ellipse 82% 64% at 50% 44%, rgba(24, 62, 120, 0.58) 0%, rgba(5, 14, 30, 0.94) 56%, #01040a 100%),
+    #01040a;
 }
 
-/* Sparse, monochrome scanlines. Disabled where they cost legibility or GPU time. */
+/* Sparse, monochrome scanlines at 3% average. Disabled where they cost
+   legibility or GPU time; they sit behind every text layer. */
 .crt-overlay {
   background-image: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.1) 0,
-    rgba(0, 0, 0, 0.1) 1px,
+    rgba(0, 0, 0, 0.09) 0,
+    rgba(0, 0, 0, 0.09) 1px,
     transparent 1px,
     transparent 3px
   );
@@ -327,10 +346,10 @@ html[data-motion="reduced"] .panel-shift {
   gap: 0.6rem;
   margin: 0;
   font-family: var(--font-mono);
-  font-size: clamp(0.58rem, 1.1vw, 0.68rem);
-  letter-spacing: 0.32em;
+  font-size: var(--type-12);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(188, 220, 255, 0.72);
+  color: rgba(204, 228, 255, 0.84);
 }
 
 .boot__status-dot {
@@ -349,8 +368,8 @@ html[data-motion="reduced"] .panel-shift {
   background: rgba(22, 64, 140, 0.22);
   color: #e8f3ff;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.3em;
+  font-size: var(--type-12);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
@@ -372,10 +391,10 @@ html[data-motion="reduced"] .panel-shift {
 .boot__hint {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: clamp(0.56rem, 1vw, 0.64rem);
-  letter-spacing: 0.22em;
+  font-size: var(--type-12);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(174, 208, 248, 0.55);
+  color: rgba(194, 222, 255, 0.74);
 }
 
 /* --- Original wordmark --------------------------------------------------- */
@@ -411,10 +430,10 @@ html[data-motion="reduced"] .panel-shift {
 
 .boot-wordmark__tag {
   font-family: var(--font-mono);
-  font-size: clamp(0.52rem, 1vw, 0.64rem);
-  letter-spacing: 0.34em;
+  font-size: var(--type-12);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(186, 218, 255, 0.68);
+  color: rgba(204, 228, 255, 0.8);
 }
 
 /* --- Monolith field ------------------------------------------------------ */
@@ -581,10 +600,10 @@ html[data-motion="reduced"] .panel-shift {
   padding: 0.4rem 0.9rem;
   border: 1px solid rgba(150, 200, 255, 0.35);
   background: rgba(0, 4, 12, 0.55);
-  color: rgba(214, 236, 255, 0.85);
+  color: rgba(220, 240, 255, 0.9);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.28em;
+  font-size: var(--type-12);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   animation: boot-skip-in 320ms ease-out 300ms both;
   transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
@@ -1194,16 +1213,10 @@ html[data-motion="reduced"] .menu-option {
 .essay-prose {
   max-width: var(--measure);
   color: var(--text);
-  font-size: 1.0625rem;
+  font-size: var(--type-prose);
   font-weight: 300;
   line-height: 1.66;
   letter-spacing: 0.005em;
-}
-
-@media (min-width: 768px) {
-  .essay-prose {
-    font-size: 1.125rem;
-  }
 }
 
 .essay-prose > * + * {
@@ -1283,7 +1296,7 @@ html[data-motion="reduced"] .menu-option {
   margin-left: 0.45rem;
   color: var(--accent-soft);
   font-family: var(--font-mono);
-  font-size: 0.62em;
+  font-size: var(--type-12);
   text-decoration: none;
   vertical-align: 0.35em;
 }
@@ -1478,7 +1491,7 @@ html[data-motion="reduced"] .essay-prose a {
   border-left: 2px solid var(--accent);
   padding-left: 1rem;
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: var(--type-20);
   font-weight: 300;
   line-height: 1.3;
   letter-spacing: 0.005em;
@@ -1486,7 +1499,7 @@ html[data-motion="reduced"] .essay-prose a {
 
 @media (min-width: 768px) {
   .about-quote {
-    font-size: 1.75rem;
+    font-size: var(--type-28);
   }
 }
 
@@ -1629,7 +1642,7 @@ html[data-motion="reduced"] .essay-prose a {
   background: rgba(20, 50, 100, 0.4);
   padding: 0 0.9rem;
   color: #fff;
-  font-size: 1.25rem;
+  font-size: var(--type-20);
   font-weight: 300;
   letter-spacing: 0.005em;
   text-decoration: none;
@@ -2296,7 +2309,7 @@ html[data-motion="reduced"] .essay-prose a {
   max-width: 80ch;
   margin: 0.45rem 0 0;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--type-14);
   line-height: 1.5;
 }
 
@@ -2429,7 +2442,7 @@ html[data-motion="reduced"] .essay-prose a {
 .book-title {
   margin: 0.35rem 0 0;
   color: #fff;
-  font-size: 1.75rem;
+  font-size: var(--type-28);
   font-weight: 300;
   line-height: 1.15;
   letter-spacing: 0.02em;
@@ -2437,7 +2450,7 @@ html[data-motion="reduced"] .essay-prose a {
 
 @media (min-width: 768px) {
   .book-title {
-    font-size: 2.25rem;
+    font-size: var(--type-36);
   }
 }
 
@@ -2520,7 +2533,7 @@ html[data-motion="reduced"] .essay-prose a {
 .book-note p {
   margin: 0.25rem 0 0.6rem;
   color: var(--text-secondary);
-  font-size: 0.9375rem;
+  font-size: var(--type-16);
   font-weight: 300;
   line-height: 1.6;
 }
@@ -2588,13 +2601,13 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 .essay-featured__title {
-  font-size: 1.5rem;
+  font-size: var(--type-20);
   line-height: 1.25;
 }
 
 @media (min-width: 768px) {
   .essay-featured__title {
-    font-size: 1.75rem;
+    font-size: var(--type-28);
   }
 }
 
@@ -2658,7 +2671,7 @@ html[data-motion="reduced"] .essay-prose a {
 
 .post-card__text {
   color: #fff;
-  font-size: 0.9375rem;
+  font-size: var(--type-16);
   font-weight: 300;
   line-height: 1.5;
   letter-spacing: 0.005em;
@@ -2780,7 +2793,7 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 .media-row__title {
-  font-size: 0.9375rem;
+  font-size: var(--type-16);
 }
 
 .media-row__play {
@@ -2902,7 +2915,7 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 .safe-image__fallback-mark {
-  font-size: 1.25rem;
+  font-size: var(--type-20);
 }
 
 .skeleton-line,
@@ -3061,7 +3074,7 @@ html[data-motion="reduced"] .essay-prose a {
   border: 1px solid rgba(110, 168, 255, 0.35);
   background: rgba(5, 10, 20, 0.9);
   padding: 1.5rem;
-  box-shadow: 0 0 50px rgba(0, 50, 255, 0.15);
+  box-shadow: 0 0 50px rgba(110, 168, 255, 0.14);
 }
 
 .error-screen__eyebrow {

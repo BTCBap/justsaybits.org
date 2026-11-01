@@ -88,7 +88,7 @@ const App: React.FC = () => {
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
       <LazyMotion features={domAnimation} strict>
-        <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
+        <div className="relative w-full h-full overflow-hidden bg-[var(--bg)] text-white font-sans">
           
           {/* Background Layer */}
           <PS2Background paused={!bootComplete || screenOpen} reducedMotion={reducedMotion} />

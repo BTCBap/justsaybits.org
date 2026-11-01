@@ -954,7 +954,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     >
       <div
         ref={panelRef}
-        className="screen-panel w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]"
+        className="screen-panel w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[var(--bg)] shadow-[0_0_50px_rgba(110,168,255,0.14)]"
         data-closing={closing ? 'true' : undefined}
       >
         
