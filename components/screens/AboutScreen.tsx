@@ -56,7 +56,6 @@ const AboutScreen: React.FC = () => {
 
         <div className="about-intro">
           <p className="about-now">
-            <span className="ps2-label about-now__label">Now</span>
             <span>
               {current.role ?? current.company}
               {current.role ? `, ${current.company}` : ''}
