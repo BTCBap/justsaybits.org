@@ -344,18 +344,6 @@ export const LECTURES: MediaItem[] = [
     "url": "https://youtu.be/xtMPbdeRGks"
   },
   {
-    "title": "Seed Phrase Workshop",
-    "date": "Oct 10, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/oxDGgVt0lgk"
-  },
-  {
-    "title": "Bitcoin and Finance",
-    "date": "May 12, 2024",
-    "source": "Wyatt O'Rourke",
-    "url": "https://youtu.be/thIOWBn4db4"
-  },
-  {
     "title": "Robert Warren - Microeconomics of Bitcoin Mining",
     "date": "Oct 10, 2024",
     "source": "Denver BitDevs",
@@ -378,72 +366,6 @@ export const LECTURES: MediaItem[] = [
     "date": "Jun 14, 2024",
     "source": "Denver BitDevs",
     "url": "https://youtu.be/WzHTVY5VvAw"
-  },
-  {
-    "title": "Banking on Bitcoin with Eric Yakes",
-    "date": "Apr 12, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/2YWHUSDlNwQ"
-  },
-  {
-    "title": "Bitcoin ASIC Architecture and Firmware LuxOS - David Urlacher | Denver BitDevs March 2024",
-    "date": "Mar 12, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/tPpUuNfollE"
-  },
-  {
-    "title": "Bitcoin Mining Derivatives, Hashrate Forwards, and Hashprice - Dan Rosen | Denver BitDevs March 2024",
-    "date": "Mar 12, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/HDdnVGm0M5U"
-  },
-  {
-    "title": "Lightning Integration for Business — Sam Korn",
-    "date": "Feb 07, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/xHfARIJCYVE"
-  },
-  {
-    "title": "Lightning Liquidity and Channel Management",
-    "date": "Feb 06, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/tY96Oj6jPbs"
-  },
-  {
-    "title": "Lightning Implementations — David Croisant",
-    "date": "Feb 05, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/hYcxoPJ8o0k"
-  },
-  {
-    "title": "Self-Hosted Computing — Matt Hill",
-    "date": "Dec 12, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/hgAJwZv86XQ"
-  },
-  {
-    "title": "RGB Protocol — Hunter Beast",
-    "date": "Nov 07, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/oeoBSYB0H7U"
-  },
-  {
-    "title": "Mining AMA — Shanon Squires",
-    "date": "Sep 12, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/7nhMVBhEBPk"
-  },
-  {
-    "title": "Mining Basics — Tyler Bain",
-    "date": "Sep 12, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/Y1OiBLiXkVk"
-  },
-  {
-    "title": "Mining by Scales — Rob Warren",
-    "date": "Sep 12, 2023",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/UNyLinB4NuE"
   }
 ];
 
