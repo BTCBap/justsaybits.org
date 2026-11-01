@@ -30,7 +30,7 @@ import {
   type ContentTabId,
 } from '../utils/router';
 import HelpBar from './HelpBar';
-import SystemSettings from './SystemSettings';
+import SystemToggles from './SystemToggles';
 import Tabs, { tabId, tabPanelId } from './Tabs';
 import { parseEssay } from './EssayBody';
 import { EssayArticle, ReaderBar } from './EssayReader';
@@ -989,7 +989,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
           {getContent()}
         </div>
 
-        {/* One context-aware footer: Back, the shortcuts for this screen, settings */}
+        {/* One context-aware footer: Back, this screen's shortcuts, the system toggles */}
         <div className="shrink-0 border-t border-blue-500/30 flex flex-wrap items-center justify-between gap-x-2 md:gap-x-4 gap-y-1 px-4 md:px-6 py-2 bg-black/40 text-sm">
           <button 
             type="button"
@@ -1007,7 +1007,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             actions={helpActions}
             description={helpDescription}
           />
-          <SystemSettings compact />
+          <SystemToggles />
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from 'react';
 
-export type MotionPreference = 'auto' | 'on';
+/** `auto` follows the OS, `on` forces reduced motion, `off` forces full motion. */
+export type MotionPreference = 'auto' | 'on' | 'off';
 
 export interface Preferences {
   sound: boolean;
   haptics: boolean;
-  /** `auto` follows the OS setting; `on` forces reduced motion. */
   motion: MotionPreference;
   soundHintDismissed: boolean;
 }
@@ -28,7 +28,7 @@ const read = (): Preferences => {
     return {
       sound: typeof parsed.sound === 'boolean' ? parsed.sound : DEFAULTS.sound,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULTS.haptics,
-      motion: parsed.motion === 'on' ? 'on' : 'auto',
+      motion: parsed.motion === 'on' ? 'on' : parsed.motion === 'off' ? 'off' : 'auto',
       soundHintDismissed: parsed.soundHintDismissed === true,
     };
   } catch {
@@ -79,6 +79,7 @@ export const isCoarsePointer = (): boolean => {
 
 export const prefersReducedMotionNow = (): boolean => {
   if (current.motion === 'on') return true;
+  if (current.motion === 'off') return false;
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
@@ -108,7 +109,9 @@ export function useMediaQuery(query: string): boolean {
 export function usePrefersReducedMotion(): boolean {
   const prefs = usePreferences();
   const systemReduced = useMediaQuery('(prefers-reduced-motion: reduce)');
-  return prefs.motion === 'on' || systemReduced;
+  if (prefs.motion === 'on') return true;
+  if (prefs.motion === 'off') return false;
+  return systemReduced;
 }
 
 export function useHapticsAvailable(): boolean {

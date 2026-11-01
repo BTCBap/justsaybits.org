@@ -7,7 +7,7 @@ import { announce } from '../utils/liveRegion';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
 import HelpBar from './HelpBar';
-import SystemSettings from './SystemSettings';
+import SystemToggles from './SystemToggles';
 
 interface MainMenuProps {
   sections: Section[];
@@ -451,12 +451,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </div>
 
-      {/* One footer: persistent settings and the current screen's controls. */}
+      {/* One footer: the system toggles and the current screen's controls. */}
       <div
         className="relative z-10 flex shrink-0 flex-col items-center gap-1.5 px-4 text-center"
         style={{ paddingBottom: `calc(12px + env(safe-area-inset-bottom, 0px))` }}
       >
-        <SystemSettings showHint />
+        <SystemToggles showHint />
         <HelpBar
           className="w-full"
           actions={[
