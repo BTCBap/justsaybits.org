@@ -7,13 +7,15 @@ declare global {
 }
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
+import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from 'framer-motion';
 
 import PS2Background from './components/PS2Background';
 import MainMenu from './components/MainMenu';
 import BootSequence from './components/BootSequence';
+import LiveStatus from './components/LiveStatus';
 import { SECTIONS } from './constants';
-import { soundManager } from './utils/SoundManager';
+import { interaction } from './utils/Interaction';
+import { usePrefersReducedMotion } from './utils/preferences';
 
 const ContentScreen = lazy(() => import('./components/ContentScreen'));
 
@@ -53,6 +55,14 @@ const App: React.FC = () => {
   });
 
   const activeSection = SECTIONS.find(s => s.id === activeSectionId);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    document.documentElement.dataset.motion = reducedMotion ? 'reduced' : 'auto';
+  }, [reducedMotion]);
+
+  // The interaction bus owns audio resumption, recovery, and the M shortcut.
+  useEffect(() => interaction.install(), []);
 
   // Track virtual pageviews on section navigation
   useEffect(() => {
@@ -74,78 +84,64 @@ const App: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [bootComplete]);
 
-  // Resume AudioContext on first interaction
-  useEffect(() => {
-    const handleInteraction = () => {
-      soundManager.resume();
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-    };
-
-    window.addEventListener('click', handleInteraction);
-    window.addEventListener('keydown', handleInteraction);
-    
-    return () => {
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-    };
-  }, []);
-
   return (
-    <LazyMotion features={domAnimation} strict>
-      <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
-        
-        <AnimatePresence mode='wait'>
-          {!bootComplete && (
-            <m.div 
-               key="boot"
-               className="absolute inset-0 z-[200]"
-               exit={{ opacity: 0, transition: { duration: 1 } }}
-            >
-              <BootSequence onComplete={() => setBootComplete(true)} />
-            </m.div>
-          )}
-        </AnimatePresence>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
+      <LazyMotion features={domAnimation} strict>
+        <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
+          
+          <AnimatePresence mode='wait'>
+            {!bootComplete && (
+              <m.div 
+                 key="boot"
+                 className="absolute inset-0 z-[200]"
+                 exit={{ opacity: 0, transition: { duration: 1 } }}
+              >
+                <BootSequence onComplete={() => setBootComplete(true)} />
+              </m.div>
+            )}
+          </AnimatePresence>
 
-        {/* Background Layer */}
-        <PS2Background paused={!bootComplete || !!activeSection} />
+          {/* Background Layer */}
+          <PS2Background paused={!bootComplete || !!activeSection} reducedMotion={reducedMotion} />
 
-        {/* Main Content Layer */}
-        <div className="relative z-10 w-full h-full">
-          <Suspense fallback={<ContentLoading />}>
-            <AnimatePresence mode='wait'>
-              {bootComplete && activeSection ? (
-                <ContentScreen 
-                  key="content"
-                  section={activeSection} 
-                  onBack={() => setActiveSectionId(null)} 
-                />
-              ) : bootComplete ? (
-                <m.div 
-                  key="menu"
-                  className="w-full h-full"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)", transition: { duration: 0.5 } }}
-                  transition={{ duration: 0.8 }}
-                >
-                  <MainMenu
-                    sections={SECTIONS}
-                    onSelect={(id) => setActiveSectionId(id)}
-                    activeIndex={activeMenuIndex}
-                    onActiveIndexChange={setActiveMenuIndex}
+          {/* Main Content Layer */}
+          <div className="relative z-10 w-full h-full">
+            <Suspense fallback={<ContentLoading />}>
+              <AnimatePresence mode='wait'>
+                {bootComplete && activeSection ? (
+                  <ContentScreen 
+                    key="content"
+                    section={activeSection} 
+                    onBack={() => setActiveSectionId(null)} 
                   />
-                </m.div>
-              ) : null}
-            </AnimatePresence>
-          </Suspense>
-        </div>
+                ) : bootComplete ? (
+                  <m.div 
+                    key="menu"
+                    className="w-full h-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)", transition: { duration: 0.5 } }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <MainMenu
+                      sections={SECTIONS}
+                      onSelect={(id) => setActiveSectionId(id)}
+                      activeIndex={activeMenuIndex}
+                      onActiveIndexChange={setActiveMenuIndex}
+                    />
+                  </m.div>
+                ) : null}
+              </AnimatePresence>
+            </Suspense>
+          </div>
 
-        {/* CRT Scanline Effect Overlay */}
-        <div className="crt-overlay pointer-events-none fixed inset-0 z-[100]" />
-        
-      </div>
-    </LazyMotion>
+          {/* CRT Scanline Effect Overlay */}
+          <div className="crt-overlay pointer-events-none fixed inset-0 z-[100]" />
+
+          <LiveStatus />
+        </div>
+      </LazyMotion>
+    </MotionConfig>
   );
 };
 

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
-import { soundManager } from '../utils/SoundManager';
-import { hapticManager } from '../utils/HapticManager';
+import { interaction } from '../utils/Interaction';
+import SystemSettings from './SystemSettings';
 
 interface MainMenuProps {
   sections: Section[];
@@ -12,14 +12,22 @@ interface MainMenuProps {
   onActiveIndexChange: (index: number) => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, onActiveIndexChange }) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+const initialFooterBottom = () => {
+  const w = window.visualViewport?.width ?? window.innerWidth;
+  const h = window.visualViewport?.height ?? window.innerHeight;
+  if (h < 500) return 16;
+  if (w < 768) return 16;
+  if (h < 700 && w >= 768) return 24;
+  return 48;
+};
 
+const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, onActiveIndexChange }) => {
   // Layout State
   const [spacing, setSpacing] = useState(180);
   const [menuScale, setMenuScale] = useState(1);
   const [menuYOffset, setMenuYOffset] = useState(0);
-  const [footerBottom, setFooterBottom] = useState(48); // px padding from the visible bottom
+  // Start at the value the resize pass will use so the footer does not move.
+  const [footerBottom, setFooterBottom] = useState(initialFooterBottom);
   const [hideClock, setHideClock] = useState(false);
 
   // Swipe gesture tracking
@@ -83,24 +91,28 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
     };
   }, []);
 
-  const goToAdjacent = useCallback((direction: 1 | -1, haptic: 'light' | 'swipe' = 'light') => {
-    onActiveIndexChange((activeIndex + direction + sections.length) % sections.length);
-    soundManager.playHover();
-    if (haptic === 'swipe') {
-      hapticManager.swipe();
-    } else {
-      hapticManager.light();
-    }
-  }, [activeIndex, sections.length, onActiveIndexChange]);
+  const goToAdjacent = useCallback((direction: 1 | -1, source: 'keyboard' | 'gesture' = 'keyboard') => {
+    const next = (activeIndex + direction + sections.length) % sections.length;
+    onActiveIndexChange(next);
+    interaction.interact('cursor', {
+      id: `menu:${sections[next].id}`,
+      source,
+      haptic: 'tick',
+    });
+  }, [activeIndex, sections, onActiveIndexChange]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+
     if (e.key === 'ArrowRight') {
       goToAdjacent(1);
     } else if (e.key === 'ArrowLeft') {
       goToAdjacent(-1);
     } else if (e.key === 'Enter') {
-      soundManager.playSelect();
-      hapticManager.medium();
+      // Let focused buttons and links handle their own Enter.
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+      interaction.interact('confirm', { source: 'keyboard' });
       onSelect(sections[activeIndex].id);
     }
   }, [sections, activeIndex, onSelect, goToAdjacent]);
@@ -126,10 +138,10 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
     if (absDeltaX > absDeltaY && absDeltaX > MIN_SWIPE_DISTANCE) {
       if (deltaX > 0) {
         // Swipe left - go to next item
-        goToAdjacent(1, 'swipe');
+        goToAdjacent(1, 'gesture');
       } else {
         // Swipe right - go to previous item
-        goToAdjacent(-1, 'swipe');
+        goToAdjacent(-1, 'gesture');
       }
     }
 
@@ -146,10 +158,16 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
   }, [handleKeyDown]);
 
   const handleItemClick = (index: number) => {
-    soundManager.playSelect();
-    hapticManager.medium();
+    interaction.interact('confirm', { source: 'pointer' });
     onActiveIndexChange(index);
     onSelect(sections[index].id);
+  };
+
+  const handleItemHover = (index: number, pointerType: string) => {
+    // Touch has no hover; its feedback comes from the gesture and the click.
+    if (pointerType !== 'mouse' || index === activeIndex) return;
+    onActiveIndexChange(index);
+    interaction.interact('cursor', { id: `menu:${sections[index].id}`, source: 'hover' });
   };
 
   return (
@@ -182,7 +200,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
             if (offset < -sections.length / 2) offset += sections.length;
 
             const isActive = offset === 0;
-            const isHovered = index === hoveredIndex;
 
             // Use dynamic spacing
             const xOffset = offset * spacing; 
@@ -191,10 +208,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
             const opacity = 1 - Math.abs(offset) * 0.15; 
             
             // Scale logic
-            let scale = isActive ? 1.2 : 0.9;
-            if (isHovered) {
-                scale *= 1.15; 
-            }
+            const scale = isActive ? 1.2 : 0.9;
 
             return (
               <m.div
@@ -212,8 +226,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 onClick={() => handleItemClick(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
+                onPointerEnter={(e) => handleItemHover(index, e.pointerType)}
                 style={{
                   zIndex: 100 - Math.abs(offset),
                   transformStyle: 'preserve-3d',
@@ -223,36 +236,19 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                 <div className={`relative w-24 h-24 mb-6 rounded-full flex items-center justify-center
                   ${isActive 
                     ? 'shadow-[0_0_30px_rgba(50,100,255,0.6)] border-2 border-white' 
-                    : (isHovered 
-                        ? 'border-2 border-white/80 bg-white/10 shadow-[0_0_25px_rgba(255,255,255,0.3)]' 
-                        : 'border border-white/20'
-                      )
+                    : 'border border-white/20'
                   }
                   backdrop-blur-md bg-gradient-to-br from-blue-500/30 to-transparent transition-all duration-300`}>
                   
-                  <m.div
-                    className="relative z-50"
-                    animate={isHovered ? { 
-                      rotate: [0, -8, 8, 0],
-                      scale: [1, 1.05, 1]
-                    } : { 
-                      rotate: 0,
-                      scale: 1 
-                    }}
-                    transition={{ 
-                      duration: 2, 
-                      repeat: Infinity, 
-                      ease: "easeInOut" 
-                    }}
-                  >
+                  <div className="relative z-50">
                     <section.icon 
                       className={`w-10 h-10 transition-colors duration-300 ${
                           isActive 
                           ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]' 
-                          : (isHovered ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]' : 'text-blue-300/70')
+                          : 'text-blue-300/70'
                       }`} 
                     />
-                  </m.div>
+                  </div>
                   
                   {/* Internal rotating ring for active */}
                   {isActive && (
@@ -265,8 +261,8 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                 </div>
 
                 {/* Label */}
-                <div className={`text-center transition-all duration-300 ${isActive || isHovered ? 'opacity-100 scale-110' : 'opacity-60 scale-90'}`}>
-                    <h3 className={`text-xl font-bold uppercase tracking-[0.2em] ps2-text-shadow transition-colors duration-300 ${isHovered && !isActive ? 'text-white' : 'text-white'}`}>
+                <div className={`text-center transition-all duration-300 ${isActive ? 'opacity-100 scale-110' : 'opacity-60 scale-90'}`}>
+                    <h3 className="text-xl font-bold uppercase tracking-[0.2em] ps2-text-shadow transition-colors duration-300 text-white">
                         {section.title}
                     </h3>
                     {isActive && (
@@ -291,6 +287,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
       <button
         type="button"
         aria-label="Previous section"
+        onFocus={() => interaction.interact('cursor', { id: 'menu:prev', source: 'focus' })}
         onClick={(e) => {
           e.stopPropagation();
           goToAdjacent(-1);
@@ -310,6 +307,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
       <button
         type="button"
         aria-label="Next section"
+        onFocus={() => interaction.interact('cursor', { id: 'menu:next', source: 'focus' })}
         onClick={(e) => {
           e.stopPropagation();
           goToAdjacent(1);
@@ -337,12 +335,13 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
 
       {/* Helper Text - pinned to the visible bottom, above the home indicator */}
       <div 
-        className="absolute inset-x-0 w-full text-center transition-all duration-300"
+        className="absolute inset-x-0 w-full flex flex-col items-center gap-2 text-center"
         style={{
           bottom: 0,
           paddingBottom: `calc(${footerBottom}px + env(safe-area-inset-bottom, 0px))`,
         }}
       >
+        <SystemSettings showHint />
         <div className="flex items-center justify-center space-x-8 text-sm text-blue-400/60 font-mono uppercase tracking-widest">
             <span className="flex items-center">
                 <span className="border border-blue-400/60 px-2 py-0.5 mr-2 text-[10px] rounded-sm font-bold">ENTER</span> 
@@ -353,16 +352,18 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                      <button
                        type="button"
                        aria-label="Previous section"
+                       onFocus={() => interaction.interact('cursor', { id: 'menu:footer-prev', source: 'focus' })}
                        onClick={() => goToAdjacent(-1)}
-                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white transition-colors"
+                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
                      >
                        ←
                      </button>
                      <button
                        type="button"
                        aria-label="Next section"
+                       onFocus={() => interaction.interact('cursor', { id: 'menu:footer-next', source: 'focus' })}
                        onClick={() => goToAdjacent(1)}
-                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white transition-colors"
+                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
                      >
                        →
                      </button>

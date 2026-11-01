@@ -3,17 +3,25 @@ import React, { useEffect, useRef } from 'react';
 interface PS2BackgroundProps {
   /** True while an opaque screen or the boot overlay covers the background. */
   paused?: boolean;
+  /** The visitor's reduced-motion setting, in addition to the OS preference. */
+  reducedMotion?: boolean;
 }
 
-const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false }) => {
+const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMotion = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef(paused);
+  const reducedPropRef = useRef(reducedMotion);
   const refreshRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     pausedRef.current = paused;
     refreshRef.current();
   }, [paused]);
+
+  useEffect(() => {
+    reducedPropRef.current = reducedMotion;
+    refreshRef.current();
+  }, [reducedMotion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,7 +31,7 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false }) => {
     if (!ctx) return;
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let reducedMotion = motionQuery.matches;
+    let reducedMotion = motionQuery.matches || reducedPropRef.current;
     let raf = 0;
     let lastFrame = 0;
     let time = 0;
@@ -190,11 +198,13 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false }) => {
     };
 
     refreshRef.current = () => {
+      reducedMotion = motionQuery.matches || reducedPropRef.current;
       if (canAnimate()) {
         draw();
         start();
       } else {
         stop();
+        if (reducedMotion && !document.hidden) draw();
       }
     };
 
@@ -204,7 +214,7 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false }) => {
     };
 
     const handleMotionPreference = () => {
-      reducedMotion = motionQuery.matches;
+      reducedMotion = motionQuery.matches || reducedPropRef.current;
       if (reducedMotion) stop();
       refreshRef.current();
     };

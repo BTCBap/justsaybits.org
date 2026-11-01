@@ -25,8 +25,8 @@ import { ESSAYS } from '../data/essays';
 import { loadEssayContent } from '../data/essayContent';
 import { ESSAY_IMAGE_META, POST_IMAGE_META } from '../data/imageMeta';
 import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
-import { soundManager } from '../utils/SoundManager';
-import { hapticManager } from '../utils/HapticManager';
+import { interaction } from '../utils/Interaction';
+import SystemSettings from './SystemSettings';
 
 interface ContentScreenProps {
   section: Section;
@@ -291,8 +291,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   const openEssay = async (post: EssaySummary) => {
     const request = ++essayRequest.current;
-    soundManager.playSelect();
-    hapticManager.medium();
+    interaction.interact('confirm', { source: 'pointer' });
     setSelectedEssay(post);
     setEssayContent(null);
     setEssayError(false);
@@ -307,13 +306,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       if (essayRequest.current === request) {
         setEssayError(true);
         setEssayLoading(false);
+        interaction.interact('error', { source: 'system' });
       }
     }
   };
 
   const handleBack = () => {
-    soundManager.playBack();
-    hapticManager.medium();
+    interaction.interact('back', { source: 'pointer' });
     if (selectedEssay) {
       closeEssay();
     } else {
@@ -323,6 +322,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Backspace') {
         handleBack();
       }
@@ -334,16 +334,22 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
   const handleTabChange = (tab: PortfolioTab) => {
     if (portfolioTab !== tab) {
-      soundManager.playHover();
-      hapticManager.light();
+      interaction.interact('cursor', {
+        id: `portfolio-tab:${tab}`,
+        source: 'pointer',
+        haptic: 'tick',
+      });
       setPortfolioTab(tab);
     }
   };
 
   const handleContentTabChange = (tab: ContentTab) => {
     if (contentTab !== tab) {
-      soundManager.playHover();
-      hapticManager.light();
+      interaction.interact('cursor', {
+        id: `content-tab:${tab}`,
+        source: 'pointer',
+        haptic: 'tick',
+      });
       setContentTab(tab);
       closeEssay();
     }
@@ -355,12 +361,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse') {
+          interaction.interact('cursor', { id: `media:${item.url}`, source: 'hover' });
+        }
       }}
-      onClick={() => { hapticManager.medium(); }}
+      onFocus={() => interaction.interact('cursor', { id: `media:${item.url}`, source: 'focus' })}
+      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
@@ -385,12 +393,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse') {
+          interaction.interact('cursor', { id: `post:${item.id}`, source: 'hover' });
+        }
       }}
-      onClick={() => { hapticManager.medium(); }}
+      onFocus={() => interaction.interact('cursor', { id: `post:${item.id}`, source: 'focus' })}
+      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow break-words">
@@ -432,12 +442,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
+      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse') {
+          interaction.interact('cursor', { id: `reading:${item.url}`, source: 'hover' });
+        }
       }}
-      onClick={() => { hapticManager.medium(); }}
+      onFocus={() => interaction.interact('cursor', { id: `reading:${item.url}`, source: 'focus' })}
+      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
@@ -461,12 +473,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="group block bg-blue-900/20 border border-blue-500/30 p-6 hover:bg-blue-800/40 transition-all duration-200"
-          onMouseEnter={() => {
-            soundManager.playHover();
-            hapticManager.light();
+          className="group block bg-blue-900/20 border border-blue-500/30 p-6 hover:bg-blue-800/40 focus-visible:outline-none focus-visible:border-blue-300 transition-all duration-200"
+          onPointerEnter={(e) => {
+            if (e.pointerType === 'mouse') {
+              interaction.interact('cursor', { id: `social:${link.platform}`, source: 'hover' });
+            }
           }}
-          onClick={() => { hapticManager.medium(); window.umami?.track('social-click', { platform: link.platform }); }}
+          onFocus={() => interaction.interact('cursor', { id: `social:${link.platform}`, source: 'focus' })}
+          onClick={() => {
+            interaction.interact('confirm', { source: 'pointer' });
+            window.umami?.track('social-click', { platform: link.platform });
+          }}
         >
           <div className="text-blue-400 text-xs tracking-widest uppercase mb-1">{link.platform}</div>
           <div className="text-xl font-mono text-white group-hover:ps2-text-shadow flex items-center justify-between">
@@ -552,7 +569,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </thead>
         <tbody className="divide-y divide-blue-500/10 font-mono text-sm">
           {INVESTMENT_DATA.map((inv, i) => (
-            <tr key={i} className="hover:bg-blue-900/10 transition-colors" onMouseEnter={() => soundManager.playHover()}>
+            <tr key={i} className="hover:bg-blue-900/10 transition-colors">
               <td className="p-4">
                 <div className="text-white font-bold">{inv.asset}</div>
                 {inv.ticker && <div className="text-xs text-blue-500">{inv.ticker}</div>}
@@ -581,7 +598,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         <figure
           key={item.image}
           className="bg-black/40 border border-blue-500/30 flex flex-col hover:border-blue-400 transition-colors"
-          onMouseEnter={() => soundManager.playHover()}
         >
           <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
             <img
@@ -611,6 +627,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       <div className="shrink-0 flex items-center gap-6 md:gap-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => handleTabChange('projects')}
+          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:projects', source: 'focus' })}
           className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'projects' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
@@ -622,6 +639,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </button>
         <button
           onClick={() => handleTabChange('investments')}
+          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:investments', source: 'focus' })}
           className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'investments' 
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
@@ -633,6 +651,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </button>
         <button
           onClick={() => handleTabChange('design')}
+          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:design', source: 'focus' })}
           className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
             portfolioTab === 'design'
               ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
@@ -657,15 +676,26 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
             {PORTFOLIO_DATA.map((item, i) => (
               <div 
                   key={i} 
-                  className="bg-black/40 border border-blue-500/30 p-5 flex flex-col h-full hover:border-blue-400 transition-colors relative group"
-                  onMouseEnter={() => soundManager.playHover()}
+                  className="bg-black/40 border border-blue-500/30 p-5 flex flex-col h-full hover:border-blue-400 focus-within:border-blue-300 transition-colors relative group"
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === 'mouse') {
+                      interaction.interact('cursor', { id: `project:${item.title}`, source: 'hover' });
+                    }
+                  }}
+                  onFocus={() => interaction.interact('cursor', { id: `project:${item.title}`, source: 'focus' })}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
                     <h3 className="text-xl font-bold text-white ps2-text-shadow flex items-center gap-2">
                         {item.title}
                         {item.url && (
-                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-white transition-colors">
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                              onClick={() => interaction.interact('confirm', { source: 'pointer' })}
+                            >
                                 <ExternalLink className="w-4 h-4" />
                             </a>
                         )}
@@ -685,7 +715,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                   </div>
                 </div>
                 {item.url && (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label={`View ${item.title}`} onClick={() => window.umami?.track('portfolio-project-click', { title: item.title })}></a>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                      aria-label={`View ${item.title}`}
+                      onClick={() => {
+                        interaction.interact('confirm', { source: 'pointer' });
+                        window.umami?.track('portfolio-project-click', { title: item.title });
+                      }}
+                    ></a>
                 )}
               </div>
             ))}
@@ -704,6 +744,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       {BOOK_DATA.map((book, i) => {
         const handleOpen = () => {
           if (book.url) {
+            interaction.interact('confirm', { source: 'pointer' });
             window.umami?.track('book-purchase-click', { title: book.title });
             window.open(book.url, '_blank', 'noopener,noreferrer');
           }
@@ -711,9 +752,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         return (
           <div
             key={i}
-            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg"
-            onMouseEnter={() => soundManager.playHover()}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleOpen(); }}
+            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            onPointerEnter={(e) => {
+              if (e.pointerType === 'mouse') {
+                interaction.interact('cursor', { id: `book:${book.title}`, source: 'hover' });
+              }
+            }}
+            onFocus={() => interaction.interact('cursor', { id: `book:${book.title}`, source: 'focus' })}
+            onKeyDown={(e) => {
+              if (e.repeat || e.target !== e.currentTarget) return;
+              if (e.key === 'Enter') handleOpen();
+            }}
             tabIndex={book.url ? 0 : undefined}
           >
             <div
@@ -786,7 +835,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                      href={selectedEssay.sourceUrl}
                      target="_blank"
                      rel="noopener noreferrer"
-                     className="inline-block mt-2 text-xs text-blue-400 font-mono hover:text-white underline underline-offset-2"
+                     onFocus={() => interaction.interact('cursor', { id: 'essay:source', source: 'focus' })}
+                     onClick={() => interaction.interact('confirm', { source: 'pointer' })}
+                     className="inline-block mt-2 text-xs text-blue-400 font-mono hover:text-white underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                    >
                      {selectedEssay.sourceLabel || 'Published elsewhere'}
                    </a>
@@ -812,8 +863,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                      <p>That file did not open.</p>
                      <button
                        type="button"
+                       onFocus={() => interaction.interact('cursor', { id: 'essay:retry', source: 'focus' })}
                        onClick={() => openEssay(selectedEssay)}
-                       className="mt-3 text-blue-300 hover:text-white uppercase tracking-widest font-mono text-xs underline underline-offset-4"
+                       className="mt-3 min-h-[44px] text-blue-300 hover:text-white uppercase tracking-widest font-mono text-xs underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                      >
                        Try again
                      </button>
@@ -831,12 +883,23 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           {ESSAYS.map((post) => (
             <article
                 key={post.slug}
-                className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-                onMouseEnter={() => {
-                  soundManager.playHover();
-                  hapticManager.light();
+                role="button"
+                tabIndex={0}
+                className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:border-blue-400 focus-visible:bg-blue-900/20 focus-visible:outline-none p-6 rounded transition-all duration-300"
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') {
+                    interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'hover' });
+                  }
                 }}
+                onFocus={() => interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'focus' })}
                 onClick={() => openEssay(post)}
+                onKeyDown={(e) => {
+                  if (e.repeat || e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    void openEssay(post);
+                  }
+                }}
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
@@ -853,8 +916,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                   href={post.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    interaction.interact('confirm', { source: 'pointer' });
+                  }}
+                  className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   {post.sourceLabel || 'Published elsewhere'}
                 </a>
@@ -876,6 +942,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               key={tab.id}
               role="tab"
               aria-selected={active}
+              onFocus={() => interaction.interact('cursor', { id: `content-tab:${tab.id}`, source: 'focus' })}
               onClick={(e) => {
                 e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
                 handleContentTabChange(tab.id);
@@ -924,8 +991,12 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           {posts && rankedPosts.length > visiblePosts && (
             <button
               type="button"
-              onClick={() => setVisiblePosts(count => count + 20)}
-              className="w-full min-h-[44px] border border-blue-500/30 bg-blue-900/10 px-4 py-3 text-xs font-mono uppercase tracking-widest text-blue-300 hover:border-blue-400 hover:text-white transition-colors"
+              onFocus={() => interaction.interact('cursor', { id: 'posts:show-more', source: 'focus' })}
+              onClick={() => {
+                interaction.interact('cursor', { id: 'posts:show-more', source: 'pointer', haptic: 'tick' });
+                setVisiblePosts(count => count + 20);
+              }}
+              className="w-full min-h-[44px] border border-blue-500/30 bg-blue-900/10 px-4 py-3 text-xs font-mono uppercase tracking-widest text-blue-300 hover:border-blue-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
             >
               Show more posts ({rankedPosts.length - visiblePosts} remaining)
             </button>
@@ -988,7 +1059,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         <div 
           key={i} 
           className="group relative bg-blue-900/10 border border-blue-500/10 hover:border-blue-500/40 p-5 rounded-sm transition-all duration-300"
-          onMouseEnter={() => soundManager.playHover()}
         >
           <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-2">
             <div>
@@ -1058,16 +1128,18 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </div>
 
         {/* Footer Controls */}
-        <div className="shrink-0 border-t border-blue-500/30 flex items-center px-6 py-4 bg-black/40 text-sm">
+        <div className="shrink-0 border-t border-blue-500/30 flex items-center justify-between gap-3 px-4 md:px-6 py-2 bg-black/40 text-sm">
           <button 
             onClick={handleBack}
-            className="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
+            onFocus={() => interaction.interact('cursor', { id: 'nav:back', source: 'focus' })}
+            className="flex min-h-[44px] items-center space-x-2 text-blue-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="uppercase tracking-widest font-mono text-xs">
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
+          <SystemSettings compact />
         </div>
       </div>
     </m.div>

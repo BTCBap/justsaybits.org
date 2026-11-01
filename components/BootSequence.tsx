@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
-import { soundManager } from '../utils/SoundManager';
+import { interaction } from '../utils/Interaction';
 
 interface BootSequenceProps {
   onComplete: () => void;
@@ -8,14 +8,31 @@ interface BootSequenceProps {
 
 const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
   const [stage, setStage] = useState<'intro' | 'fadeout'>('intro');
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
+
+  // The boot pad may only exist after a real gesture. If no gesture arrives
+  // before the visual ends, no sound is queued for later.
+  useEffect(() => {
+    let usedGesture = false;
+
+    const startAudio = () => {
+      if (usedGesture || stageRef.current !== 'intro') return;
+      usedGesture = true;
+      void interaction.start();
+    };
+
+    window.addEventListener('pointerdown', startAudio, { capture: true, once: true });
+    window.addEventListener('keydown', startAudio, { capture: true, once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', startAudio, { capture: true });
+      window.removeEventListener('keydown', startAudio, { capture: true });
+      interaction.stopStart();
+    };
+  }, []);
 
   useEffect(() => {
-    try {
-        soundManager.playBoot();
-    } catch (e) {
-        // Silently fail if autoplay blocked
-    }
-
     const endTimer = setTimeout(() => {
       setStage('fadeout');
       setTimeout(onComplete, 1500); 

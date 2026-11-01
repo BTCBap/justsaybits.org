@@ -61,6 +61,15 @@ body {
   }
 }
 
+/* The in-app Reduced motion setting mirrors the OS rule for CSS effects. */
+html[data-motion="reduced"] .crt-overlay {
+  display: none;
+}
+
+html[data-motion="reduced"] .animate-pulse {
+  animation: none;
+}
+
 /* Content scroll areas */
 ::-webkit-scrollbar {
   width: 8px;
