@@ -136,6 +136,14 @@ class InteractionBus {
 
     const ok = await soundManager.ensureRunning();
     if (!ok || this.startCancelled || !preferences.get().sound) return;
+
+    // The context is running now. Build the pad graph on the next task so
+    // constructing its nodes does not share a long task with the power-on
+    // frame; the chime still begins well inside the bloom.
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 0);
+    });
+    if (this.startCancelled || !preferences.get().sound) return;
     soundManager.playBoot(prefersReducedMotionNow());
   }
 

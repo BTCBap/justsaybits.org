@@ -121,3 +121,481 @@ html[data-motion="reduced"] .animate-pulse {
   scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
   scrollbar-gutter: stable;
 }
+
+/* ---------------------------------------------------------------------------
+   Boot sequence
+   The gate holds a real power-on control; the scene that follows is a designed
+   three-band monolith field with one bloom and an original wordmark. All motion
+   is transform/opacity on composited layers, and the tower layout is seeded so
+   every load draws the same composition.
+--------------------------------------------------------------------------- */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.boot--leaving {
+  pointer-events: none;
+}
+
+.boot--leaving .boot__skip {
+  display: none;
+}
+
+/* --- Power-on gate ------------------------------------------------------- */
+
+.boot__gate {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(1.5rem, env(safe-area-inset-top, 0px))
+    max(1.5rem, env(safe-area-inset-right, 0px))
+    max(1.5rem, env(safe-area-inset-bottom, 0px))
+    max(1.5rem, env(safe-area-inset-left, 0px));
+  background:
+    radial-gradient(ellipse 72% 62% at 50% 52%, rgba(14, 40, 92, 0.62) 0%, rgba(3, 9, 20, 0.9) 48%, #000 100%);
+}
+
+.boot__gate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  width: min(72vw, 560px);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(150, 198, 255, 0.3), transparent);
+}
+
+.boot__gate-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1rem, 2.8vh, 1.6rem);
+  text-align: center;
+}
+
+.boot__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(0.58rem, 1.1vw, 0.68rem);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(188, 220, 255, 0.72);
+}
+
+.boot__status-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: #a9ddff;
+  box-shadow: 0 0 10px rgba(120, 190, 255, 0.8);
+}
+
+.boot__power {
+  min-width: 160px;
+  min-height: 44px;
+  padding: 0.55rem 1.6rem;
+  border: 1px solid rgba(150, 200, 255, 0.45);
+  background: rgba(22, 64, 140, 0.22);
+  color: #e8f3ff;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.boot__power:hover {
+  background: rgba(40, 100, 200, 0.32);
+  border-color: rgba(200, 230, 255, 0.8);
+}
+
+.boot__power:active {
+  background: rgba(60, 130, 240, 0.4);
+}
+
+.boot__power:focus-visible {
+  outline: 2px solid #e6f3ff;
+  outline-offset: 3px;
+}
+
+.boot__hint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(0.56rem, 1vw, 0.64rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(174, 208, 248, 0.55);
+}
+
+/* --- Original wordmark --------------------------------------------------- */
+
+.boot-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(0.7rem, 1.6vw, 1rem);
+}
+
+.boot-wordmark__mark {
+  flex: none;
+  width: clamp(2.8rem, 7.5vw, 4.25rem);
+  height: auto;
+  color: #d9ebff;
+}
+
+.boot-wordmark__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
+  text-align: left;
+}
+
+.boot-wordmark__name {
+  font-size: clamp(1.3rem, 3.4vw, 2rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.28em;
+  color: #f2f8ff;
+}
+
+.boot-wordmark__tag {
+  font-family: var(--font-mono);
+  font-size: clamp(0.52rem, 1vw, 0.64rem);
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(186, 218, 255, 0.68);
+}
+
+/* --- Monolith field ------------------------------------------------------ */
+
+.boot__scene {
+  position: absolute;
+  inset: 0;
+}
+
+.boot__sky {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse 58% 40% at 50% 64%, rgba(28, 78, 160, 0.62) 0%, rgba(11, 34, 78, 0.38) 42%, rgba(0, 0, 0, 0) 72%),
+    linear-gradient(to bottom, #000 0%, #02060f 38%, #061226 62%, #02060d 88%, #000 100%);
+  animation: boot-sky-in 520ms ease-out both;
+}
+
+.boot__camera {
+  position: absolute;
+  inset: -5% -7%;
+  animation: boot-dolly 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  will-change: transform;
+}
+
+.boot__stage {
+  position: absolute;
+  inset: 0;
+  animation: boot-rise 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.boot__band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+
+.boot__tower {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  border-radius: 1px 1px 0 0;
+  border-left: 1px solid rgba(160, 205, 255, 0.26);
+  border-right: 1px solid rgba(80, 140, 230, 0.12);
+  background: linear-gradient(
+    to top,
+    rgba(58, 118, 220, 0.38) 0%,
+    rgba(38, 90, 184, 0.16) 58%,
+    rgba(150, 200, 255, 0.04) 100%
+  );
+}
+
+.boot__fog {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  pointer-events: none;
+}
+
+.boot__fog--horizon {
+  top: 46%;
+  height: 34%;
+  background: radial-gradient(
+    ellipse 60% 100% at 50% 55%,
+    rgba(130, 185, 255, 0.18) 0%,
+    rgba(55, 110, 210, 0.09) 42%,
+    transparent 72%
+  );
+  animation: boot-fog-in 1000ms ease-out 150ms both;
+}
+
+.boot__fog--low {
+  bottom: -2%;
+  height: 56%;
+  background: linear-gradient(
+    to top,
+    rgba(1, 4, 10, 0.92) 0%,
+    rgba(5, 16, 36, 0.68) 26%,
+    rgba(15, 46, 104, 0.22) 62%,
+    transparent 100%
+  );
+  animation: boot-fog-in 900ms ease-out 260ms both;
+}
+
+.boot__bloom {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  width: min(80vmin, 760px);
+  height: min(80vmin, 760px);
+  margin-top: calc(min(80vmin, 760px) / -2);
+  margin-left: calc(min(80vmin, 760px) / -2);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 250, 240, 0.92) 0%,
+    rgba(170, 216, 255, 0.55) 7%,
+    rgba(72, 144, 255, 0.3) 20%,
+    rgba(28, 76, 190, 0.1) 42%,
+    transparent 68%
+  );
+  animation: boot-bloom 1500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.boot__mark {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  transform: translate(-50%, -50%);
+  animation: boot-mark-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 750ms both;
+}
+
+.boot__mark::before {
+  content: '';
+  position: absolute;
+  inset: -3.5rem -6rem;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(0, 4, 12, 0.82) 0%,
+    rgba(0, 4, 12, 0.55) 42%,
+    transparent 72%
+  );
+}
+
+.boot__mark .boot-wordmark__name {
+  font-size: clamp(1.45rem, 3.8vw, 2.35rem);
+}
+
+.boot__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.boot__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(120, 170, 255, 0.14);
+}
+
+.boot__progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(140, 190, 255, 0.25), #cfeaff);
+  transform-origin: left center;
+  animation: boot-progress 1350ms linear both;
+}
+
+.boot__skip {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgba(150, 200, 255, 0.35);
+  background: rgba(0, 4, 12, 0.55);
+  color: rgba(214, 236, 255, 0.85);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  animation: boot-skip-in 320ms ease-out 300ms both;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.boot__skip:hover {
+  color: #fff;
+  border-color: rgba(220, 240, 255, 0.8);
+  background: rgba(20, 55, 120, 0.55);
+}
+
+.boot__skip:focus-visible {
+  outline: 2px solid #e6f3ff;
+  outline-offset: 3px;
+}
+
+@keyframes boot-sky-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes boot-rise {
+  from { opacity: 0; transform: translate3d(0, 7vh, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes boot-dolly {
+  from { transform: translate3d(0, 1.4%, 0) scale(1); }
+  to { transform: translate3d(-1.2%, -1.2%, 0) scale(1.065); }
+}
+
+@keyframes boot-dolly-mobile {
+  from { transform: translate3d(0, 1.2%, 0) scale(1); }
+  to { transform: translate3d(0, -1%, 0) scale(1.05); }
+}
+
+@keyframes boot-fog-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes boot-bloom {
+  0% { opacity: 0; transform: scale(0.55); }
+  38% { opacity: 1; }
+  100% { opacity: 0.55; transform: scale(1.08); }
+}
+
+@keyframes boot-mark-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.985); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes boot-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes boot-skip-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@media (max-width: 767px) {
+  .boot__camera {
+    animation-name: boot-dolly-mobile;
+  }
+}
+
+@media (max-width: 380px) {
+  .boot-wordmark {
+    gap: 0.55rem;
+  }
+
+  .boot-wordmark__name {
+    font-size: 1.06rem;
+    letter-spacing: 0.2em;
+  }
+}
+
+/* Reduced motion: poster frame only, then a short cut. */
+.boot--static .boot__sky,
+.boot--static .boot__stage,
+.boot--static .boot__camera,
+.boot--static .boot__fog,
+.boot--static .boot__bloom,
+.boot--static .boot__mark,
+.boot--static .boot__skip,
+.boot--static .boot__progress span {
+  animation: none !important;
+}
+
+.boot--static .boot__progress {
+  display: none;
+}
+
+.boot--static .boot__bloom {
+  opacity: 0.55;
+}
+
+.boot--short .boot__sky,
+.boot--short .boot__stage,
+.boot--short .boot__camera,
+.boot--short .boot__fog,
+.boot--short .boot__bloom {
+  animation: none !important;
+}
+
+.boot--short .boot__bloom {
+  opacity: 0.5;
+}
+
+.boot--short .boot__mark {
+  animation-duration: 200ms;
+  animation-delay: 0ms;
+}
+
+html[data-motion="reduced"] .boot__sky,
+html[data-motion="reduced"] .boot__stage,
+html[data-motion="reduced"] .boot__camera,
+html[data-motion="reduced"] .boot__fog,
+html[data-motion="reduced"] .boot__bloom,
+html[data-motion="reduced"] .boot__mark,
+html[data-motion="reduced"] .boot__skip,
+html[data-motion="reduced"] .boot__progress span {
+  animation: none !important;
+}
+
+html[data-motion="reduced"] .boot__progress,
+html[data-motion="reduced"] .boot__skip {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot__sky,
+  .boot__stage,
+  .boot__camera,
+  .boot__fog,
+  .boot__bloom,
+  .boot__mark,
+  .boot__skip,
+  .boot__progress span {
+    animation: none !important;
+  }
+
+  .boot__progress,
+  .boot__skip {
+    display: none;
+  }
+}

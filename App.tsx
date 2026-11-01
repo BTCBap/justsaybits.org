@@ -15,6 +15,7 @@ import BootSequence from './components/BootSequence';
 import LiveStatus from './components/LiveStatus';
 import { SECTIONS } from './constants';
 import { interaction } from './utils/Interaction';
+import { hasBootedThisSession, markBootedThisSession } from './utils/bootSession';
 import { usePrefersReducedMotion } from './utils/preferences';
 
 const ContentScreen = lazy(() => import('./components/ContentScreen'));
@@ -48,7 +49,11 @@ const ContentLoading: React.FC = () => (
 
 const App: React.FC = () => {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  // The menu is composited from the first frame, behind the boot, so there is
+  // no layout shift when the overlay clears and no second entrance animation.
+  const [bootVisible, setBootVisible] = useState(true);
   const [bootComplete, setBootComplete] = useState(false);
+  const [returningVisitor] = useState(() => hasBootedThisSession());
   const [activeMenuIndex, setActiveMenuIndex] = useState(() => {
     const aboutIndex = SECTIONS.findIndex(s => s.id === 'about');
     return aboutIndex >= 0 ? aboutIndex : 0;
@@ -89,54 +94,58 @@ const App: React.FC = () => {
       <LazyMotion features={domAnimation} strict>
         <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
           
-          <AnimatePresence mode='wait'>
-            {!bootComplete && (
-              <m.div 
-                 key="boot"
-                 className="absolute inset-0 z-[200]"
-                 exit={{ opacity: 0, transition: { duration: 1 } }}
-              >
-                <BootSequence onComplete={() => setBootComplete(true)} />
-              </m.div>
-            )}
-          </AnimatePresence>
-
           {/* Background Layer */}
           <PS2Background paused={!bootComplete || !!activeSection} reducedMotion={reducedMotion} />
 
           {/* Main Content Layer */}
-          <div className="relative z-10 w-full h-full">
+          <div
+            className="relative z-10 w-full h-full"
+            aria-hidden={!bootComplete ? true : undefined}
+            inert={!bootComplete || undefined}
+          >
             <Suspense fallback={<ContentLoading />}>
               <AnimatePresence mode='wait'>
-                {bootComplete && activeSection ? (
-                  <ContentScreen 
+                {activeSection ? (
+                  <ContentScreen
                     key="content"
-                    section={activeSection} 
-                    onBack={() => setActiveSectionId(null)} 
+                    section={activeSection}
+                    onBack={() => setActiveSectionId(null)}
                   />
-                ) : bootComplete ? (
-                  <m.div 
+                ) : (
+                  <m.div
                     key="menu"
                     className="w-full h-full"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)", transition: { duration: 0.5 } }}
-                    transition={{ duration: 0.8 }}
+                    initial={false}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
                   >
                     <MainMenu
                       sections={SECTIONS}
                       onSelect={(id) => setActiveSectionId(id)}
                       activeIndex={activeMenuIndex}
                       onActiveIndexChange={setActiveMenuIndex}
+                      keyboardEnabled={bootComplete}
                     />
                   </m.div>
-                ) : null}
+                )}
               </AnimatePresence>
             </Suspense>
           </div>
 
           {/* CRT Scanline Effect Overlay */}
           <div className="crt-overlay pointer-events-none fixed inset-0 z-[100]" />
+
+          {bootVisible && (
+            <BootSequence
+              short={returningVisitor}
+              onReveal={() => setBootComplete(true)}
+              onComplete={() => {
+                markBootedThisSession();
+                setBootComplete(true);
+                setBootVisible(false);
+              }}
+            />
+          )}
 
           <LiveStatus />
         </div>

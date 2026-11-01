@@ -10,6 +10,8 @@ interface MainMenuProps {
   onSelect: (sectionId: string) => void;
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
+  /** False while the boot overlay owns the keyboard. */
+  keyboardEnabled?: boolean;
 }
 
 const initialFooterBottom = () => {
@@ -21,7 +23,13 @@ const initialFooterBottom = () => {
   return 48;
 };
 
-const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, onActiveIndexChange }) => {
+const MainMenu: React.FC<MainMenuProps> = ({
+  sections,
+  onSelect,
+  activeIndex,
+  onActiveIndexChange,
+  keyboardEnabled = true,
+}) => {
   // Layout State
   const [spacing, setSpacing] = useState(180);
   const [menuScale, setMenuScale] = useState(1);
@@ -102,7 +110,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
   }, [activeIndex, sections, onActiveIndexChange]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!keyboardEnabled || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 
     if (e.key === 'ArrowRight') {
       goToAdjacent(1);
@@ -115,7 +123,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
       interaction.interact('confirm', { source: 'keyboard' });
       onSelect(sections[activeIndex].id);
     }
-  }, [sections, activeIndex, onSelect, goToAdjacent]);
+  }, [sections, activeIndex, onSelect, goToAdjacent, keyboardEnabled]);
 
   // Touch handlers for swipe detection
   const handleTouchStart = (e: React.TouchEvent) => {
