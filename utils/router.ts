@@ -19,9 +19,19 @@
 
 import { useSyncExternalStore } from 'react';
 import { ESSAYS } from '../data/essays';
+import {
+  CONTENT_TAB_IDS,
+  DEFAULT_IMAGE,
+  DEFAULT_IMAGE_ALT,
+  PORTFOLIO_TAB_IDS,
+  SECTION_TITLES,
+  SITE,
+  canonicalUrl,
+  essayPath,
+  routeMeta as metaForRoute,
+} from './site-routes.mjs';
 
-export const CONTENT_TAB_IDS = ['essays', 'posts', 'podcasts', 'lectures', 'tutorials', 'reading'] as const;
-export const PORTFOLIO_TAB_IDS = ['projects', 'investments', 'design'] as const;
+export { CONTENT_TAB_IDS, PORTFOLIO_TAB_IDS, canonicalUrl };
 
 export type ContentTabId = typeof CONTENT_TAB_IDS[number];
 export type PortfolioTabId = typeof PORTFOLIO_TAB_IDS[number];
@@ -51,44 +61,6 @@ export interface NavigateOptions {
   direction?: NavDirection;
   origin?: NavOrigin | null;
 }
-
-const SITE = 'https://justsaybits.org';
-const DEFAULT_IMAGE = `${SITE}/og-image.jpg`;
-const DEFAULT_IMAGE_ALT = 'Pencil sketch portrait of Zach Wischler beside the text: Personal website, Zach Wischler, author of The Bitcoin Tao.';
-const HOME_DESCRIPTION =
-  'The personal website of Zach Wischler, author of The Bitcoin Tao. Essays, talks and media, dedicated to advancing individual sovereignty through cryptography.';
-
-export const canonicalUrl = (path: string): string => `${SITE}${path === '/' ? '/' : path}`;
-
-const SECTION_TITLES: Record<string, string> = {
-  about: 'About',
-  social: 'Social',
-  work: 'Work',
-  portfolio: 'Portfolio',
-  book: 'Book',
-  content: 'Content',
-};
-
-const SECTION_DESCRIPTIONS: Record<string, string> = {
-  about: 'Mission, core beliefs and current objectives of Zach Wischler, author of The Bitcoin Tao.',
-  social: 'Connect with Zach Wischler on X and LinkedIn, or send an email.',
-  work: 'Career history across Swan Bitcoin, Casa, The Space, Personal Capital and Merrill Lynch.',
-  portfolio: 'Projects, investments and design work by Zach Wischler.',
-  book: 'The Bitcoin Tao: The Book of the Bitcoin Way and Its Virtue by Zach Wischler.',
-  content: 'Essays, posts, podcasts, lectures, tutorials and reading from Zach Wischler.',
-};
-
-const TAB_TITLES: Record<string, string> = {
-  essays: 'Essays',
-  posts: 'Posts',
-  podcasts: 'Podcasts',
-  lectures: 'Lectures',
-  tutorials: 'Tutorials',
-  reading: 'Reading',
-  projects: 'Projects',
-  investments: 'Investments',
-  design: 'Design',
-};
 
 const normalizePath = (path: string): string => {
   const [rawPath] = path.split(/[?#]/);
@@ -145,7 +117,7 @@ export const pathForTab = (section: string, tab: string): string => {
   return pathForSection(section);
 };
 
-export const pathForEssay = (slug: string): string => `/content/essays/${encodeURIComponent(slug)}/`;
+export const pathForEssay = (slug: string): string => essayPath(slug);
 
 /** Browser URL for a route. Essay routes keep the slash of their static shell. */
 const routeUrl = (route: Route): string =>
@@ -194,39 +166,8 @@ export const parseRoute = (input: string): Route => {
 };
 
 /** Page title and description for a route; also drives the static OG tags. */
-export const routeMeta = (route: Route): { title: string; description: string; type: string } => {
-  if (route.notFound) {
-    return {
-      title: 'Screen not found | justsaybits.org',
-      description: 'That screen does not exist. Return to the main menu to keep browsing justsaybits.org.',
-      type: 'website',
-    };
-  }
-  if (!route.section) {
-    return { title: 'Zach Wischler | Personal Website', description: HOME_DESCRIPTION, type: 'website' };
-  }
-  if (route.section === 'content' && route.slug) {
-    const essay = ESSAYS.find(item => item.slug === route.slug);
-    if (essay) {
-      return {
-        title: `${essay.title} | Zach Wischler`,
-        description: essay.excerpt,
-        type: 'article',
-      };
-    }
-  }
-  const sectionTitle = SECTION_TITLES[route.section] ?? 'justsaybits.org';
-  const tabTitle = route.tab ? TAB_TITLES[route.tab] : null;
-  const pageTitle = tabTitle ? `${sectionTitle} · ${tabTitle}` : sectionTitle;
-  const description = route.tab
-    ? `${tabTitle} on justsaybits.org. ${SECTION_DESCRIPTIONS[route.section] ?? HOME_DESCRIPTION}`
-    : SECTION_DESCRIPTIONS[route.section] ?? HOME_DESCRIPTION;
-  return {
-    title: `${pageTitle} | Zach Wischler`,
-    description,
-    type: 'website',
-  };
-};
+export const routeMeta = (route: Route): { title: string; description: string; type: string } =>
+  metaForRoute(route, ESSAYS);
 
 const ensureMeta = (attribute: 'name' | 'property', key: string): HTMLMetaElement => {
   let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
