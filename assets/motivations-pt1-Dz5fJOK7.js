@@ -1,0 +1,83 @@
+const t=`Two words: \`Tequila Shots.\`
+
+%%YOUTUBE:{"id": "lZcRSy0sk5w", "start": "61"}%%
+
+**Hear me now, hey, this time, I’m ready for it. **
+
+**Can’t stop this war in me. Can’t stop this war in me. **
+
+**Hear me now, hey, this time, I’m ready for it.**
+
+**This fight, this war in me. This fight, this war in me.
+**
+
+\`Tequila shots.\`
+
+I said this blog wouldn’t be about sobriety - and it’s not.
+
+Today, I want to talk about motivations. The goal is to get you to ask yourself what your motivations are for investing, for taking risk, and for achieving financial success. Sobriety helped me gain clarity on that. You can stop here if you want. That’s the lesson. But I spent an hour writing the next part, so I hope you stick around.
+
+I often ask myself what my motivations are. Are they noble or are they self-serving?
+
+I’d love to say the former 100% of the time but come on - remember, I said I have to be *honest *in public?
+What’s interesting is what I find when I stop to examine my inner motivations and habitual reactions - that they aren’t always in line with who I think I am, or who I identify with. Put another way, I don’t always act like the saint I think I am and try to embody. But, I *do *think I’m an honest person with good intentions. So it’s confusing. And, so is life. And so you’ll find, is this newsletter here.
+
+Important concept - because who I am to me and who I am to you are different. And what investing and money is to you and how it works may be different than what it is to me. Without understanding that, some of the things I say may make you question what my motivations are.
+
+To me, I’m a guy from New Orleans who grew up building computers and studying the economics of the gold market in World of Warcraft. Yep - a video game with elves and magic swords. I liked it so much I majored in it in college (economics, not WoW), chose investing as a career path, and now we’re here. This is all about economics and investing, and I don’t think enough people understand how money works. The truth about it. That is my motivation. I love the truth, despite what my elementary school teachers thought. My parents will tell ya though - I’m the world’s worst liar. Believe me. 🤥
+
+To you, I might be that same econ-savvy computer guy, your former financial advisor (hah) or I might be someone else. Depending on when you’re reading this, and how you found this or know me, will likely determine which view. My point is that perspective is powerful, and it strongly influences our motivations for believing in something or someone. I don’t want you to think I'm someone I’m not.
+
+It’s important to consider what you are looking for when you go searching for things, so that you’re ready for what you receive when you get there.
+
+”Ask for what you want, and be prepared to get it.” - Maya Angelou
+
+Are you looking for investing advice? Not here, compliance. Are you expecting to receive a certain type? If it conflicts with what you’ve heard or believe, what will you think? Of the viewpoint? Of me? Of my credibility on such a topic?
+
+Let’s talk about **motivations **again.
+
+I am motivated by my desire to do *nothing*.
+I want nothing more than to have to do absolutely *nothing*, ever again.
+Not that I don’t *want *to - but with the comfort and ease I don’t *have* to.
+I despise *having *to do things and I like *wanting* to do things.
+I’ve deduced that is my root motivation for wanting to be wealthy.
+
+At first glance, wealth *seems *like the way to not *have* to do anything ever again - you can pay other people to do just about everything for you - except for make decisions. At least good ones.
+
+**Ah-ha! **
+
+**
+Thus, I’ve discovered the hardest thing to do in life is exactly that - to make good decisions. They’re *difficult*. And there’s no way to escape that with wealth. See what I did there? Difficult Decisions. **
+
+So, it’s quite the contrary then - the more wealth you have, the more frequent and higher stakes those difficult decisions are. Ask for what you want, and be prepared to get it. Are you *ready *to be truly wealthy? To maintain it?
+
+In our last lesson we talked about supply, demand, and *equilibrium *- I hope you enjoyed it.
+
+Are we into today’s lesson yet? **Motivations.**
+
+**
+**I really like the Kid Cudi song above where he opens up about the war inside him.
+My war is my desire for wealth and success, and is mostly measured in numbers on a screen and ability to have free time, because of the aforementioned reasons - wanting to afford to *have* to do nothing. Everything falls in line within reason after financial success, if managed properly, right? It'll be figured out from there, I thought. And it's that thought which directly conflicts with my realization that wealth can't create an escape from difficult decisions.
+
+But still, given my propensity to want to *have to do nothing *but make decisions, as they’re unavoidable, I go out of my way now to build a life that's simple. One that in the future will be easy for myself that consists of those qualities as close as I can get - to not having to do much.
+
+Part of that process is understanding how financial markets and passive investing works. How money works. How supply and demand works. How compound interest works. How computers and technology work, etc. How all the systems we live in today work. Most importantly, how *my mind* works. It’s all a root motivator to understand, to make money, to at the end of the day, do JACK SHIT. So believe me when I say I’m enticed by a physically non-strenuous path to wealth like buy-and-hodling bitcoin. To have to do so much as lift a finger might be too much. I want to spend, spend, spend, and sit, sit, sit, without any repercussions of stress from decisions. Kind of like the sovereign central bank we belong to does. But alas, I don’t have money or the means to do so.
+
+When I started this newsletter, my motivation was to be able to share my knowledge of investing and money with you, so that you can achieve the goal of financial success and wealth as well. Your motivation for achieving it might be different, but I imagine it’s still a common goal of ours. You may have other goals like leaving a family legacy too, which I’d suggest has a similar root motive to wealth, as they both are outlets lasting longer than us, if raised and managed properly. Either way, I don't think traditional advice works all the time and I want to help.
+
+I could give you a list of stocks to buy - but there’s no point. The S&P500 index fund can diversify your portfolio better if that's what you're looking to do.
+So instead I’m going to talk about deeper investing concepts. Stuff that's harder to find than Investopedia.
+
+Then you'll know what to do, and you'll have the confidence to do it yourself.
+
+Here's two important takeaways:
+
+**1.The power of patience with a good idea is overwhelming.
+
+2.Understanding your motivation for risk is essential to executing a strategy.**
+
+So important is it to know how you *measure *financial and other types of “success” in life, that I have devoted an entire chronicle just to *present *that topic.
+
+Is your motivation for financial success *selfish *or *selfless*? Is it a *mix *of both? At what point is success **achieved**?
+
+Homework is to think about some of that, so by the time the next newsletter comes out - and we talk about motivations that drive participants in an economy, both on a micro and macro scale, we’ll be on the same page. Till then.`;export{t as default};

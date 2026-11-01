@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#050a14" />
+    <meta name="description" content="That screen does not exist. Reconnecting to the justsaybits.org main menu." />
+    <title>Screen not found | justsaybits.org</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: radial-gradient(circle at 50% 45%, #0b1c3a 0%, #03070f 62%, #000 100%);
+        color: #dbe9ff;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      p {
+        margin: 0 0 1rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.7rem;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(190, 220, 255, 0.7);
+      }
+      a {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        padding: 0.4rem 1.2rem;
+        border: 1px solid rgba(150, 200, 255, 0.4);
+        color: #eaf4ff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.7rem;
+        letter-spacing: 0.28em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      a:focus-visible {
+        outline: 2px solid #eaf4ff;
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>Reconnecting to justsaybits.org</p>
+      <a href="/" id="home">Main menu</a>
+    </main>
+    <script>
+      // GitHub Pages serves this file for unknown paths and returns 404. Keep
+      // the requested path for the app router, then load the app at the root.
+      (function () {
+        var target = location.pathname + location.search + location.hash;
+        try {
+          if (target.charAt(0) === '/' && target.charAt(1) !== '/') {
+            sessionStorage.setItem('jsb.redirect', target);
+          }
+        } catch (error) {
+          // Storage can be unavailable; the link below still works.
+        }
+        location.replace('/');
+      })();
+    </script>
+  </body>
+</html>

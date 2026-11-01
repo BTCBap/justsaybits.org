@@ -1,0 +1,56 @@
+const t=`*Best with music*
+
+%%YOUTUBE:{"id": "qKh8FiKzfvQ", "start": "94"}%%
+
+Newton’s first law of motion teaches us a valuable lesson:
+
+ “An **object at rest stays at rest** and an **object in motion stays in motion** with the same speed and in the same direction unless acted upon by an unbalanced force.”
+
+%%IMAGE:{"src": "/essays/inertia/01.webp", "alt": ""}%%
+
+Maybe Bitcoin would have never succeeded had its momentum been confronted earlier. Maybe if it stayed at rest, it would have remained at rest. But yet, the hornet’s nest was kicked, and the swarm is out. Many have ruled bitcoin out countless times, and still, here we are.
+
+%%IMAGE:{"src": "/essays/inertia/02.webp", "alt": "", "caption": "Bitcoin Mining Difficulty Chart"}%%
+
+Marty Bent wrote a great article on this today: [They should have attacked years ago (tftc.io)](https://tftc.io/martys-bent/issue-941/). He’s right - and so was Dr. Bitcoin MD who prompted the thought.
+
+%%TWEET:{"url": "https://twitter.com/DrBitcoinMD/status/1366924076678324226", "username": "DrBitcoinMD", "name": "Dr Bitcoin MD", "text": "If you wanted to kill bitcoin, it had to be done in the first 3-5 years before bitcoin amassed a significant amount of hashpower, decentralization, and network effects.\\n\\nThat train has left the station."}%%
+
+And like Bitcoin, Mac has been immortalized by his music. His music lives on in us. And now in this article, forevermore. May he rest in peace. I guess the only thing that defies Newton’s First Law is the transient nature of life on earth itself.
+
+%%IMAGE:{"src": "/essays/inertia/03.webp", "alt": "chaplin | Charlie chaplin quotes, Charlie chaplin, Chaplin"}%%
+
+At this point, the game theory of adoption is beyond containment. And lucky for bitcoin, it’s not alive - at least, not in the physical sense. But it’s community ethos and value proposition- alive and well as ever.
+
+There are too many corporations, and there’s too much at stake, for bitcoin to just end. At this point, not only would it be politically unfavorable to most any government who tried to interfere, but also incredibly foolish, if Bitcoin does become global currency anyway, as it’ll put them, and their citizens, well behind the adoption curve of their competition. At this point, the sheer resiliency of the blockchain to a manipulative attack due to how much energy is invested in securing/mining the chain and keeping it honest won’t allow it to happen.
+
+Free markets do love a competitive game, and Bitcoin may be the most competitive of all. So competitive, in fact, that many don’t want it to succeed.
+
+Croesus expands upon this beautifully in his Citadel 21 article: [Why the Yuppie Elite Dismiss Bitcoin.](https://www.citadel21.com/why-the-yuppie-elite-dismiss-bitcoin)
+
+It can be a ***Difficult Decision*** to give up deeply-held and long withstanding beliefs.
+
+%%IMAGE:{"src": "/essays/inertia/04.webp", "alt": "", "caption": "[Why the Yuppie Elite Dismiss Bitcoin - @Croesus_BTC](https://www.citadel21.com/why-the-yuppie-elite-dismiss-bitcoin)"}%%
+
+But it builds on itself anyway, block by block. It’s almost as if bitcoin creates its own sense of time, irrespective of the outside world.
+
+Check out [Bitcoin Is Time](https://dergigi.com/2021/01/14/bitcoin-is-time/) by [@dergigi](https://twitter.com/dergigi) for expansion on this concept.
+
+Yet still, many insist on other blockchains with “quantum-resistant technology,” or “cheaper fees,” or “instant transactions.” These may be true, whatever that means, but what isn’t so obvious is those crypto assets’ monetary policy, and the game theory that gives their asset value in the first place. Those are lacking, and those all must be clearly defined before I decide to store my value earned from my ever-decreasing time.
+
+If you want to do all the research it took to get here, then by all means I will continue providing the resources as usual, but understand this - 21 Million.
+It requires complete distrust of the current system - that the politicians DON’T know what’s best for you. How could they? They’re just like us. Rules not rulers. This tweet sums it all up.
+
+%%TWEET:{"url": "https://twitter.com/therecount/status/1366748393595408387", "username": "therecount", "name": "The Recount", "text": ".@SenWarren (D-MA) references Treasury Secretary Janet Yellen’s view of Bitcoin:\\n\\n“Speculative in nature and going to end badly.”"}%%
+
+Sen Warren - life is full of unknowns and full of speculation about the future, and full of ambiguity. What is not speculative? The total supply of Bitcoin - 21 Million.
+
+%%TWEET:{"url": "https://twitter.com/CynthiaMLummis/status/1366916083672842243", "username": "CynthiaMLummis", "name": "Cynthia Lummis", "text": "Breaking: America’s most progressive senator opposes progress. #btc https://t.co/q7tJjqMcFi"}%%
+
+Unrelated to Bitcoin: Complete surrender to the unknown has changed my life. Quit fighting it. Unknown, but predestined, outcomes are what await us.
+
+%%IMAGE:{"src": "/essays/inertia/05.webp", "alt": ""}%%
+
+Bitcoin is here to stay. Is your purchasing power?
+
+If you want a positive change in your life, create it.`;export{t as default};
