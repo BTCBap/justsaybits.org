@@ -29,8 +29,8 @@
     <meta name="twitter:title" content="Zach Wischler | Personal Website" />
     <meta name="twitter:description" content="The personal website of Zach Wischler, author of The Bitcoin Tao. Essays, talks and media, dedicated to advancing individual sovereignty through cryptography." />
     <meta name="twitter:image" content="https://justsaybits.org/og-image.jpg" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="/fonts/jost-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <script defer src="https://cloud.umami.is/script.js" data-website-id="66646b18-ce80-450c-8302-3d95de037410" data-auto-track="false"></script>
     <style>
       :root {
@@ -47,39 +47,10 @@
         margin: 0;
         background-color: #000;
         color: white;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
         overscroll-behavior: none;
       }
-      /* Custom Scrollbar for content */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-      }
-      ::-webkit-scrollbar-thumb {
-        background: rgba(0, 100, 255, 0.5);
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 100, 255, 0.8);
-      }
-      
-      .ps2-text-shadow {
-        text-shadow: 0 0 10px rgba(100, 150, 255, 0.7);
-      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
-  }
-}
-</script>
 </head>
   <body>
     <div id="root"></div>

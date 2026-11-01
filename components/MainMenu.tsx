@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { soundManager } from '../utils/SoundManager';
@@ -197,7 +197,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
             }
 
             return (
-              <motion.div
+              <m.div
                 key={section.id}
                 className={`absolute top-1/2 left-1/2 cursor-pointer
                   flex flex-col items-center justify-center w-40 h-52
@@ -230,7 +230,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                   }
                   backdrop-blur-md bg-gradient-to-br from-blue-500/30 to-transparent transition-all duration-300`}>
                   
-                  <motion.div
+                  <m.div
                     className="relative z-50"
                     animate={isHovered ? { 
                       rotate: [0, -8, 8, 0],
@@ -252,11 +252,11 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                           : (isHovered ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]' : 'text-blue-300/70')
                       }`} 
                     />
-                  </motion.div>
+                  </m.div>
                   
                   {/* Internal rotating ring for active */}
                   {isActive && (
-                    <motion.div 
+                    <m.div 
                       className="absolute inset-0 rounded-full border-t border-r border-transparent border-t-white border-r-white/50"
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
@@ -270,19 +270,19 @@ const MainMenu: React.FC<MainMenuProps> = ({ sections, onSelect, activeIndex, on
                         {section.title}
                     </h3>
                     {isActive && (
-                        <motion.div 
+                        <m.div 
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="text-[10px] text-blue-300 mt-2 font-mono uppercase"
                         >
                             Press Enter
-                        </motion.div>
+                        </m.div>
                     )}
                 </div>
 
                 {/* Reflection/Ground shadow */}
                 <div className="absolute -bottom-12 w-20 h-4 bg-blue-500/20 blur-xl rounded-full" />
-              </motion.div>
+              </m.div>
             );
           })}
         </div>

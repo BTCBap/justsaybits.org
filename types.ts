@@ -25,6 +25,8 @@ export interface DesignItem {
   alt: string;
   width: number;
   height: number;
+  srcSet?: string;
+  sizes?: string;
 }
 
 export interface InvestmentItem {
@@ -42,18 +44,24 @@ export interface BookItem {
   thoughts: string;
   coverColor: string;
   coverImage?: string;
+  coverSrcSet?: string;
+  coverWidth?: number;
+  coverHeight?: number;
   url?: string;
 }
 
-export interface EssayItem {
+export interface EssaySummary {
   title: string;
   date: string;
   readTime: string;
   excerpt: string;
   slug: string;
-  content: string;
   sourceLabel?: string;
   sourceUrl?: string;
+}
+
+export interface EssayItem extends EssaySummary {
+  content: string;
 }
 
 export interface MediaItem {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, Variants } from 'framer-motion';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { m, type Variants } from 'framer-motion';
 import {
   ArrowLeft,
   LayoutGrid,
@@ -18,17 +18,13 @@ import {
   INVESTMENT_DATA,
   DESIGN_DATA,
   BOOK_DATA,
-  ESSAY_DATA,
   WORK_DATA,
   SOCIAL_LINKS,
-  PODCASTS_VALUE_STACK,
-  PODCASTS_APPEARANCES,
-  LECTURES,
-  TUTORIALS,
-  READING_LIST,
-  POSTS,
 } from '../constants';
-import { Section, EssayItem, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
+import { ESSAYS } from '../data/essays';
+import { loadEssayContent } from '../data/essayContent';
+import { ESSAY_IMAGE_META, POST_IMAGE_META } from '../data/imageMeta';
+import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
 import { soundManager } from '../utils/SoundManager';
 import { hapticManager } from '../utils/HapticManager';
 
@@ -64,7 +60,16 @@ const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{
 const postEngagement = (p: PostItem) =>
   p.likes + p.reposts * 2 + p.replies + (p.quotes ?? 0) + (p.bookmarks ?? 0);
 
-const RANKED_POSTS = [...POSTS].sort((a, b) => postEngagement(b) - postEngagement(a));
+const twitterImage = (url: string, format: 'webp' | 'jpg') =>
+  `${url}${url.includes('?') ? '&' : '?'}format=${format}&name=small`;
+
+interface MediaData {
+  valueStack: MediaItem[];
+  appearances: MediaItem[];
+  lectures: MediaItem[];
+  tutorials: MediaItem[];
+  reading: ReadingItem[];
+}
 
 const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
   const re = /(\*\*[\s\S]*?\*\*|\*[^*\n]+?\*|\[[^\]]+\]\([^)]+\))/g;
@@ -144,11 +149,18 @@ const EssayBody: React.FC<{ content: string }> = ({ content }) => {
           </div>
         );
       } else if (m[1] === 'IMAGE' && data.src) {
+        const imageMeta = ESSAY_IMAGE_META[data.src];
         nodes.push(
           <figure key={`img-${i++}`} className="my-6">
             <img
               src={data.src}
+              srcSet={imageMeta?.srcSet || undefined}
+              sizes={imageMeta?.sizes}
+              width={imageMeta?.width}
+              height={imageMeta?.height}
               alt={data.alt || data.caption || ''}
+              loading="lazy"
+              decoding="async"
               className="max-w-full w-full h-auto object-contain border border-blue-500/20"
             />
             {data.caption && (
@@ -193,47 +205,70 @@ const EssayBody: React.FC<{ content: string }> = ({ content }) => {
   return <>{nodes}</>;
 };
 
-const scrollbarStyles = `
-  .ps2-scroll::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .ps2-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .ps2-scroll::-webkit-scrollbar-thumb {
-    background: rgba(100, 150, 255, 0.15);
-    border-radius: 3px;
-  }
-  .ps2-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 150, 255, 0.4);
-  }
-  .no-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .ps2-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
-    scrollbar-gutter: stable;
-  }
-`;
-
 type PortfolioTab = 'projects' | 'investments' | 'design';
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
   const [contentTab, setContentTab] = useState<ContentTab>('essays');
-  const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
+  const [selectedEssay, setSelectedEssay] = useState<EssaySummary | null>(null);
+  const [essayContent, setEssayContent] = useState<string | null>(null);
+  const [essayLoading, setEssayLoading] = useState(false);
+  const [essayError, setEssayError] = useState(false);
+  const [posts, setPosts] = useState<PostItem[] | null>(null);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [visiblePosts, setVisiblePosts] = useState(20);
+  const [media, setMedia] = useState<MediaData | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const essayRequest = useRef(0);
   const contentMounted = useRef(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bodyRef.current?.scrollTo(0, 0);
   }, [selectedEssay, contentTab, section.id]);
+
+  // Posts and media metadata are separate on-demand chunks: the menu and the
+  // essay index never pay for them.
+  useEffect(() => {
+    if (section.id !== 'content') return;
+    let cancelled = false;
+
+    if (contentTab === 'posts' && posts === null) {
+      setPostsLoading(true);
+      import('../data/posts')
+        .then((data) => { if (!cancelled) setPosts(data.POSTS); })
+        .catch(() => { if (!cancelled) setPosts([]); })
+        .finally(() => { if (!cancelled) setPostsLoading(false); });
+    }
+
+    const needsMedia = contentTab === 'podcasts' || contentTab === 'lectures' || contentTab === 'tutorials' || contentTab === 'reading';
+    if (needsMedia && media === null) {
+      setMediaLoading(true);
+      import('../data/media')
+        .then((data) => {
+          if (!cancelled) {
+            setMedia({
+              valueStack: data.PODCASTS_VALUE_STACK,
+              appearances: data.PODCASTS_APPEARANCES,
+              lectures: data.LECTURES,
+              tutorials: data.TUTORIALS,
+              reading: data.READING_LIST,
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setMedia({ valueStack: [], appearances: [], lectures: [], tutorials: [], reading: [] });
+        })
+        .finally(() => { if (!cancelled) setMediaLoading(false); });
+    }
+
+    return () => { cancelled = true; };
+  }, [contentTab, section.id, posts, media]);
+
+  const rankedPosts = useMemo(
+    () => (posts ? [...posts].sort((a, b) => postEngagement(b) - postEngagement(a)) : []),
+    [posts]
+  );
 
   // Track virtual pageviews for content tabs / essay reader (skip initial mount — section open is tracked by App.tsx)
   useEffect(() => {
@@ -246,11 +281,41 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     window.umami?.track(props => ({ ...props, url, title }));
   }, [selectedEssay, contentTab, section.id]);
 
+  const closeEssay = () => {
+    essayRequest.current += 1;
+    setSelectedEssay(null);
+    setEssayContent(null);
+    setEssayLoading(false);
+    setEssayError(false);
+  };
+
+  const openEssay = async (post: EssaySummary) => {
+    const request = ++essayRequest.current;
+    soundManager.playSelect();
+    hapticManager.medium();
+    setSelectedEssay(post);
+    setEssayContent(null);
+    setEssayError(false);
+    setEssayLoading(true);
+    try {
+      const content = await loadEssayContent(post.slug);
+      if (essayRequest.current === request) {
+        setEssayContent(content);
+        setEssayLoading(false);
+      }
+    } catch {
+      if (essayRequest.current === request) {
+        setEssayError(true);
+        setEssayLoading(false);
+      }
+    }
+  };
+
   const handleBack = () => {
     soundManager.playBack();
     hapticManager.medium();
     if (selectedEssay) {
-      setSelectedEssay(null);
+      closeEssay();
     } else {
       onBack();
     }
@@ -280,7 +345,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       soundManager.playHover();
       hapticManager.light();
       setContentTab(tab);
-      setSelectedEssay(null);
+      closeEssay();
     }
   };
 
@@ -313,6 +378,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const renderPostCard = (item: PostItem) => {
     const raw = item.text.trim() || 'View post';
     const title = raw.length > 160 ? `${raw.slice(0, 157).trimEnd()}…` : raw;
+    const imageMeta = item.image ? POST_IMAGE_META[item.image] : undefined;
     return (
     <a
       key={item.id}
@@ -327,19 +393,27 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       onClick={() => { hapticManager.medium(); }}
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
+        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow break-words">
           {title}
         </h3>
         <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
       </div>
       {item.image && (
         <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
-          <img
-            src={item.image}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="max-h-96 max-w-full w-auto h-auto object-contain"
-          />
+          <picture className="contents">
+            <source srcSet={twitterImage(item.image, 'webp')} type="image/webp" />
+            <img
+              src={twitterImage(item.image, 'jpg')}
+              alt=""
+              referrerPolicy="no-referrer"
+              width={imageMeta?.width}
+              height={imageMeta?.height}
+              loading="lazy"
+              decoding="async"
+              style={imageMeta ? { aspectRatio: `${imageMeta.width} / ${imageMeta.height}` } : undefined}
+              className="max-h-96 max-w-full w-auto h-auto object-contain"
+            />
+          </picture>
         </div>
       )}
       <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
@@ -512,6 +586,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
             <img
               src={item.image}
+              srcSet={item.srcSet}
+              sizes={item.sizes}
               alt={item.alt}
               width={item.width}
               height={item.height}
@@ -569,7 +645,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       </div>
 
       {/* Content Area */}
-      <motion.div 
+      <m.div 
         key={portfolioTab}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -619,7 +695,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         ) : (
           renderInvestmentTable()
         )}
-      </motion.div>
+      </m.div>
     </div>
   );
 
@@ -645,16 +721,26 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               onClick={handleOpen}
             >
               {book.coverImage ? (
-                <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
+                <img
+                  src={book.coverImage}
+                  srcSet={book.coverSrcSet}
+                  sizes="192px"
+                  alt={book.title}
+                  width={book.coverWidth ?? 640}
+                  height={book.coverHeight ?? 960}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full p-4 border border-white/20 flex flex-col items-center justify-center">
-                  <span className="text-xl font-bold text-white/90 uppercase tracking-widest font-serif">{book.title}</span>
+                  <span className="text-xl font-bold text-white/90 uppercase tracking-widest">{book.title}</span>
                   <span className="mt-4 text-xs text-white/70 uppercase tracking-widest">{book.author}</span>
                 </div>
               )}
             </div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-3xl md:text-4xl font-serif text-white mb-1">{book.title}</h3>
+              <h3 className="text-3xl md:text-4xl text-white mb-1">{book.title}</h3>
               {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
               <div className="text-xl text-blue-400 mb-6">{book.author}</div>
 
@@ -686,7 +772,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const renderEssays = () => {
     if (selectedEssay) {
        return (
-         <div className="max-w-3xl mx-auto font-mono text-blue-100">
+         <div className="max-w-3xl mx-auto text-blue-100">
              {/* Header */}
              <div className="border-b border-blue-500/30 pb-4 mb-6 pt-2">
                  <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
@@ -708,8 +794,33 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
              </div>
 
              {/* Content - preserving whitespace, with **bold**, links, and Substack media */}
-             <div className="leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8">
-                 <EssayBody content={selectedEssay.content} />
+             <div className="leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8" aria-busy={essayLoading}>
+                 {essayLoading ? (
+                   <div className="space-y-4" role="status" aria-live="polite">
+                     <span className="sr-only">Loading essay…</span>
+                     {[92, 100, 96, 88, 76, 100, 94].map((width, i) => (
+                       <div
+                         key={i}
+                         className="h-4 bg-blue-900/40 animate-pulse motion-reduce:animate-none"
+                         style={{ width: `${width}%` }}
+                       />
+                     ))}
+                     <div className="h-48 bg-blue-900/20 animate-pulse motion-reduce:animate-none" />
+                   </div>
+                 ) : essayError ? (
+                   <div className="border border-blue-500/30 bg-blue-900/10 p-6 text-sm text-blue-200" role="status">
+                     <p>That file did not open.</p>
+                     <button
+                       type="button"
+                       onClick={() => openEssay(selectedEssay)}
+                       className="mt-3 text-blue-300 hover:text-white uppercase tracking-widest font-mono text-xs underline underline-offset-4"
+                     >
+                       Try again
+                     </button>
+                   </div>
+                 ) : essayContent ? (
+                   <EssayBody content={essayContent} />
+                 ) : null}
              </div>
          </div>
        );
@@ -717,19 +828,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
 
     return (
         <div className="space-y-8">
-          {ESSAY_DATA.map((post, i) => (
+          {ESSAYS.map((post) => (
             <article
-                key={i}
+                key={post.slug}
                 className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
                 onMouseEnter={() => {
                   soundManager.playHover();
                   hapticManager.light();
                 }}
-                onClick={() => {
-                    soundManager.playSelect();
-                    hapticManager.medium();
-                    setSelectedEssay(post);
-                }}
+                onClick={() => openEssay(post)}
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
@@ -788,8 +895,20 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     </div>
   );
 
+  const renderListSkeleton = (count: number) => (
+    <div className="space-y-4" role="status" aria-live="polite" aria-label="Loading content">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="border border-blue-500/10 bg-blue-900/10 p-6">
+          <div className="mb-3 h-5 w-2/3 bg-blue-900/40 animate-pulse motion-reduce:animate-none" />
+          <div className="mb-2 h-3 w-full bg-blue-900/30 animate-pulse motion-reduce:animate-none" />
+          <div className="h-3 w-4/5 bg-blue-900/30 animate-pulse motion-reduce:animate-none" />
+        </div>
+      ))}
+    </div>
+  );
+
   const renderContentHub = () => (
-    <motion.div
+    <m.div
       key={selectedEssay ? selectedEssay.slug : contentTab}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -798,20 +917,30 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       {contentTab === 'essays' && renderEssays()}
       {contentTab === 'posts' && (
         <div className="space-y-4">
-          <p className="text-blue-400/80 text-xs font-mono uppercase tracking-widest">
-            Top posts by engagement · {RANKED_POSTS.length} from @BTCBap
+          <p className="text-blue-400/80 text-xs font-mono uppercase tracking-widest" role="status" aria-live="polite">
+            {posts ? `Top posts by engagement · ${rankedPosts.length} from @BTCBap` : 'Loading posts…'}
           </p>
-          {RANKED_POSTS.map(item => renderPostCard(item))}
+          {postsLoading || posts === null ? renderListSkeleton(3) : rankedPosts.slice(0, visiblePosts).map(item => renderPostCard(item))}
+          {posts && rankedPosts.length > visiblePosts && (
+            <button
+              type="button"
+              onClick={() => setVisiblePosts(count => count + 20)}
+              className="w-full min-h-[44px] border border-blue-500/30 bg-blue-900/10 px-4 py-3 text-xs font-mono uppercase tracking-widest text-blue-300 hover:border-blue-400 hover:text-white transition-colors"
+            >
+              Show more posts ({rankedPosts.length - visiblePosts} remaining)
+            </button>
+          )}
         </div>
       )}
       {contentTab === 'podcasts' && (
+        mediaLoading || !media ? renderListSkeleton(4) : (
         <div className="space-y-10">
           <div>
             <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
               Value Stack (host)
             </h3>
             <div className="space-y-4">
-              {PODCASTS_VALUE_STACK.map(item => renderMediaCard(item))}
+              {media.valueStack.map(item => renderMediaCard(item))}
             </div>
           </div>
           <div>
@@ -819,27 +948,34 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               Guest appearances
             </h3>
             <div className="space-y-4">
-              {PODCASTS_APPEARANCES.map(item => renderMediaCard(item))}
+              {media.appearances.map(item => renderMediaCard(item))}
             </div>
           </div>
         </div>
+        )
       )}
       {contentTab === 'lectures' && (
+        mediaLoading || !media ? renderListSkeleton(4) : (
         <div className="space-y-4">
-          {LECTURES.map(item => renderMediaCard(item))}
+          {media.lectures.map(item => renderMediaCard(item))}
         </div>
+        )
       )}
       {contentTab === 'tutorials' && (
+        mediaLoading || !media ? renderListSkeleton(4) : (
         <div className="space-y-4">
-          {TUTORIALS.map(item => renderMediaCard(item))}
+          {media.tutorials.map(item => renderMediaCard(item))}
         </div>
+        )
       )}
       {contentTab === 'reading' && (
+        mediaLoading || !media ? renderListSkeleton(4) : (
         <div className="space-y-4">
-          {READING_LIST.map(item => renderReadingCard(item))}
+          {media.reading.map(item => renderReadingCard(item))}
         </div>
+        )
       )}
-    </motion.div>
+    </m.div>
   );
 
   const renderWork = () => (
@@ -894,15 +1030,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   };
 
   return (
-    <motion.div 
-      className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/80 backdrop-blur-md"
+    <m.div 
+      className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60"
       style={{ height: 'var(--app-height)' }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
-      <style>{scrollbarStyles}</style>
       <div className="w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
         
         {/* Header */}
@@ -935,7 +1070,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           </button>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { soundManager } from '../utils/SoundManager';
 
 interface BootSequenceProps {
@@ -31,7 +31,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
       
       <AnimatePresence>
         {stage === 'intro' && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 1.5 } }}
@@ -50,7 +50,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
                     const duration = 3 + Math.random() * 3;
                     
                     return (
-                        <motion.div 
+                        <m.div 
                             key={i}
                             initial={{ 
                                 opacity: 0, 
@@ -81,7 +81,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
             </div>
 
             {/* Ethereal Clouds */}
-            <motion.div 
+            <m.div 
                initial={{ opacity: 0, scale: 0.8 }}
                animate={{ opacity: [0, 1, 0], scale: 1.2 }}
                transition={{ duration: 4.5, ease: "easeInOut" }}
@@ -89,11 +89,11 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
             >
                <div className="w-[600px] h-[600px] bg-blue-600/20 blur-[120px] rounded-full" />
                <div className="absolute w-[400px] h-[400px] bg-purple-600/10 blur-[90px] rounded-full mix-blend-screen" />
-            </motion.div>
+            </m.div>
 
             {/* Central pulsing light source */}
             <div className="absolute inset-0 flex items-center justify-center">
-                 <motion.div 
+                 <m.div 
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ 
                         opacity: [0, 1, 0.6, 0.8, 0],
@@ -103,7 +103,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
                     className="w-3 h-3 bg-white blur-[3px] rounded-full shadow-[0_0_120px_rgba(200,220,255,1)]"
                  />
                  {/* Secondary expanding shockwave */}
-                 <motion.div 
+                 <m.div 
                     initial={{ opacity: 0, scale: 0.8, borderWidth: "1px" }}
                     animate={{ 
                         opacity: [0, 0.4, 0],
@@ -115,7 +115,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
                  />
             </div>
 
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

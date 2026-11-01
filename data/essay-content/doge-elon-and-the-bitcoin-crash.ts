@@ -1,0 +1,4 @@
+// Generated from the essay source. Body is loaded on demand by slug.
+const content = "Good afternoon and happy Sunday.\n\nToday’s new episode of Value Stack podcast is out.\nWe continue to talk about the absurdity of Dogecoin mania, Elon Musk's misunderstanding of Bitcoin, and the recent crash of Bitcoin stocks and investment instruments.\n\nWe also talk about the Ethereum ecosystem compared to Bitcoin's maximalist and the moral problems that Bitcoin is trying to solve. We talk about block times, scalability, lightning network, Bitcoin on Mars, and more. We also talk about multi-sig custody solutions for multinational companies and the rise of sovereign individuals.\n\nHeard about the bitcoin car?   That’s discussed too.\n\nBrought to you by @Shaperfunds and @BTCBap.\n\nVALUE STACK **EP 03**\n\n%%YOUTUBE:{\"id\": \"GSVPOnEfXdU\"}%%";
+
+export default content;
