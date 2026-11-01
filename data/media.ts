@@ -374,43 +374,57 @@ export const TUTORIALS: MediaItem[] = [
     "title": "Liana Miniscript wallet",
     "date": "Aug 09, 2023",
     "source": "Value Stack",
-    "url": "https://youtu.be/tE1KgBR_L1Y"
+    "url": "https://youtu.be/tE1KgBR_L1Y",
+    "format": "Video",
+    "outcome": "Set up a Liana wallet with a miniscript spending policy."
   },
   {
     "title": "Padawan App testnet wallet",
     "date": "May 16, 2023",
     "source": "Value Stack",
-    "url": "https://youtu.be/K_P2qpc-_GM"
+    "url": "https://youtu.be/K_P2qpc-_GM",
+    "format": "Video",
+    "outcome": "Create and test a wallet on Bitcoin testnet with Padawan."
   },
   {
     "title": "Watchtower for Lightning (Umbrel)",
     "date": "Oct 14, 2021",
     "source": "Value Stack",
-    "url": "https://youtu.be/tmgh18QE4eA"
+    "url": "https://youtu.be/tmgh18QE4eA",
+    "format": "Video",
+    "outcome": "Run a Lightning watchtower on an Umbrel node."
   },
   {
     "title": "Foundation Passport hardware review",
     "date": "Jun 28, 2021",
     "source": "Value Stack",
-    "url": "https://youtu.be/G2zWGCCF8mo"
+    "url": "https://youtu.be/G2zWGCCF8mo",
+    "format": "Video",
+    "outcome": "See how the Passport handles setup, backups, and signing."
   },
   {
     "title": "Amboss.Space demo",
     "date": "Jun 18, 2021",
     "source": "Value Stack",
-    "url": "https://youtu.be/jVBS0nqI-D4"
+    "url": "https://youtu.be/jVBS0nqI-D4",
+    "format": "Video",
+    "outcome": "Use Amboss to inspect and manage Lightning liquidity."
   },
   {
     "title": "Save on fees | mempool.space",
     "date": "Mar 27, 2021",
     "source": "Value Stack",
-    "url": "https://youtu.be/iEt_2ZzOfQs"
+    "url": "https://youtu.be/iEt_2ZzOfQs",
+    "format": "Video",
+    "outcome": "Read mempool.space and choose a cheaper fee rate."
   },
   {
     "title": "Building an Umbrel bitcoin node",
     "date": "Feb 15, 2021",
     "source": "Value Stack",
-    "url": "https://youtu.be/AZIrxMwwxw0"
+    "url": "https://youtu.be/AZIrxMwwxw0",
+    "format": "Video",
+    "outcome": "Install Umbrel and sync a bitcoin node."
   }
 ];
 

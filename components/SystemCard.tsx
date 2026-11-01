@@ -80,15 +80,17 @@ const SystemCard: React.FC<SystemCardProps> = ({
 
         {media}
 
-        <div className="system-card__foot">
-          <span className="system-card__foot-text">{footer}</span>
-          {external && (
-            <span className="system-card__external">
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </span>
-          )}
-        </div>
+        {(footer || external) && (
+          <div className="system-card__foot">
+            <span className="system-card__foot-text">{footer}</span>
+            {external && (
+              <span className="system-card__external">
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only"> (opens in a new tab)</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </a>
   );

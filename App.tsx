@@ -1,11 +1,3 @@
-declare global {
-  interface Window {
-    umami?: {
-      track: (eventOrPayload: string | Record<string, unknown> | ((props: Record<string, unknown>) => Record<string, unknown>), data?: Record<string, unknown>) => void;
-    };
-  }
-}
-
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion';
 
@@ -14,6 +6,9 @@ import MainMenu from './components/MainMenu';
 import BootSequence from './components/BootSequence';
 import LiveStatus from './components/LiveStatus';
 import NotFoundScreen from './components/NotFoundScreen';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineNotice from './components/OfflineNotice';
+import { ScreenSkeleton } from './components/Skeleton';
 import { SECTIONS } from './constants';
 import { interaction } from './utils/Interaction';
 import { hasBootedThisSession, markBootedThisSession } from './utils/bootSession';
@@ -21,33 +16,6 @@ import { usePrefersReducedMotion } from './utils/preferences';
 import { closeTo, navigate, pathForSection, useRouter, type NavOrigin } from './utils/router';
 
 const ContentScreen = lazy(() => import('./components/ContentScreen'));
-
-const ContentLoading: React.FC = () => (
-  <div
-    className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60"
-    style={{ height: 'var(--app-height)' }}
-    role="status"
-    aria-live="polite"
-  >
-    <span className="sr-only">Loading section…</span>
-    <div className="w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
-      <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center gap-4 px-6 bg-gradient-to-r from-blue-900/20 to-transparent">
-        <div className="h-6 w-6 border border-blue-500/40 bg-blue-900/30" />
-        <div className="h-5 w-40 bg-blue-900/40 animate-pulse motion-reduce:animate-none" />
-      </div>
-      <div className="flex-1 min-h-0 p-6 md:p-10 space-y-4">
-        {[88, 100, 94, 72, 100, 86].map((width, i) => (
-          <div
-            key={i}
-            className="h-4 bg-blue-900/30 animate-pulse motion-reduce:animate-none"
-            style={{ width: `${width}%` }}
-          />
-        ))}
-        <div className="h-40 bg-blue-900/20 animate-pulse motion-reduce:animate-none" />
-      </div>
-    </div>
-  </div>
-);
 
 const App: React.FC = () => {
   const { route, previous } = useRouter();
@@ -99,12 +67,6 @@ const App: React.FC = () => {
     return () => cancelAnimationFrame(frame);
   }, [route.path, screenOpen, previous]);
 
-  // One pageview per URL, not per rendered component.
-  useEffect(() => {
-    if (!bootComplete) return;
-    window.umami?.track(props => ({ ...props, url: route.path, title: document.title }));
-  }, [route.path, bootComplete]);
-
   // Warm the content chunk once the menu is idle so a first selection does not
   // wait on the network. Nothing is fetched while the boot is running.
   useEffect(() => {
@@ -152,7 +114,8 @@ const App: React.FC = () => {
               />
             </div>
 
-            <Suspense fallback={<ContentLoading />}>
+            <ErrorBoundary>
+              <Suspense fallback={<ScreenSkeleton />}>
               {activeSection ? (
                 <ContentScreen
                   key={activeSection.id}
@@ -163,7 +126,8 @@ const App: React.FC = () => {
               ) : route.notFound ? (
                 <NotFoundScreen path={route.path} onHome={closeSection} focusEnabled={bootComplete} />
               ) : null}
-            </Suspense>
+              </Suspense>
+            </ErrorBoundary>
           </div>
 
           {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
@@ -182,6 +146,7 @@ const App: React.FC = () => {
           )}
 
           <LiveStatus />
+          <OfflineNotice />
         </div>
       </LazyMotion>
     </MotionConfig>

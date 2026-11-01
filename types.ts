@@ -69,6 +69,10 @@ export interface MediaItem {
   url: string;
   source: string;
   date?: string;
+  /** Tutorials: how the item is delivered. */
+  format?: 'Video' | 'Guide';
+  /** Tutorials: the one-line result the reader gets. */
+  outcome?: string;
 }
 
 export interface ReadingItem {

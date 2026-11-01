@@ -12,17 +12,8 @@ import {
   MessageCircle,
   PenTool,
 } from 'lucide-react';
-import {
-  PORTFOLIO_DATA,
-  INVESTMENT_DATA,
-  DESIGN_DATA,
-  BOOK_DATA,
-  WORK_DATA,
-  SOCIAL_LINKS,
-} from '../constants';
 import { ESSAYS } from '../data/essays';
 import { loadEssayContent } from '../data/essayContent';
-import { POST_IMAGE_META } from '../data/imageMeta';
 import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
@@ -40,10 +31,25 @@ import {
 } from '../utils/router';
 import HelpBar from './HelpBar';
 import SystemSettings from './SystemSettings';
-import SystemCard from './SystemCard';
 import Tabs, { tabId, tabPanelId } from './Tabs';
 import { parseEssay } from './EssayBody';
 import { EssayArticle, ReaderBar } from './EssayReader';
+import AboutScreen from './screens/AboutScreen';
+import SocialScreen from './screens/SocialScreen';
+import WorkScreen from './screens/WorkScreen';
+import BookScreen from './screens/BookScreen';
+import { DesignTab, InvestmentsTab, ProjectsTab } from './screens/PortfolioScreen';
+import EmptyState from './EmptyState';
+import { ListSkeleton } from './Skeleton';
+import {
+  EssayRow,
+  FeaturedEssay,
+  MediaFeature,
+  MediaRow,
+  PostCard,
+  ReadingRow,
+  TutorialRow,
+} from './ContentLists';
 
 interface ContentScreenProps {
   section: Section;
@@ -72,10 +78,9 @@ const PORTFOLIO_TABS: { id: PortfolioTab; label: string; icon: React.ComponentTy
 const postEngagement = (p: PostItem) =>
   p.likes + p.reposts * 2 + p.replies + (p.quotes ?? 0) + (p.bookmarks ?? 0);
 
-const twitterImage = (url: string, format: 'webp' | 'jpg') =>
-  `${url}${url.includes('?') ? '&' : '?'}format=${format}&name=small`;
-
 const yearOf = (date?: string): string => {
+  const bce = date?.match(/\b(\d+)\s*BCE\b/i);
+  if (bce) return `${bce[1]} BCE`;
   const match = date?.match(/\b(\d{4})\b/);
   return match ? match[1] : 'Undated';
 };
@@ -101,7 +106,11 @@ function groupByYear<T extends { date?: string }>(items: T[]): { year: string; i
     .sort((a, b) => {
       if (a.year === 'Undated') return 1;
       if (b.year === 'Undated') return -1;
-      return Number(b.year) - Number(a.year);
+      const rank = (year: string) => {
+        const value = Number.parseInt(year, 10) || 0;
+        return /BCE/i.test(year) ? -value : value;
+      };
+      return rank(b.year) - rank(a.year);
     });
 }
 
@@ -460,218 +469,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   })();
   const animatePanel = previous?.section === section.id;
 
-  const renderMediaCard = (item: MediaItem, extra?: string) => (
-    <SystemCard
-      key={item.url}
-      href={item.url}
-      external
-      feedbackId={`media:${item.url}`}
-      title={item.title}
-      meta={item.date}
-      footer={extra || item.source}
-    />
-  );
-
-  const renderPostCard = (item: PostItem) => {
-    const raw = item.text.trim() || 'View post';
-    const title = raw.length > 160 ? `${raw.slice(0, 157).trimEnd()}…` : raw;
-    const imageMeta = item.image ? POST_IMAGE_META[item.image] : undefined;
-    return (
-      <SystemCard
-        key={item.id}
-        href={item.url}
-        external
-        feedbackId={`post:${item.id}`}
-        title={title}
-        titleClassName="break-words"
-        meta={item.date}
-        media={item.image ? (
-          <div className="system-card__media">
-            <picture className="contents">
-              <source srcSet={twitterImage(item.image, 'webp')} type="image/webp" />
-              <img
-                src={twitterImage(item.image, 'jpg')}
-                alt=""
-                referrerPolicy="no-referrer"
-                width={imageMeta?.width}
-                height={imageMeta?.height}
-                loading="lazy"
-                decoding="async"
-                style={imageMeta ? { aspectRatio: `${imageMeta.width} / ${imageMeta.height}` } : undefined}
-                className="max-h-96 max-w-full w-auto h-auto object-contain"
-              />
-            </picture>
-          </div>
-        ) : undefined}
-        footer={(
-          <>
-            <span>@BTCBap</span>
-            <span aria-hidden="true"> :: </span>
-            <span>{item.likes.toLocaleString()} likes</span>
-          </>
-        )}
-      />
-    );
-  };
-
-  const renderReadingCard = (item: ReadingItem) => (
-    <SystemCard
-      key={item.url}
-      href={item.url}
-      external
-      feedbackId={`reading:${item.url}`}
-      title={item.title}
-      meta={item.date}
-      footer={item.author}
-    />
-  );
-
-  // Render Helpers
-  const renderSocials = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {SOCIAL_LINKS.map((link) => {
-        const isEmail = link.url.startsWith('mailto:');
-        return (
-          <SystemCard
-            key={link.platform}
-            href={link.url}
-            external={!isEmail}
-            feedbackId={`social:${link.platform}`}
-            eyebrow={link.platform}
-            title={<span className="font-mono text-[20px] normal-case tracking-normal">{link.handle}</span>}
-            onNavigate={() => window.umami?.track('social-click', { platform: link.platform })}
-          />
-        );
-      })}
-    </div>
-  );
-
-  const renderAbout = () => (
-    <div className="mx-auto max-w-3xl space-y-8 font-light text-blue-100">
-      <div className="flex justify-center">
-        <div className="border border-blue-500/40 bg-black/40 p-1 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
-          <img
-            src="/about-portrait.webp"
-            alt="Pencil sketch portrait of Zach Wischler"
-            width={320}
-            height={320}
-            className="block h-auto w-36 md:w-40"
-          />
-        </div>
-      </div>
-
-      <div className="border-b border-blue-500/30 pb-6">
-        <p className="text-[20px] leading-relaxed text-white md:text-[28px]">
-          Dedicated to advancing individual sovereignty through cryptography.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <div>
-           <h3 className="ps2-label mb-3 border-l-2 border-blue-500 pl-2 text-blue-200">Core Beliefs</h3>
-           <ul className="space-y-3 text-[16px] leading-relaxed">
-             {[
-               "Financial freedom from centralized authority",
-               "Data ownership and privacy as fundamental rights",
-               "Time is our scarcest asset",
-               "Critical thinking and AI literacy are the major skills you'll need to thrive",
-               "Tools should be open and accessible to all"
-             ].map((belief, i) => (
-               <li key={i} className="flex items-start">
-                 <span aria-hidden="true" className="mr-2 text-blue-400">▶</span>
-                 <span className="text-[var(--text-secondary)]">{belief}</span>
-               </li>
-             ))}
-           </ul>
-        </div>
-        <div>
-           <h3 className="ps2-label mb-3 border-l-2 border-blue-500 pl-2 text-blue-200">Current Objectives</h3>
-           <ul className="space-y-3 text-[16px] leading-relaxed">
-             {[
-               "Building open source tools",
-               "Leveraging AI and automation to win back time",
-               "Promoting Bitcoin adoption and freedom technologies",
-               "Prioritizing long-term value creation over short-term gains",
-             ].map((goal, i) => (
-               <li key={i} className="flex items-start">
-                 <span aria-hidden="true" className="mr-2 text-blue-400">◉</span>
-                 <span className="text-[var(--text-secondary)]">{goal}</span>
-               </li>
-             ))}
-           </ul>
-        </div>
-      </div>
-
-      <p className="text-[16px] leading-relaxed text-[var(--text-secondary)]">
-        After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
-      </p>
-    </div>
-  );
-
-  const renderInvestmentTable = () => (
-    <div className="bg-black/40 border border-blue-500/20">
-      <table className="w-full text-left">
-        <thead className="bg-blue-900/20 text-blue-300 text-xs uppercase tracking-[0.14em] font-mono">
-          <tr>
-            <th className="p-4">Asset</th>
-            <th className="p-4">Stage / Type</th>
-            <th className="p-4 text-right">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-blue-500/10 text-[14px] font-light">
-          {INVESTMENT_DATA.map((inv, i) => (
-            <tr key={i} className="transition-colors hover:bg-blue-900/10">
-              <td className="p-4">
-                <div className="font-normal text-white">{inv.asset}</div>
-                {inv.ticker && <div className="mt-0.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text-muted)]">{inv.ticker}</div>}
-              </td>
-              <td className="p-4 text-[var(--text-secondary)]">{inv.type}</td>
-              <td className="p-4 text-right">
-                <span className={`status-pill ${
-                  inv.status === 'Active' ? 'status-pill--active' :
-                  inv.status === 'Acquired' ? 'status-pill--acquired' :
-                  inv.status === 'Exited' ? 'status-pill--exited' :
-                  'status-pill--watching'
-                }`}>
-                  {inv.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const renderDesigns = () => (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-      {DESIGN_DATA.map(item => (
-        <figure
-          key={item.image}
-          className="bg-black/40 border border-blue-500/30 flex flex-col hover:border-blue-400 transition-colors"
-        >
-          <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
-            <img
-              src={item.image}
-              srcSet={item.srcSet}
-              sizes={item.sizes}
-              alt={item.alt}
-              width={item.width}
-              height={item.height}
-              loading="lazy"
-              decoding="async"
-              className="max-w-full max-h-full w-auto h-auto object-contain"
-            />
-          </div>
-          <figcaption className="p-3 md:p-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-3">
-            <span className="text-[16px] font-normal leading-snug text-white md:text-[20px]">{item.title}</span>
-            <span className="shrink-0 font-mono text-[12px] uppercase tracking-[0.12em] text-[var(--text-muted)]">{item.type}</span>
-          </figcaption>
-        </figure>
-      ))}
-    </div>
-  );
-
   const renderPortfolio = () => (
     <div className="flex flex-col h-full">
       <Tabs
@@ -684,7 +481,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         className="mb-6 shrink-0 md:mb-8"
       />
 
-      {/* Content Area */}
       <div
         key={portfolioTab}
         data-dir={panelDir}
@@ -695,115 +491,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         className={`flex-grow overflow-auto ps2-scroll focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${animatePanel ? 'panel-shift' : ''}`}
       >
         {portfolioTab === 'projects' ? (
-          <div className="space-y-3">
-            {PORTFOLIO_DATA.map((item) => (
-              <SystemCard
-                key={item.title}
-                href={item.url ?? '#'}
-                external={!!item.url}
-                feedbackId={`project:${item.title}`}
-                leading={<span className="font-mono text-xs uppercase tracking-[0.18em] text-blue-200/80">{item.year}</span>}
-                title={item.title}
-                meta={item.role}
-                description={item.description}
-                footer={(
-                  <span className="flex flex-wrap gap-1.5">
-                    {item.tech.map(tech => (
-                      <span key={tech} className="border border-blue-400/30 bg-blue-500/10 px-1.5 py-0.5 text-[12px] normal-case tracking-normal text-blue-100">
-                        {tech}
-                      </span>
-                    ))}
-                  </span>
-                )}
-                onNavigate={() => window.umami?.track('portfolio-project-click', { title: item.title })}
-              />
-            ))}
-          </div>
+          <ProjectsTab />
         ) : portfolioTab === 'design' ? (
-          renderDesigns()
+          <DesignTab />
         ) : (
-          renderInvestmentTable()
+          <InvestmentsTab />
         )}
       </div>
-    </div>
-  );
-
-  const renderBooks = () => (
-    <div className="flex items-center justify-center min-h-full">
-      {BOOK_DATA.map((book, i) => {
-        const handleOpen = () => {
-          if (book.url) {
-            interaction.interact('confirm', { source: 'pointer' });
-            window.umami?.track('book-purchase-click', { title: book.title });
-            window.open(book.url, '_blank', 'noopener,noreferrer');
-          }
-        };
-        return (
-          <div
-            key={i}
-            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            onPointerEnter={(e) => {
-              if (e.pointerType === 'mouse') {
-                interaction.interact('cursor', { id: `book:${book.title}`, source: 'hover' });
-              }
-            }}
-            onFocus={() => interaction.interact('cursor', { id: `book:${book.title}`, source: 'focus' })}
-            onKeyDown={(e) => {
-              if (e.repeat || e.target !== e.currentTarget) return;
-              if (e.key === 'Enter') handleOpen();
-            }}
-            tabIndex={book.url ? 0 : undefined}
-          >
-            <div
-              className={`w-48 h-72 shrink-0 ${book.coverImage ? '' : book.coverColor} shadow-[0_0_30px_rgba(70,130,255,0.18)] flex items-center justify-center text-center border-2 border-white/10 rotate-[-2deg] overflow-hidden ${book.url ? 'cursor-pointer' : ''}`}
-              onClick={handleOpen}
-            >
-              {book.coverImage ? (
-                <img
-                  src={book.coverImage}
-                  srcSet={book.coverSrcSet}
-                  sizes="192px"
-                  alt={book.title}
-                  width={book.coverWidth ?? 640}
-                  height={book.coverHeight ?? 960}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full p-4 border border-white/20 flex flex-col items-center justify-center">
-                  <span className="text-xl font-normal text-white/90 uppercase tracking-[0.14em]">{book.title}</span>
-                  <span className="mt-4 text-xs text-white/70 uppercase tracking-[0.14em]">{book.author}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-[28px] font-light leading-tight tracking-[0.02em] text-white md:text-[36px]">{book.title}</h3>
-              {book.subtitle && <p className="mb-3 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-200/85">{book.subtitle}</p>}
-              <div className="mb-6 text-[20px] font-light text-blue-200">{book.author}</div>
-
-              <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
-                <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
-              </div>
-
-              <div className="mb-6 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-                <span className="text-[12px] font-normal uppercase tracking-[0.16em] text-blue-200/85">Available Now</span>
-                <span className="h-px w-8 bg-blue-500/50"></span>
-                <span className="font-mono text-[12px] tracking-[0.08em] text-cyan-200">Bitcoin Magazine Books</span>
-              </div>
-
-              {book.url && (
-                <button
-                  onClick={handleOpen}
-                  className="inline-flex min-h-[44px] items-center rounded border border-blue-400/50 px-6 py-3 text-[14px] font-normal uppercase tracking-[0.14em] text-blue-100 transition-colors hover:bg-blue-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  Get the Book →
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 
@@ -824,50 +518,64 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       );
     }
 
+    if (filteredEssays.length === 0) return null;
+
+    const [featured, ...rest] = filteredEssays;
+    const sourceLink = (post: EssaySummary) => post.sourceUrl ? (
+      <a
+        href={post.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => interaction.interact('confirm', { source: 'pointer' })}
+        className="essay-source"
+      >
+        {post.sourceLabel || 'Published elsewhere'}
+        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    ) : null;
+
+    const open = (post: EssaySummary) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      openEssay(post);
+    };
+
+    const registerCard = (slug: string) => (element: HTMLAnchorElement | null) => {
+      if (element) cardRefs.current.set(slug, element);
+      else cardRefs.current.delete(slug);
+    };
+
     return (
-        <div className="space-y-4">
-          {filteredEssays.map((post) => (
-            <article key={post.slug} className="space-y-1">
-              <SystemCard
-                innerRef={(element) => {
-                  if (element) cardRefs.current.set(post.slug, element);
-                  else cardRefs.current.delete(post.slug);
-                }}
-                href={pathForEssay(post.slug)}
-                feedbackId={`essay:${post.slug}`}
-                title={post.title}
-                titleClassName="text-xl"
-                meta={post.date}
-                description={post.excerpt}
-                footer={(
-                  <>
-                    <span>Open file</span>
-                    <span aria-hidden="true"> :: </span>
-                    <span>{post.readTime} read</span>
-                  </>
-                )}
-                onNavigate={(event) => {
-                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-                  event.preventDefault();
-                  openEssay(post);
-                }}
-              />
-              {post.sourceUrl && (
-                <a
-                  href={post.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-                  className="inline-flex min-h-[44px] items-center gap-1 px-1 text-xs font-mono normal-case tracking-normal text-blue-200/85 underline underline-offset-2 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  {post.sourceLabel || 'Published elsewhere'}
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              )}
-            </article>
-          ))}
+      <div className="essay-index">
+        <div className="essay-featured-wrap">
+          <FeaturedEssay
+            essay={featured}
+            href={pathForEssay(featured.slug)}
+            feedbackId={`essay:${featured.slug}`}
+            innerRef={registerCard(featured.slug)}
+            onNavigate={open(featured)}
+          />
+          {sourceLink(featured)}
         </div>
+
+        {rest.length > 0 && (
+          <div className="essay-index__rows">
+            {rest.map((post) => (
+              <div key={post.slug} className="essay-index__item">
+                <EssayRow
+                  essay={post}
+                  href={pathForEssay(post.slug)}
+                  feedbackId={`essay:${post.slug}`}
+                  innerRef={registerCard(post.slug)}
+                  onNavigate={open(post)}
+                />
+                {sourceLink(post)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -883,35 +591,26 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     />
   );
 
-  const renderListSkeleton = (count: number) => (
-    <div className="space-y-4" role="status" aria-live="polite" aria-label="Loading content">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="border border-blue-500/10 bg-blue-900/10 p-6">
-          <div className="mb-3 h-5 w-2/3 bg-blue-900/40 animate-pulse motion-reduce:animate-none" />
-          <div className="mb-2 h-3 w-full bg-blue-900/30 animate-pulse motion-reduce:animate-none" />
-          <div className="h-3 w-4/5 bg-blue-900/30 animate-pulse motion-reduce:animate-none" />
-        </div>
-      ))}
-    </div>
+  const renderListSkeleton = (count: number, variant: 'row' | 'card' | 'media' = 'card') => (
+    <ListSkeleton count={count} variant={variant} />
   );
 
-  const renderEmptyState = (message: string) => (
-    <div className="border border-blue-400/25 bg-blue-900/10 px-5 py-10 text-center" role="status">
-      <p className="text-base font-light text-blue-100">{message}</p>
-      {query.trim() || yearFilter !== 'all' ? (
-        <button
-          type="button"
-          onClick={() => {
-            setQuery('');
-            setYearFilter('all');
-          }}
-          className="mt-4 inline-flex min-h-[44px] items-center border border-blue-400/40 px-4 font-mono text-xs uppercase tracking-[0.18em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-        >
-          Clear filters
-        </button>
-      ) : null}
-    </div>
-  );
+  const renderEmptyState = (
+    title: string,
+    message = 'Try a different search, or clear the filters to see everything.',
+    error = false,
+  ) => {
+    const filtered = !!query.trim() || yearFilter !== 'all';
+    return (
+      <EmptyState
+        title={title}
+        message={filtered ? message : undefined}
+        actionLabel={filtered ? 'Clear filters' : undefined}
+        onAction={filtered ? () => { setQuery(''); setYearFilter('all'); } : undefined}
+        error={error}
+      />
+    );
+  };
 
   const renderYearHeading = (year: string, count: number) => (
     <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[12px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">
@@ -962,9 +661,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       : contentTab === 'podcasts'
         ? podcastItems
         : [];
-    const yearOptions = Array.from(new Set(yearPool.map(item => yearOf(item.date))))
+    const yearRank = (year: string) => {
+      const value = Number.parseInt(year, 10) || 0;
+      return /BCE/i.test(year) ? -value : value;
+    };
+    const yearOptions = Array.from(new Set<string>(yearPool.map(item => yearOf(item.date))))
       .filter(year => year !== 'Undated')
-      .sort((a, b) => Number(b) - Number(a));
+      .sort((a, b) => yearRank(b) - yearRank(a));
 
     const counts: Record<ContentTab, { total: number; shown: number; loading: boolean }> = {
       essays: { total: ESSAYS.length, shown: filteredEssays.length, loading: false },
@@ -981,8 +684,21 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         ? `${current.shown} of ${current.total} ${meta.noun} · ${meta.blurb}`
         : `${current.total} ${meta.noun} · ${meta.blurb}`;
 
-    const visibleValueStack = filteredValueStack.slice(0, visibleMedia);
-    const remainingEpisodes = filteredValueStack.length - visibleValueStack.length;
+    const featuredEpisode = filteredValueStack[0];
+    const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
+    const remainingEpisodes = filteredValueStack.length - 1 - hostRest.length;
+
+    const emptyFor = (tab: ContentTab): string => {
+      if (tab === 'lectures' && yearFilter !== 'all') return `No lectures for ${yearFilter} yet.`;
+      if (tab === 'podcasts' && yearFilter !== 'all') return `No episodes for ${yearFilter} yet.`;
+      if (normalizedQuery) return `No ${meta.noun} match “${query.trim()}”.`;
+      if (tab === 'essays') return 'No essays are listed yet.';
+      if (tab === 'posts') return 'No posts are listed yet.';
+      if (tab === 'podcasts') return 'No episodes are listed yet.';
+      if (tab === 'lectures') return 'No lectures are listed yet.';
+      if (tab === 'tutorials') return 'No tutorials are listed yet.';
+      return 'Nothing on the shelf yet.';
+    };
 
     return (
       <div
@@ -994,7 +710,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         className={animatePanel ? 'panel-shift' : undefined}
       >
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <p className="font-mono text-[12px] uppercase leading-relaxed tracking-[0.16em] text-blue-200/85" role="status" aria-live="polite">
+          <p className="content-count ps2-meta" role="status" aria-live="polite">
             {countText}
           </p>
           {searchable && (
@@ -1043,44 +759,54 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
         {contentTab === 'essays' && (
           filteredEssays.length === 0
-            ? renderEmptyState(`No essays match “${query.trim()}”.`)
+            ? renderEmptyState(emptyFor('essays'))
             : renderEssays()
         )}
 
         {contentTab === 'posts' && (
-          <div className="space-y-4">
+          <div>
             {postsLoading || posts === null
-              ? renderListSkeleton(3)
+              ? renderListSkeleton(4, 'card')
               : filteredPosts.length === 0
-                ? renderEmptyState(`No posts match “${query.trim()}”.`)
-                : filteredPosts.slice(0, visiblePosts).map(item => renderPostCard(item))}
-            {posts && filteredPosts.length > visiblePosts
-              && renderShowMore(
-                filteredPosts.length - visiblePosts,
-                'posts',
-                () => setVisiblePosts(count => count + 20),
-                'posts:show-more',
-              )}
+                ? renderEmptyState(emptyFor('posts'))
+                : (
+                  <>
+                    <div className="post-grid">
+                      {filteredPosts.slice(0, visiblePosts).map(item => (
+                        <PostCard key={item.id} post={item} />
+                      ))}
+                    </div>
+                    {filteredPosts.length > visiblePosts && renderShowMore(
+                      filteredPosts.length - visiblePosts,
+                      'posts',
+                      () => setVisiblePosts(count => count + 20),
+                      'posts:show-more',
+                    )}
+                  </>
+                )}
           </div>
         )}
 
         {contentTab === 'podcasts' && (
-          mediaLoading || !media ? renderListSkeleton(4) : (
-            filteredPodcasts.length === 0 ? renderEmptyState('No episodes match these filters.') : (
-              <div className="space-y-8">
-                <section className="space-y-3" aria-labelledby="podcast-host-heading">
-                  <h3 id="podcast-host-heading" className="border-l-2 border-blue-400 pl-2 font-mono text-xs uppercase tracking-[0.18em] text-blue-200/90">
-                    Value Stack (host) · {filteredValueStack.length}
+          mediaLoading || !media ? renderListSkeleton(4, 'media') : (
+            filteredPodcasts.length === 0 ? renderEmptyState(emptyFor('podcasts')) : (
+              <div className="content-sections">
+                <section className="content-section" aria-labelledby="podcast-host-heading">
+                  <h3 id="podcast-host-heading" className="content-section__head ps2-label">
+                    Value Stack <span className="content-section__count">{filteredValueStack.length}</span>
                   </h3>
                   {filteredValueStack.length === 0 ? (
-                    <p className="text-sm font-light text-blue-200/80">No host episodes match these filters.</p>
+                    <p className="content-section__empty">No host episodes for this filter.</p>
                   ) : (
                     <>
-                      {groupByYear(visibleValueStack).map(group => (
-                        <div key={group.year} className="space-y-3">
+                      {featuredEpisode && (
+                        <MediaFeature item={featuredEpisode} label="Latest episode" />
+                      )}
+                      {groupByYear(hostRest).map(group => (
+                        <div key={group.year} className="content-group">
                           {renderYearHeading(group.year, group.items.length)}
-                          <div className="space-y-3">
-                            {group.items.map(item => renderMediaCard(item))}
+                          <div className="media-rows">
+                            {group.items.map(item => <MediaRow key={item.url} item={item} />)}
                           </div>
                         </div>
                       ))}
@@ -1094,23 +820,21 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                   )}
                 </section>
 
-                <section className="space-y-3" aria-labelledby="podcast-guest-heading">
-                  <h3 id="podcast-guest-heading" className="border-l-2 border-blue-400 pl-2 font-mono text-xs uppercase tracking-[0.18em] text-blue-200/90">
-                    Guest appearances · {filteredAppearances.length}
+                <section className="content-section" aria-labelledby="podcast-guest-heading">
+                  <h3 id="podcast-guest-heading" className="content-section__head ps2-label">
+                    Guest appearances <span className="content-section__count">{filteredAppearances.length}</span>
                   </h3>
                   {filteredAppearances.length === 0 ? (
-                    <p className="text-sm font-light text-blue-200/80">No guest appearances match these filters.</p>
+                    <p className="content-section__empty">No guest appearances for this filter.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {groupByYear(filteredAppearances).map(group => (
-                        <div key={group.year} className="space-y-3">
-                          {renderYearHeading(group.year, group.items.length)}
-                          <div className="space-y-3">
-                            {group.items.map(item => renderMediaCard(item))}
-                          </div>
+                    groupByYear(filteredAppearances).map(group => (
+                      <div key={group.year} className="content-group">
+                        {renderYearHeading(group.year, group.items.length)}
+                        <div className="media-rows">
+                          {group.items.map(item => <MediaRow key={item.url} item={item} />)}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))
                   )}
                 </section>
               </div>
@@ -1119,19 +843,20 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         )}
 
         {contentTab === 'lectures' && (
-          mediaLoading || !media ? renderListSkeleton(4) : (
-            filteredLectures.length === 0 ? renderEmptyState('No lectures match these filters.') : (
-              <div className="space-y-7">
+          mediaLoading || !media ? renderListSkeleton(4, 'media') : (
+            filteredLectures.length === 0 ? renderEmptyState(emptyFor('lectures')) : (
+              <div className="content-sections content-sections--tight">
                 {groupByYear(filteredLectures).map(group => (
-                  <section key={group.year} className="space-y-3">
+                  <section key={group.year} className="content-group">
                     {renderYearHeading(group.year, group.items.length)}
                     {groupBySource(group.items).map(sourceGroup => (
-                      <div key={sourceGroup.source} className="space-y-2">
-                        <p className="pl-1 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-300/90">
-                          {sourceGroup.source}
+                      <div key={sourceGroup.source} className="content-venue">
+                        <p className="content-venue__head">
+                          <span>{sourceGroup.source}</span>
+                          <span className="content-venue__count">{sourceGroup.items.length}</span>
                         </p>
-                        <div className="space-y-3">
-                          {sourceGroup.items.map(item => renderMediaCard(item))}
+                        <div className="media-rows">
+                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} wide />)}
                         </div>
                       </div>
                     ))}
@@ -1143,24 +868,31 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         )}
 
         {contentTab === 'tutorials' && (
-          mediaLoading || !media ? renderListSkeleton(4) : (
+          mediaLoading || !media ? renderListSkeleton(4, 'card') : (
             filteredTutorials.length === 0
-              ? renderEmptyState('No tutorials are listed yet.')
+              ? renderEmptyState(emptyFor('tutorials'))
               : (
-                <div className="space-y-3">
-                  {filteredTutorials.map(item => renderMediaCard(item, `${item.source} · Video`))}
+                <div className="tutorial-rows">
+                  {filteredTutorials.map(item => <TutorialRow key={item.url} item={item} />)}
                 </div>
               )
           )
         )}
 
         {contentTab === 'reading' && (
-          mediaLoading || !media ? renderListSkeleton(4) : (
+          mediaLoading || !media ? renderListSkeleton(4, 'row') : (
             filteredReading.length === 0
-              ? renderEmptyState('Nothing on the shelf yet.')
+              ? renderEmptyState(emptyFor('reading'))
               : (
-                <div className="space-y-3">
-                  {filteredReading.map(item => renderReadingCard(item))}
+                <div className="content-sections content-sections--tight">
+                  {groupByYear(filteredReading).map(group => (
+                    <section key={group.year} className="content-group">
+                      {renderYearHeading(group.year, group.items.length)}
+                      <div className="reading-rows">
+                        {group.items.map(item => <ReadingRow key={item.url} item={item} />)}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               )
           )
@@ -1169,53 +901,21 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     );
   };
 
-  const renderWork = () => (
-    <div className="space-y-4 max-w-4xl mx-auto">
-       <div className="flex justify-between items-center text-xs uppercase tracking-[0.14em] text-blue-200/85 border-b border-blue-500/20 pb-2 mb-4">
-         <span>Organization</span>
-         <span>Duration</span>
-       </div>
-      {WORK_DATA.map((job, i) => (
-        <div 
-          key={i} 
-          className="group relative bg-blue-900/10 border border-blue-500/10 hover:border-blue-500/40 p-5 rounded-sm transition-all duration-300"
-        >
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-2">
-            <div>
-               <h3 className="text-[20px] font-normal text-white transition-colors group-hover:text-blue-200">{job.company}</h3>
-               {job.subRoles ? (
-                 <div className="mt-2 space-y-1 border-l border-blue-500/30 pl-4">
-                   {job.subRoles.map((role, idx) => (
-                      <div key={idx} className="text-[14px]">
-                         <span className="font-normal text-[var(--text-secondary)]">{role.title}</span>
-                         <span aria-hidden="true" className="mx-2 text-[var(--accent-soft)]">|</span>
-                         <span className="font-mono text-[12px] text-[var(--text-muted)]">{role.period}</span>
-                      </div>
-                   ))}
-                 </div>
-               ) : (
-                 <div className="mt-1 font-normal text-[var(--text-secondary)]">{job.role}</div>
-               )}
-            </div>
-            <div className="mt-2 text-right md:mt-0">
-               <div className="font-mono text-[12px] text-[var(--text-muted)]">{job.period}</div>
-               <div className="ps2-meta mt-1">{job.location}</div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   const getContent = () => {
     switch (section.id) {
-      case 'social': return renderSocials();
-      case 'about': return renderAbout();
+      case 'social': return <SocialScreen />;
+      case 'about': return <AboutScreen />;
       case 'portfolio': return renderPortfolio();
-      case 'book': return renderBooks();
+      case 'book': return <BookScreen />;
       case 'content': return renderContentHub();
-      case 'work': return renderWork();
-      default: return <div>Under Construction</div>;
+      case 'work': return <WorkScreen />;
+      default: return (
+        <EmptyState
+          title="That screen is not available"
+          message="Return to the main menu to choose another section."
+          error
+        />
+      );
     }
   };
 
