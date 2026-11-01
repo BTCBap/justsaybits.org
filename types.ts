@@ -3,7 +3,7 @@ import React from 'react';
 export interface Section {
   id: string;
   title: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   description: string;
   color: string;
   component: React.ReactNode;
@@ -25,6 +25,8 @@ export interface DesignItem {
   alt: string;
   width: number;
   height: number;
+  srcSet?: string;
+  sizes?: string;
 }
 
 export interface InvestmentItem {
@@ -42,18 +44,24 @@ export interface BookItem {
   thoughts: string;
   coverColor: string;
   coverImage?: string;
+  coverSrcSet?: string;
+  coverWidth?: number;
+  coverHeight?: number;
   url?: string;
 }
 
-export interface EssayItem {
+export interface EssaySummary {
   title: string;
   date: string;
   readTime: string;
   excerpt: string;
   slug: string;
-  content: string;
   sourceLabel?: string;
   sourceUrl?: string;
+}
+
+export interface EssayItem extends EssaySummary {
+  content: string;
 }
 
 export interface MediaItem {
@@ -61,6 +69,10 @@ export interface MediaItem {
   url: string;
   source: string;
   date?: string;
+  /** Tutorials: how the item is delivered. */
+  format?: 'Video' | 'Guide';
+  /** Tutorials: the one-line result the reader gets. */
+  outcome?: string;
 }
 
 export interface ReadingItem {

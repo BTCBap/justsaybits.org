@@ -1,32 +1,12 @@
-import React from 'react';
 import {
   IconSocial,
   IconAbout,
-  IconPortfolio,
   IconInvestments,
   IconBook,
   IconContent,
   IconHistory
 } from './components/Icons';
-import { Section, PortfolioItem, DesignItem, InvestmentItem, BookItem, EssayItem, JobItem } from './types';
-import { ESSAYS } from './data/essays';
-import {
-  PODCASTS_VALUE_STACK,
-  PODCASTS_APPEARANCES,
-  LECTURES,
-  TUTORIALS,
-  READING_LIST,
-} from './data/media';
-import { POSTS } from './data/posts';
-
-export {
-  PODCASTS_VALUE_STACK,
-  PODCASTS_APPEARANCES,
-  LECTURES,
-  TUTORIALS,
-  READING_LIST,
-  POSTS,
-};
+import { Section, PortfolioItem, DesignItem, InvestmentItem, BookItem, JobItem } from './types';
 
 // --- Content Data ---
 
@@ -65,6 +45,8 @@ export const DESIGN_DATA: DesignItem[] = [
     alt: "Value Stack, A Bitcoin Podcast logo: white text on an orange square",
     width: 400,
     height: 400,
+    srcSet: "/designs/value-stack-logo-192.webp 192w, /designs/value-stack-logo-384.webp 384w, /designs/value-stack-logo.webp 400w",
+    sizes: "(min-width: 768px) 180px, 42vw",
   },
   {
     title: "Bitcoin for Bullies",
@@ -73,6 +55,8 @@ export const DESIGN_DATA: DesignItem[] = [
     alt: "Bitcoin for Bullies logo: a bully dog face wearing sunglasses with orange bitcoin symbols on the lenses",
     width: 480,
     height: 480,
+    srcSet: "/designs/bitcoin-for-bullies-logo-192.webp 192w, /designs/bitcoin-for-bullies-logo-384.webp 384w, /designs/bitcoin-for-bullies-logo.webp 480w",
+    sizes: "(min-width: 768px) 180px, 42vw",
   },
   {
     title: "Denver BitDevs",
@@ -81,6 +65,8 @@ export const DESIGN_DATA: DesignItem[] = [
     alt: "Denver BitDevs logo: a bitcoin symbol over mountains and pine trees inside an orange circle",
     width: 400,
     height: 400,
+    srcSet: "/designs/denver-bitdevs-logo-192.webp 192w, /designs/denver-bitdevs-logo-384.webp 384w, /designs/denver-bitdevs-logo.webp 400w",
+    sizes: "(min-width: 768px) 180px, 42vw",
   },
   {
     title: "Satoshi Pacioli Accounting",
@@ -89,6 +75,8 @@ export const DESIGN_DATA: DesignItem[] = [
     alt: "Satoshi Pacioli Accounting logo: orange script lettering with a green bitcoin-style S",
     width: 720,
     height: 280,
+    srcSet: "/designs/satoshi-pacioli-accounting-logo-192.webp 192w, /designs/satoshi-pacioli-accounting-logo-384.webp 384w, /designs/satoshi-pacioli-accounting-logo.webp 720w",
+    sizes: "(min-width: 768px) 180px, 42vw",
   },
   {
     title: "@bitcoin_lane Profile Picture",
@@ -97,6 +85,8 @@ export const DESIGN_DATA: DesignItem[] = [
     alt: "Circular profile picture of a father and young child with glowing red laser eyes in front of a bitcoin volcano",
     width: 372,
     height: 372,
+    srcSet: "/designs/x-profile-picture-192.webp 192w, /designs/x-profile-picture-348.webp 348w, /designs/x-profile-picture.webp 372w",
+    sizes: "(min-width: 768px) 180px, 42vw",
   },
 ];
 
@@ -115,13 +105,13 @@ export const BOOK_DATA: BookItem[] = [
     subtitle: "The Book of the Bitcoin Way and Its Virtue",
     thoughts: "Where ancient wisdom meets the future of money. The Bitcoin Tao explores the profound parallels between Taoist philosophy and the principles that underpin Bitcoin — decentralization, harmony, patience, and the natural order of sound money. This is more than a book. It's a meditation on why Bitcoin isn't just a technology, but a return to the way things were always meant to be.",
     coverColor: "bg-orange-600",
-    coverImage: "/bitcoin-tao-cover.jpeg",
+    coverImage: "/bitcoin-tao-cover-640.webp",
+    coverSrcSet: "/bitcoin-tao-cover-320.webp 320w, /bitcoin-tao-cover-640.webp 640w",
+    coverWidth: 640,
+    coverHeight: 960,
     url: "https://amzn.to/4ej0RbJ",
   },
 ];
-
-// Essays are now maintained in ./data/essays.ts for easier management
-export const ESSAY_DATA: EssayItem[] = ESSAYS;
 
 export const WORK_DATA: JobItem[] = [
   {
@@ -189,10 +179,10 @@ export const SOCIAL_LINKS = [
 ];
 
 export const SECTIONS: Section[] = [
-  { id: 'about', title: 'About', icon: IconAbout, description: 'Mission & Values', color: 'purple', component: null },
+  { id: 'about', title: 'About', icon: IconAbout, description: 'Mission & Values', color: 'blue', component: null },
   { id: 'social', title: 'Social', icon: IconSocial, description: 'Connect with me', color: 'blue', component: null },
   { id: 'work', title: 'Work', icon: IconHistory, description: 'Career History', color: 'cyan', component: null },
-  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'green', component: null },
-  { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'red', component: null },
-  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'indigo', component: null },
+  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'blue', component: null },
+  { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'blue', component: null },
+  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'cyan', component: null },
 ];

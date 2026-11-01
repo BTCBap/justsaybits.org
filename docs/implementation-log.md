@@ -1,0 +1,184 @@
+# Implementation log
+
+## Perf phase — design-review items 10–13
+
+- **10 — Done.** Tailwind 3.4 now compiles through PostCSS (`tailwind.config.js`, `postcss.config.js`, `styles/app.css`); the Play CDN and unused import map are gone, arbitrary values still render, and the shipped CSS is 32.6 KB (6.4 KB gzip).
+- **11 — Done.** `ContentScreen` is a lazy chunk, each essay body is a per-slug dynamic import, posts/media data load on their tabs, and framer-motion uses `LazyMotion` + `m`; the menu path is 97.2 KB gzip against the 120 KB target.
+- **12 — Done.** Jost and JetBrains Mono are self-hosted woff2 with preload and `font-display: swap`, reading prose uses the display face, and the book cover, essay images, design logos, and post images carry renditions, `srcSet`/`sizes` where useful, dimensions, and lazy decoding.
+- **13 — Done.** The background canvas caps DPR at 2, runs at 30 fps with cached gradients/sort/glow sprite and a cancelled RAF, and pauses behind boot/content, on `document.hidden`, and under reduced motion with a static frame; the content blur is removed and the CRT overlay is monochrome at roughly 4% and hidden for coarse pointers/reduced motion.
+
+### Bug-scan fixes
+
+- **PF-01** — Removed the 407 KB Tailwind Play CDN script and compile the stylesheet at build time.
+- **PF-02** — Split the single 461 KB bundle into the menu, content shell, tab data, and essay chunks.
+- **PF-03** — Capped the canvas backing store at DPR 2, cancelled its RAF, and stopped the loop when covered or hidden.
+- **PF-04** — Replaced blocking Google Fonts with two preloaded, self-hosted variable fonts (`font-display: swap`) and moved prose to Jost.
+- **PF-05** — Posts render 20 at a time with lazy, dimensioned WebP/JPG images; essay and design images use renditions with dimensions.
+- **CT-08** — Book cover now serves 320/640 WebP renditions with width/height and lazy loading; the 588 KB source is out of `public/`.
+- **MS-02** — Removed the unused AI Studio import map and gave every SVG filter/gradient a `useId`-derived unique ID.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass. Headless Chrome at 390×664 (touch, DPR 3) and 1440×900 checked every menu section and content tab, essay and post loading, Show more posts (40 cards), font/image delivery, the background pause states, reduced motion, and horizontal overflow; the focused perf suite reports 33/33 passing, all screen checks pass, and measured CLS is 0.0019 on mobile and 0 on desktop. Keyboard Arrow/Enter navigation and Back to Home were rechecked after the `LazyMotion` change.
+
+## Audio phase — design-review items 5–9
+
+- **5 — Done.** `utils/Interaction.ts` is the single bus for `cursor | confirm | back | error | start`; menu, content, boot, and settings call `interact()` and no component imports the sound or haptic manager (the settings UI reads availability through `interaction.soundAvailable`).
+- **6 — Done.** `SoundManager` synthesises a glassy cursor tick, rising two-note confirm bell, lower falling back blip, low error double-pulse, and a 200/300/450 Hz filtered boot pad with 520/780 Hz bell tails; voices route through a master gain and `DynamicsCompressor` with a three-voice cap, and the sub-bass boot sweep is gone.
+- **7 — Done.** Haptics require a coarse pointer and the Vibration API, wait for `navigator.userActivation.isActive`, fire once per action via `pointerdown`/click, never on hover, are suppressed by reduced motion, and read `HAPTIC N/A` where the API is absent (iOS Safari is a no-op).
+- **8 — Done.** A shared `SystemSettings` panel in the menu help bar and content footer persists sound, haptics, motion, and the hint in `jsb.prefs.v1`; buttons are 44 px with `aria-pressed` and a speaker icon, `M` toggles sound, changes are announced politely, and the one-line iOS/unavailable hint is dismissible.
+- **9 — Done.** Cursor ticks follow selection changes on hover, focus, arrows, swipes, and tab changes, are deduped per id for 800 ms, throttled to 80 ms, skip focus right after pointer input, and ignore key repeat.
+
+### Bug-scan fixes
+
+- **HB-01** — The boot pad is requested only after the awaited context resume succeeds, and `playBoot` refuses to schedule unless the context is running.
+- **HB-02** — `ensureRunning()` awaits `resume()` and waits for `running`; the newest gesture event is replayed if it is still fresh, and stale events are dropped.
+- **HB-03** — `resumeIfPossible()` retries suspended/interrupted contexts on `visibilitychange` and `pageshow`, with the next pointer/key gesture as the fallback.
+- **HB-04** — Persistent sound/haptics/motion controls replace the dead `isMuted`; muting ramps the master gain and stops the boot pad.
+- **HB-05** — Touch activation now produces exactly one vibration (verified 22 ms confirm, 14 ms back); hover produces none, and a new pattern only cancels an older one that is still running.
+- **HB-06** — Support detection requires the Vibration API and a coarse pointer; iOS shows `HAPTIC N/A` and makes no vibration call.
+- **HB-07** — The hover carpet is gone: one tick per selection change, plus `onFocus` parity on menu cards/arrows, content rows, tabs, social links, and footer controls.
+- **HB-08** — Confirm and back now differ in direction and timbre; the boot is a warm mid-range pad with glassy bells.
+- **HB-09** — Cursor ticks are throttled/deduped, key repeat is ignored, and the voice cap plus compressor prevent node stacking.
+- **HB-10** — The menu help bar shows one dismissible `iPhone: the Ring/Silent switch mutes site audio.` line (or the equivalent unavailable-browser line), persisted after dismissal.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (menu path 101.9 KB gzip). Production preview at 390×664 touch and 1440×900 keyboard/mouse: zero layout shift on menu, content, and essay (mobile CLS 0), no horizontal overflow, no console errors. Verified no AudioContext before the first gesture, a running context after ArrowRight, one cursor tick per hover/selection, tab clicks deduped to one tick, rapid arrows throttled to one tick, mute persistence and silent Back, `M` announcements, suspend→visible/pageshow recovery, one vibration per mobile action, haptics persistence, hint dismissal persistence, and reduced motion disabling haptics. iOS-specific paths were emulated in Chromium (iPhone UA, coarse pointer, Vibration API removed), not tested on a physical iPhone.
+
+## Boot phase — design-review items 1–4
+
+- **1 — Done.** The boot now waits behind a real focusable `Power on` button (or any click/tap/key): the click calls `interaction.start()`, which awaits `soundManager.ensureRunning()` before `playBoot()`, so the pad begins with the bloom on the first gesture. If audio is missing, suspended, or the visitor skips, the visuals start immediately and the chime is never queued late. The gate is one screen and resolves in the same frame (before the 300 ms budget).
+- **2 — Done.** Gesture→menu is 1.70 s: bloom and wordmark resolve by 1.35 s while the menu is already composited underneath, then a 350 ms crossfade; there is no black hold. Any non-modifier key, tap, or the 44 px Skip control ends it in ~200 ms; Escape is the skip key after start. `jsb.boot.v1` in session storage gives returning visitors a 340 ms fade with no gate.
+- **3 — Done.** The scene is one designed stage: horizon/sky gradient, three depth bands of translucent monoliths (14 far, 12 mid, 10 near on desktop; 6/5/3 with larger widths on compact screens), slow dolly plus lateral drift, one warm-white bloom, and a resolving original monogram/wordmark (`components/Wordmark.tsx`). The same monogram ships as `/favicon.svg` (linked first, with the existing ICO/PNG icons kept as fallbacks). Palette stays PS2 blue with white/cyan; there is no purple cloud and no WebGL.
+- **4 — Done.** Layout comes from a constant-seed mulberry32 generator built once in `useMemo`, so re-renders and StrictMode draw the same field. Every boot animation is `transform`/`opacity` on composited layers; per-element `filter: blur()` and the large blurred cloud divs are replaced by a single pre-blurred radial gradient, and the 36-element desktop / 14-element compact budget keeps the sequence under 50 ms tasks even at 4× CPU throttle. Reduced motion renders a static poster for ~420 ms.
+
+### Bug-scan fixes
+
+- **BT-01** — Replaced the 7.2 s unskippable boot with a gesture-gated 1.70 s sequence, skip from the first frame, a crossfade over an already-mounted menu, and no `mode="wait"` on the boot exit; local LCP is 84 ms desktop and 52 ms mobile, with the menu as the LCP element.
+- **BT-02** — Removed both black holds: the last tower frame dims into the menu in the same blue field, the wordmark resolves instead of being removed, and the short session return fades straight from the poster.
+- **BT-03** — Seeded the field once (no re-randomize on render or stage change), removed all 25 per-element blurs and both 600 px blurred clouds, cut to 10–14 towers on compact screens, and eliminated post-gesture long tasks.
+- **BT-04** — Added a reduced-motion boot path (static poster, no dolly, no mark flight, ~420 ms total) alongside the existing reduced-motion background, menu, content, and haptics policies; the boot skip and progress affordances remain available.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 321.49 kB / 103.20 kB gzip, CSS 38.76 kB / 8.15 kB gzip). Production preview checked with headless Chrome at 1440×900 keyboard/mouse and 390×664 / 390×500 touch: full boot 1.70 s, skip ~200 ms, session return ~290 ms, reduced motion ~420 ms, CLS 0 and no horizontal overflow at every size, deterministic 36/14 tower fields across reloads, zero AudioContexts before the gesture and one running context with the pad starting ~50 ms after it, no long tasks post-gesture at 4× CPU throttle, and menu/section/Back interaction after both a full boot and a skip. The Umami `script.js` 400 in the console is the pre-existing MS-01 analytics issue and is outside this phase.
+
+## Nav phase — design-review items 14–17
+
+- **14 — Done.** A dependency-free History-API router (`utils/router.ts`) gives every screen a canonical path, title, description, canonical link, OG/Twitter tags, `popstate` handling, and working Back/Forward; `public/404.html` stores a deep path and the router restores it before first render on GitHub Pages.
+- **15 — Done.** Content screens and the 404 are modal dialogs with `aria-modal`, a labelled visible H1, initial heading focus, a Tab/Shift+Tab trap, Escape close, focus return to the invoking card, and essay list scroll plus selected-card restoration with a polite “Returned to Essays” announcement.
+- **16 — Done.** Section screens grow from the selected card’s viewport point and shrink back to it; tab and essay changes slide ±18 px along the tab order while the header, tab bar, and help bar stay fixed; transitions are 180–240 ms on one `cubic-bezier(0.2, 0.8, 0.2, 1)` curve and disappear under reduced motion.
+- **17 — Done.** One `HelpBar` renders real keycaps on fine pointers and short tap/swipe copy on coarse pointers, with only the current screen’s actions and a matching `sr-only` description; the duplicate 20 px footer arrows are gone, and menu/content/404 footers share one visual language and 44 px controls.
+
+### Bug-scan fixes
+
+- **NV-01** — Added path routes for all sections, portfolio/content tabs, and essays, with `pushState`/`replaceState`/`popstate`, per-route metadata, canonical URLs, and a GitHub Pages `404.html` fallback; Back from an essay returns to the list.
+- **NV-02** — Menu Enter now ignores `defaultPrevented`, key repeat, and interactive targets, so Enter on Previous/Next moves the carousel instead of opening a section.
+- **NV-03** — Removed the global Backspace shortcut; Escape closes the reader or screen, and explicit Back controls remain.
+- **NV-04** — Content and 404 screens are labelled modal dialogs with focus entry, a Tab trap, Escape, background `inert`, and focus restoration to the originating menu card.
+- **NV-05** — Opening an essay saves the list `scrollTop` and slug, and returning restores both, focuses the card, and announces “Returned to Essays”.
+- **MS-03 (404 part)** — Added a branded in-app 404 route and `public/404.html` SPA fallback. Empty/loading/error states, skeletons, `robots.txt`, and `sitemap.xml` remain for their own phases.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 331.04 kB / 106.56 kB gzip, content 48.00 kB / 11.98 kB gzip, CSS 40.40 kB / 8.49 kB gzip). Headless Chrome against the production preview at 1440×900 (keyboard/mouse) and 390×664 (touch, DPR 3) passes 66/66 checks: every route’s path/title/canonical, deep links after boot, browser Back/Forward, Escape and focus restoration, `inert` menu, Tab and Shift+Tab containment, Enter on Previous, Backspace neutrality, essay scroll/card restore, a reader-to-tab switch starting at the top with tab focus kept, tab direction plus fixed chrome, touch vs keyboard help copy, reduced-motion animation suppression, unknown essay slugs, a simulated GitHub Pages 404 response restoring `/deep-link/missing`, mobile 404 footer height 94.5 px, and no horizontal overflow. A final close-origin refinement (shrink toward the section card after a tab change) was rechecked with a focused 7/7 browser run covering the close animation, focus restoration, About dialog, and console. The known Umami `script.js` 400 (MS-01) remains and is outside this phase.
+
+## Menu and tabs phase — design-review items 18–25
+
+- **18 — Done.** `MainMenu` is now a PS2 system browser: a selected-item panel with icon, section name, the live `description`, and an `Open` control; a clock, thin rule, one help bar, and the orbit line as background texture; colour is held to PS2 blue plus white/cyan.
+- **19 — Done.** The six icons are a labelled `role="listbox"` of `role="option"` items with `aria-selected`, one roving `tabIndex`, Arrow/Home/End, and Enter/Space to open; a 2 px white focus ring and polite section announcements are independent of the selected glow, and the global Enter shortcut is gone.
+- **20 — Done.** The phone menu drags with the pointer and snaps on distance or velocity, uses `touch-action: pan-y`, handles `pointercancel`, keeps a neighbour peek plus counter/dots, gives Prev/Next 44 px targets and “Tap to open · Swipe to browse” copy, and centres a neighbour on the first tap; reduced motion disables dragging.
+- **21 — Done.** Hover moves the selection and plays one cursor tick, click confirms the selected item, the stage has a real `perspective: 1000px`, tilt is reduced, and only the active icon gets the bright outline and glow. Hover now follows real pointer movement, so a moving row cannot steal a keyboard selection.
+- **22 — Done.** One `Tabs` component serves Content and Portfolio with `tablist`/`tab`/`tabpanel`, ids, `aria-selected`, `aria-controls`, `aria-labelledby`, roving focus, Arrow/Home/End, a visible focus ring, and a 3×2 mobile grid that keeps Reading on screen.
+- **23 — Done.** The panel is keyed by tab and slides 18 px in the tab direction while the header and tab bar stay mounted and still; the essay reader keeps its forward/back direction, and reduced motion removes the animation.
+- **24 — Done.** Each tab has a count plus one-line description; Essays/Posts/Podcasts/Lectures have client-side search, Podcasts and Lectures add a year filter, Lectures group by year and venue, Value Stack groups by year, Posts and Value Stack disclose 20 at a time, and filtered lists have a clearable empty state.
+- **25 — Done.** Media, posts, reading, socials, and projects share `SystemCard`: one anchor per linked item, rest/hover/focus/pressed states, a persistent external glyph with “(opens in a new tab)”, and lazy dimensioned images; the duplicated project icon/overlay anchors are gone.
+
+### Bug-scan fixes
+
+- **MN-01** — Menu sections are semantic options in a listbox, with selected state, roving focus, keyboard opening, a visible focus ring, and the section description rendered.
+- **MN-02** — Menu arrows are 44 px on touch, the hint reads “Tap to open · Swipe to browse”, and text is no longer scaled below its real size (labels 12 px, descriptions 13 px).
+- **MN-03** — Added `perspective: 1000px`, reduced tilt, made hover preview the selection, and made click confirm it.
+- **CT-01** — Essay cards are single anchors that work with Enter, have a focus ring, and restore list focus/scroll after the reader.
+- **CT-02** — Content tabs follow the ARIA tab pattern with roving focus and panel links, and the mobile 3×2 grid shows all six tabs.
+- **CT-03** — Project cards are one anchor each; the duplicate icon/overlay links and clipped icon focus are gone.
+- **CT-04** — Content/portfolio tab text, menu helper copy, Work location and headers, and the book subtitle now use measured high-contrast blues.
+- **CT-05** — Menu arrows, footer Back, settings buttons, and “Get the Book” meet the 44 px touch target.
+- **CT-06** — Portfolio Projects/Investments/Design use the shared `Tabs` component with roles, selection, panels, roving focus, and keyboard movement.
+- **CT-07** — `mailto:` opens no blank tab, and external glyphs are persistent with visually hidden “opens in a new tab” text.
+- **NV-02** — Removed the global Enter shortcut; Enter/Space belong to the focused option, and Enter on Prev/Next only activates that button.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 327.94 kB / 105.20 kB gzip; content 50.33 kB / 14.09 kB gzip). Headless Chrome against the production preview at 1440×900 keyboard/mouse and 390×664 touch/DPR 3 checked: listbox and tab semantics with one tab stop, Arrow/Home/End/Enter/Space including after closing a screen, the 2 px focus ring, hover preview then click confirm, stationary-pointer stability, 360 ms post-drag click suppression, real touch swipe (left/right snap, vertical gesture ignored, `touchcancel`), neighbour tap → centre → second tap open, 44 px controls, 12 px labels, 13 px description, no horizontal overflow, the 3×2 Content grid, directional panel changes with fixed header/tab bar, counts/search/year filters/empty-state reset, 20 → 40 posts, Value Stack and lecture grouping, one-link project rows with external cues and lazy images, mailto without `target`, and reduced motion (no panel animation, no menu transition, drag disabled). The only console errors are the pre-existing Umami endpoint 400s. Semantics were checked in the DOM/accessibility tree; a physical VoiceOver/TalkBack and iPhone pass remains outside this environment.
+
+## Reader phase — design-review items 26–30
+
+- **26 — Done.** The essay body is now parsed as a small Markdown subset (`components/EssayBody.tsx`) into semantic `h2`/`h3` with ids and anchor links, lists, blockquotes, rules, inline code, links, and figure captions; prose is Jost at 17 px mobile / 18 px desktop, 1.66 line-height, 65 ch measure, with persistent underlines and mono reserved for dates, read time, captions, and metadata.
+- **27 — Done.** A persistent reader bar carries the title, date, read time, canonical “Copy link” action, and a thin progress line; long essays get a floating “Contents” disclosure (six minutes or more) that never resizes the reading area, and the foot offers newer/older essay cards. Return to List keeps the list scroll and card focus, and copy/return status is announced politely.
+- **28 — Done.** Every essay gets its own title, description, canonical, OG/Twitter tags, `article:published_time`, and `Article` JSON-LD, plus a generated static shell at `/content/essays/<slug>/` containing the H1 and excerpt for crawlers. Build-time `sitemap.xml` and `robots.txt` cover all routes, and the existing portrait serves as the share image.
+- **29 — Done.** Type moves onto the 12 / 14 / 16 / 20 / 28 / 36 px scale with 300–400 weights, 0.14–0.2 em uppercase tracking, tabular numerals for the clock and dates, no serif book title, mono limited to metadata/keycaps, and glow limited to the selected menu item and screen title.
+- **30 — Done.** Semantic colour tokens (`--bg`, `--panel`, `--text`, `--text-secondary`, `--text-muted`, `--accent`, `--accent-soft`, `--success`, `--danger`, `--warning`) replace the ad-hoc palette; all measured text pairs now clear 4.5:1, the CRT overlay is a 3.3 % average monochrome layer behind content and is off for coarse pointers/reduced motion, the RGB split and purple are gone, and blue/cyan carry the interface with one amber warning.
+
+### Bug-scan fixes
+
+- **CT-04** — Re-verified the five measured pairs: inactive Content and Portfolio tabs and the footer helper use `--text-secondary` (13.65:1), Work location uses `--text-muted` (9.26:1), and the book subtitle uses blue-200/85 (10.16:1); also raised the non-active menu label opacity floor from 0.4 to 0.6 so carousel labels stay above 4.5:1.
+- **PF-04** — Reader prose is no longer 14 px mono: it uses the self-hosted Jost display face at 17/18 px with mono reserved for metadata, and the type pass removed the remaining bold/wide-tracking dashboard treatment from the essay, book, and reader chrome.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 329.31 kB / 105.66 kB gzip, content 58.22 kB / 16.53 kB gzip, CSS 48.51 kB / 10.63 kB gzip). Production preview at 1440×900 keyboard/mouse and 390×664 touch/DPR 3: reader title/meta/canonical/OG/JSON-LD, five real H2s, 65 ch desktop measure and 340 px mobile prose, progress 0→1, responsive contents disclosure with Escape closing the list rather than the reader, copy-link clipboard and live confirmation, newer/older navigation resetting scroll and focusing the title, heading permalinks after reload, Return to List restoring list scroll/card focus, error state plus successful retry, reduced-motion CRT/transition suppression, zero horizontal overflow, and no page errors or console warnings. All 15 essay shells, the 29-URL sitemap, robots.txt, and trailing-slash canonical/copy URLs were checked; direct no-slash essay entries normalize to the static-shell slash. The recurring Umami endpoint 400 is the pre-existing MS-01 analytics issue and is outside this phase. GitHub Pages deployment was not run because this phase is prohibited from using git.
+
+## Screens phase — design-review items 31–39
+
+- **31 — Done.** About leads with a 240–320 px framed portrait and caption, a 24/28 px mission pull quote, a current-role “Now” line, cross-links to Work, Book, and Social, and two aligned belief/objective panels with original inline SVG glyphs marked `aria-hidden`; body copy stays at 60–70 ch.
+- **32 — Done.** Social is a contact surface: the email is the 52 px primary row with no `target`, a copy button that morphs to “Copied” with a confirm sound and polite announcement, persistent X/LinkedIn marks and handles, and open-to/response-time lines.
+- **33 — Done.** Work is a ruled timeline: current Swan Bitcoin role accented with “Now”, older roles collapsed, sub-roles expanded as indented rail steps with `aria-expanded`/`aria-controls`, and 12 px mono periods/locations using the measured muted token.
+- **34 — Done.** Projects are one-anchor PS2 file rows (one column mobile, two at desktop) with tabular year, title, role, description, tags, a persistent external cue, a visible focus ring, and a two-line description that reveals on hover/focus (open on coarse pointers).
+- **35 — Done.** Investments is a semantic table with `caption`, `scope="col"`, icon-plus-text status, and a stacked list with `data-label` under 480 px. Design tiles open a modal dialog with the full rendition, title, type, alt text, counter, Escape/arrow keys, a Tab trap, and focus return that also works after a touch tap.
+- **36 — Done.** Book is a PS2 product panel with a perspective cover, spine and ground shadow, Jost title, mono subtitle, short lead plus author’s-note disclosure, original five-star glyphs, one 44 px “Get the book” link with an external cue, 12 px affiliate disclosure, and a 320/640 WebP cover with dimensions and lazy decoding.
+- **37 — Done.** Each Content tab has its own shape: featured essay plus compact index; two-column posts with text, date, metrics, lazy aspect-box thumbnails, and 20-at-a-time disclosure; podcast host/guest split with year groups, counts, and a larger latest episode; lecture year/venue groups with counts and compact play rows; tutorial format badges and outcomes; reading groups with author + date and persistent external cues; a shared count line and per-list empty state.
+- **38 — Done.** The “Under Construction” default is gone: the lazy screen and lists have final-geometry skeletons, filters and empty data have designed states, failed chunks land in an error boundary whose retry reloads a cached `React.lazy` failure, the 404 uses the normal shell, the offline bar offers Reconnect, and failed images show a labelled fallback with status/live-region announcements.
+- **39 — Done.** Every route sets its title, description, canonical, OG, and Twitter tags; essays carry `Article` JSON-LD and every page carries static `Person` JSON-LD. The Umami script was removed after its configured website id returned HTTP 400 “Website not found” on every beacon (the review’s documented fallback). `docs/performance-budget.md` records the LCP/CLS/INP/JS/CSS/console budget and `npm run budget` gates the built initial JS, CSS, third-party scripts, Person JSON-LD, sitemap/robots, and oversized images.
+
+### Bug-scan fixes
+
+- **CT-03** — Every project row is now one anchor with a decorative external glyph and no nested link or overlay.
+- **CT-04** — New screens use the semantic text tokens; Work location, tab labels, social notes, metadata, and book subtitle were checked against their composited backgrounds.
+- **CT-05** — Social copy, Work expand, About links, lightbox controls, book CTA/excerpt, offline Reconnect, and every new action meet at least 44 px.
+- **CT-07** — The email is a `mailto:` without `target`, with copy-in-place; outbound X, LinkedIn, project, media, and reading rows keep a visible external cue and hidden “opens in a new tab” text.
+- **CT-08** — The 2048² 588 KB cover is replaced by 320×480 and 640×960 WebP renditions with `width`/`height`, `loading="lazy"`, `decoding="async"`, and a responsive `srcSet`.
+- **MS-01** — Removed the failing Umami script and its pageview calls, so the console no longer posts 400s and no third-party analytics request ships.
+- **MS-03** — Added the designed empty/filter states, list and screen skeletons, error boundary with retry, branded 404 route/shell, offline notice, image fallback, and generated `robots.txt`/`sitemap.xml`.
+- **CT-01, CT-02, CT-06** — Already closed in earlier phases; re-verified through the new essay index, content tab shapes, and portfolio table/list/lightbox.
+
+### Verification
+
+`npx tsc --noEmit -p .`, `npm run build`, and `npm run budget` pass. Final build: `index` 334.19 kB / 106.88 kB gzip, `ContentScreen` 72.79 kB / 20.29 kB gzip, CSS 69.99 kB / 14.21 kB gzip; the budget gate measures 104.2 kB initial JS and 13.8 kB initial CSS gzip.
+
+Headless Chrome against the production preview at 1440×900 (keyboard/mouse) and 390×664 (touch, DPR 3) passed 265/265 checks across every route: all titles/descriptions/canonicals/OG/JSON-LD, About portrait/quote/panels, Social copy feedback and live announcement, Work expand/collapse, one-link project rows, investment table-to-list conversion, lightbox Enter/arrow/Escape/focus return (including tap), book cover dimensions and CTA, all six content shapes, empty-state reset, 404 Back/Escape, offline/reconnect, image fallback, delayed-chunk skeleton, reduced motion, and no interactive target below 24 px. Separate state runs verified the chunk error boundary and successful retry (reload), the paused screen skeleton, and the lightbox Tab trap. CLS measured 0 on `/`, `/about`, `/content/posts`, and `/portfolio/design` at both viewports, with no console errors or warnings in the normal flow.
+
+## States and metadata pass — design-review items 38–39, settings and bug status
+
+- **38 — Done.** The default “Under Construction” screen is replaced by a designed `EmptyState`; lazy screens and delayed lists show `ScreenSkeleton` / `ListSkeleton` at the final panel and row geometry; search and year filters have a named empty state with “Clear filters”; failed essay/cover images use `SafeImage` with a labelled fallback; chunk and render failures land in `ErrorBoundary` with retry; `/nope` renders the branded dialog with Back, Escape and the normal settings footer; the offline bar offers Reconnect and announces recovery. Async counts, skeletons, boot, copy and offline messages use `role="status"` / `aria-live`. **Guide:** Stage Show's `loading` example (a skeleton at the content's own geometry, real chrome around it) and Family Values' equal-polish / friendly-empty-state rule (the “fancy restaurant with a dirty bathroom” test); NN/g error recovery and WCAG 2.2 SC 4.1.3 drove the status announcements.
+- **39 — Done.** Every in-app route sets its own title, description, canonical, OG and Twitter tags; essay routes add `Article` JSON-LD and static shells under `/content/essays/<slug>/`; `Person` JSON-LD is in the static head. The unknown route now carries `robots=noindex` with no canonical, so a missing URL is not endorsed. The failing Umami script was removed (the review's documented fallback), so no 400 beacon ships. `npm run build` generates `robots.txt` and a 29-URL `sitemap.xml`; `npm run budget` gates initial JS/CSS, third-party runtime scripts, Person JSON-LD, robots/sitemap and oversized rasters, with the LCP/CLS/INP targets in `docs/performance-budget.md`. **Guide:** web.dev Core Web Vitals, SEO and structured data; WCAG 2.2 SC 2.4.2 (page titled); Family Values' table-stakes rule for utility and performance.
+- **Settings and reduced motion — Done.** The Sound / Haptics / Motion group is present in the menu footer and every content and 404 footer; on mobile and desktop its three controls measure at least 44 × 44 px. Sound and haptics state, the `M` shortcut and forced reduced motion persist in `jsb.prefs.v1` and survive reload. System `prefers-reduced-motion` removes the CRT overlay, menu and panel transitions, boot motion and haptics. **Guide:** Family Values' simplicity/consistency and WCAG 2.2 SC 2.3.3 (motion from interaction can be disabled).
+- **Bug scan — Done.** Every ID in `docs/bug-scan.md` now has a Status row. All sound/haptics IDs (HB-01–HB-10) were re-read in code and the key paths exercised: no AudioContext before the power-on gesture, boot pad only after `running`, one vibration per tap (`[22]`), none on hover, one cursor tick on keyboard focus, and silence when muted. Deferred items are listed below the table: hosted Lighthouse CI (no CI provider) and physical-iPhone validation.
+
+### Verification
+
+`npx tsc --noEmit -p .`, `npm run build` and `npm run budget` pass. Initial JS 104.5 KB gzip, initial CSS 13.7 KB gzip; main 335.25 kB / 107.23 kB gzip, ContentScreen 72.63 kB / 20.29 kB gzip. Headless Chrome against the production preview at 1440 × 900 and 390 × 664 / DPR 3 passed 82/82 state/metadata checks and 14/14 targeted sound, haptics, mute and boot checks: boot gate and 1.9 s completion, per-route title/description/canonical/OG/Article JSON-LD, 404 noindex and no canonical, filtered empty state and reset, delayed-chunk skeleton, offline/reconnect, cover fallback, error boundary and successful retry, system and forced reduced motion, settings persistence at both viewports, M shortcut, and no analytics requests. A separate pass over all 16 routes at both viewports recorded zero console errors or warnings.
+
+## PR description pass
+
+- **PR description — Done.** `/workspace/gb/pr-body.md` maps all 39 review items and all 38 bug-scan IDs, lists the 13 removed lectures verbatim from `dfad62c`, and references 36 screenshots that exist at 1440 × 900 and 780 × 1688. **Guide:** Stage Show's framing and word budget plus Family Values' equal-polish rule set the walkthrough structure; the PS2 system reference and WCAG supplied the item-level justifications.
+- **Performance record — Done.** Lighthouse 13.6.0 mobile against the branch preview, re-measured in the finish pass: score 98, FCP 1.5 s, LCP 2.1–2.2 s, CLS 0, TBT 0 ms, Speed Index 1.5 s, TTI 2.1–2.2 s, 290 KiB; `npm run budget` still reports 104.5 KB initial JS and 13.7 KB initial CSS gzip. **Guide:** web.dev Core Web Vitals.
+- **Guide citation — Partial.** The brief's `.agents/skills/stageshow/SKILL.md` file is absent from disk (only `kit/` and `examples/` are present), so the body cites the Stage Show kit/examples and the principles recorded in `docs/design-review.md`; `family-values/SKILL.md` is present and cited directly.
+
+## Finish pass: screenshots, Lighthouse, PR
+
+- **Screenshots — Done.** 36 PNGs in `docs/screenshots/`: 16 before/after pairs (8 screens at desktop and phone) plus the four after-only reader and settings frames. Every file opens in PIL; all desktop frames are 1440 × 900 and all phone frames 780 × 1688. Losslessly re-encoded with oxipng 8.0.0 (`-o 4 --strip safe`); the 11 files over 400 KB dropped 16–56%, and six stay between 450 and 555 KB because the PS2 dither texture resists deflate. Referenced from the PR with 36 `blob/...?raw=true` URLs that return `200 image/png`. **Guide:** Family Values' equal-polish rule, which requires both viewports to be shown.
+- **Lighthouse — Done.** Same profile for both sides (13.6.0, mobile default, headless Chrome, `vite preview`): performance 78 → 98, LCP 3.5 s → 2.1–2.2 s, CLS 0 → 0, TBT 270 ms → 0 ms, transfer 382 KiB → 290 KiB, with every budget in `docs/performance-budget.md` passing. **Guide:** web.dev Core Web Vitals, plus the budget the review set.
+- **PR description — Done.** `gh pr edit 3` applied `/workspace/gb/pr-body.md`, retitled to "feat: PS2 design pass across every screen, with bug fixes and performance" and `gh pr ready 3` took it out of draft. The checklist covers all twelve brief requirements, and the per-area walkthrough keeps its per-upgrade justifications. **Guide:** Stage Show's framing and word budget and the PS2 system reference.
+- **Guide citation — Partial.** `.agents/skills/stageshow/SKILL.md` is still absent from the repository (only `kit/` and `examples/` are present); the skill was read from the temporary copy at `/tmp/skills-3mAujD/stageshow/SKILL.md`, and its framing, poster-first, one-action and "choose the calmer frame" rules match what the review applied. The PR cites the kit, the examples and the read recorded in `docs/design-review.md`. `.agents/skills/family-values/SKILL.md` is present and cited directly.

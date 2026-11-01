@@ -1,109 +1,157 @@
-declare global {
-  interface Window {
-    umami?: {
-      track: (eventOrPayload: string | Record<string, unknown> | ((props: Record<string, unknown>) => Record<string, unknown>), data?: Record<string, unknown>) => void;
-    };
-  }
-}
-
-import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion';
 
 import PS2Background from './components/PS2Background';
 import MainMenu from './components/MainMenu';
-import ContentScreen from './components/ContentScreen';
 import BootSequence from './components/BootSequence';
+import LiveStatus from './components/LiveStatus';
+import NotFoundScreen from './components/NotFoundScreen';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineNotice from './components/OfflineNotice';
+import { ScreenSkeleton } from './components/Skeleton';
 import { SECTIONS } from './constants';
-import { soundManager } from './utils/SoundManager';
+import { interaction } from './utils/Interaction';
+import { hasBootedThisSession, markBootedThisSession } from './utils/bootSession';
+import { usePrefersReducedMotion } from './utils/preferences';
+import { closeTo, navigate, pathForSection, useRouter, type NavOrigin } from './utils/router';
+
+const ContentScreen = lazy(() => import('./components/ContentScreen'));
 
 const App: React.FC = () => {
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const { route, previous } = useRouter();
+  const activeSection = route.section
+    ? SECTIONS.find(section => section.id === route.section) ?? null
+    : null;
+  const activeSectionId = activeSection?.id ?? null;
+  const screenOpen = !!activeSection || route.notFound;
+
+  // The menu is composited from the first frame, behind the boot, so there is
+  // no layout shift when the overlay clears and no second entrance animation.
+  const [bootVisible, setBootVisible] = useState(true);
   const [bootComplete, setBootComplete] = useState(false);
+  const [returningVisitor] = useState(() => hasBootedThisSession());
   const [activeMenuIndex, setActiveMenuIndex] = useState(() => {
     const aboutIndex = SECTIONS.findIndex(s => s.id === 'about');
     return aboutIndex >= 0 ? aboutIndex : 0;
   });
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const activeSection = SECTIONS.find(s => s.id === activeSectionId);
+  const reducedMotion = usePrefersReducedMotion();
 
-  // Track virtual pageviews on section navigation
+  useEffect(() => {
+    document.documentElement.dataset.motion = reducedMotion ? 'reduced' : 'auto';
+  }, [reducedMotion]);
+
+  // The interaction bus owns audio resumption, recovery, and the M shortcut.
+  useEffect(() => interaction.install(), []);
+
+  // Keep the hidden menu's selected card in step with a deep link.
+  useEffect(() => {
+    if (!activeSectionId) return;
+    const index = SECTIONS.findIndex(section => section.id === activeSectionId);
+    if (index >= 0 && index !== activeMenuIndex) setActiveMenuIndex(index);
+  }, [activeSectionId, activeMenuIndex]);
+
+  // Return focus to the card that opened the screen when the visitor comes
+  // back with the Back button or browser Back. Keyed to the route only: a
+  // later arrow-key move must not be pulled back to the card just closed.
+  useEffect(() => {
+    if (screenOpen || !previous) return;
+    if (!previous.section && !previous.notFound) return;
+    const id = previous.section;
+    const frame = requestAnimationFrame(() => {
+      const menu = menuRef.current;
+      const target = id
+        ? menu?.querySelector<HTMLElement>(`[data-section-id="${id}"]`)
+        : menu?.querySelector<HTMLElement>('[data-section-id][aria-selected="true"]');
+      target?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [route.path, screenOpen, previous]);
+
+  // Warm the content chunk once the menu is idle so a first selection does not
+  // wait on the network. Nothing is fetched while the boot is running.
   useEffect(() => {
     if (!bootComplete) return;
-    const url = activeSectionId ? `/${activeSectionId}` : '/';
-    const title = activeSectionId
-      ? (SECTIONS.find(s => s.id === activeSectionId)?.title ?? activeSectionId)
-      : 'Home';
-    window.umami?.track(props => ({ ...props, url, title }));
-  }, [activeSectionId, bootComplete]);
+    const timer = window.setTimeout(() => {
+      void import('./components/ContentScreen');
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [bootComplete]);
 
-  // Resume AudioContext on first interaction
-  useEffect(() => {
-    const handleInteraction = () => {
-      soundManager.resume();
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-    };
+  const openSection = (id: string, origin?: NavOrigin) => {
+    navigate(pathForSection(id), { origin });
+  };
 
-    window.addEventListener('click', handleInteraction);
-    window.addEventListener('keydown', handleInteraction);
-    
-    return () => {
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-    };
-  }, []);
+  const closeSection = () => {
+    closeTo('/');
+  };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-black text-white selection:bg-blue-500 selection:text-white font-sans">
-      
-      <AnimatePresence mode='wait'>
-        {!bootComplete && (
-          <motion.div 
-             key="boot"
-             className="absolute inset-0 z-[200]"
-             exit={{ opacity: 0, transition: { duration: 1 } }}
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
+      <LazyMotion features={domAnimation} strict>
+        <div className="relative w-full h-full overflow-hidden bg-[var(--bg)] text-white font-sans">
+          
+          {/* Background Layer */}
+          <PS2Background paused={!bootComplete || screenOpen} reducedMotion={reducedMotion} />
+
+          {/* Main Content Layer */}
+          <div
+            className="relative z-10 w-full h-full"
+            aria-hidden={!bootComplete ? true : undefined}
+            inert={!bootComplete || undefined}
           >
-            <BootSequence onComplete={() => setBootComplete(true)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Background Layer */}
-      <PS2Background />
-
-      {/* Main Content Layer */}
-      <div className="relative z-10 w-full h-full">
-        <AnimatePresence mode='wait'>
-          {bootComplete && activeSection ? (
-            <ContentScreen 
-              key="content"
-              section={activeSection} 
-              onBack={() => setActiveSectionId(null)} 
-            />
-          ) : bootComplete ? (
-            <motion.div 
-              key="menu"
+            <div
+              ref={menuRef}
               className="w-full h-full"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)", transition: { duration: 0.5 } }}
-              transition={{ duration: 0.8 }}
+              aria-hidden={screenOpen ? true : undefined}
+              inert={screenOpen || undefined}
             >
               <MainMenu
                 sections={SECTIONS}
-                onSelect={(id) => setActiveSectionId(id)}
+                onSelect={openSection}
                 activeIndex={activeMenuIndex}
                 onActiveIndexChange={setActiveMenuIndex}
+                keyboardEnabled={bootComplete && !screenOpen}
               />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </div>
+            </div>
 
-      {/* CRT Scanline Effect Overlay */}
-      <div className="pointer-events-none fixed inset-0 z-[100] opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
-      
-    </div>
+            <ErrorBoundary>
+              <Suspense fallback={<ScreenSkeleton />}>
+              {activeSection ? (
+                <ContentScreen
+                  key={activeSection.id}
+                  section={activeSection}
+                  focusEnabled={bootComplete}
+                  onBack={closeSection}
+                />
+              ) : route.notFound ? (
+                <NotFoundScreen path={route.path} onHome={closeSection} focusEnabled={bootComplete} />
+              ) : null}
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+
+          {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
+          <div className="crt-overlay pointer-events-none fixed inset-0 z-[5]" />
+
+          {bootVisible && (
+            <BootSequence
+              short={returningVisitor}
+              onReveal={() => setBootComplete(true)}
+              onComplete={() => {
+                markBootedThisSession();
+                setBootComplete(true);
+                setBootVisible(false);
+              }}
+            />
+          )}
+
+          <LiveStatus />
+          <OfflineNotice />
+        </div>
+      </LazyMotion>
+    </MotionConfig>
   );
 };
 

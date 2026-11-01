@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, Variants } from 'framer-motion';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
   LayoutGrid,
@@ -13,44 +12,53 @@ import {
   MessageCircle,
   PenTool,
 } from 'lucide-react';
+import { ESSAYS } from '../data/essays';
+import { loadEssayContent } from '../data/essayContent';
+import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
+import { interaction } from '../utils/Interaction';
+import { announce } from '../utils/liveRegion';
+import { usePrefersReducedMotion } from '../utils/preferences';
+import { trapTabKey } from '../utils/focus';
 import {
-  PORTFOLIO_DATA,
-  INVESTMENT_DATA,
-  DESIGN_DATA,
-  BOOK_DATA,
-  ESSAY_DATA,
-  WORK_DATA,
-  SOCIAL_LINKS,
-  PODCASTS_VALUE_STACK,
-  PODCASTS_APPEARANCES,
-  LECTURES,
-  TUTORIALS,
-  READING_LIST,
-  POSTS,
-} from '../constants';
-import { Section, EssayItem, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
-import { soundManager } from '../utils/SoundManager';
-import { hapticManager } from '../utils/HapticManager';
+  CONTENT_TAB_IDS,
+  PORTFOLIO_TAB_IDS,
+  closeTo,
+  navigate,
+  pathForEssay,
+  pathForTab,
+  useRouter,
+  type ContentTabId,
+} from '../utils/router';
+import HelpBar from './HelpBar';
+import SystemSettings from './SystemSettings';
+import Tabs, { tabId, tabPanelId } from './Tabs';
+import { parseEssay } from './EssayBody';
+import { EssayArticle, ReaderBar } from './EssayReader';
+import AboutScreen from './screens/AboutScreen';
+import SocialScreen from './screens/SocialScreen';
+import WorkScreen from './screens/WorkScreen';
+import BookScreen from './screens/BookScreen';
+import { DesignTab, InvestmentsTab, ProjectsTab } from './screens/PortfolioScreen';
+import EmptyState from './EmptyState';
+import { ListSkeleton } from './Skeleton';
+import {
+  EssayRow,
+  FeaturedEssay,
+  MediaFeature,
+  MediaRow,
+  PostCard,
+  ReadingRow,
+  TutorialRow,
+} from './ContentLists';
 
 interface ContentScreenProps {
   section: Section;
   onBack: () => void;
+  /** False while the boot gate owns the screen, so focus is not stolen behind it. */
+  focusEnabled?: boolean;
 }
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    scale: 1,
-    transition: { duration: 0.4, ease: "easeOut" }
-  },
-  exit: { 
-    opacity: 0, 
-    scale: 1.05, 
-    filter: "blur(10px)",
-    transition: { duration: 0.3 } 
-  }
-};
+const CLOSE_MS = 190;
 
 const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'essays', label: 'Essays', icon: FileText },
@@ -61,881 +69,948 @@ const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{
   { id: 'reading', label: 'Reading', icon: BookOpen },
 ];
 
+const PORTFOLIO_TABS: { id: PortfolioTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'projects', label: 'Projects', icon: LayoutGrid },
+  { id: 'investments', label: 'Investments', icon: TrendingUp },
+  { id: 'design', label: 'Design', icon: PenTool },
+];
+
 const postEngagement = (p: PostItem) =>
   p.likes + p.reposts * 2 + p.replies + (p.quotes ?? 0) + (p.bookmarks ?? 0);
 
-const RANKED_POSTS = [...POSTS].sort((a, b) => postEngagement(b) - postEngagement(a));
-
-const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
-  const re = /(\*\*[\s\S]*?\*\*|\*[^*\n]+?\*|\[[^\]]+\]\([^)]+\))/g;
-  const parts: React.ReactNode[] = [];
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    if (m.index > last) {
-      parts.push(text.slice(last, m.index));
-    }
-    const tok = m[0];
-    if (tok.startsWith('**') && tok.endsWith('**') && tok.length >= 4) {
-      parts.push(
-        <span key={`${keyPrefix}-b-${i++}`} className="font-bold text-white text-base md:text-lg tracking-wide">
-          {tok.slice(2, -2)}
-        </span>
-      );
-    } else if (tok.startsWith('*') && tok.endsWith('*') && tok.length >= 2) {
-      parts.push(<em key={`${keyPrefix}-i-${i++}`}>{tok.slice(1, -1)}</em>);
-    } else {
-      const lm = tok.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (lm) {
-        parts.push(
-          <a
-            key={`${keyPrefix}-a-${i++}`}
-            href={lm[2]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 underline underline-offset-2 hover:text-white"
-          >
-            {lm[1]}
-          </a>
-        );
-      } else {
-        parts.push(tok);
-      }
-    }
-    last = m.index + tok.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts;
+const yearOf = (date?: string): string => {
+  const bce = date?.match(/\b(\d+)\s*BCE\b/i);
+  if (bce) return `${bce[1]} BCE`;
+  const match = date?.match(/\b(\d{4})\b/);
+  return match ? match[1] : 'Undated';
 };
 
-const EssayBody: React.FC<{ content: string }> = ({ content }) => {
-  const nodes: React.ReactNode[] = [];
-  const re = /%%(YOUTUBE|IMAGE|TWEET):([\s\S]*?)%%/g;
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content))) {
-    if (m.index > last) {
-      const text = content.slice(last, m.index);
-      if (text.length) {
-        nodes.push(
-          <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
-            {renderInline(text, `t${i}`)}
-          </div>
-        );
-      }
-    }
-    try {
-      const data = JSON.parse(m[2]);
-      if (m[1] === 'YOUTUBE' && data.id) {
-        const start = data.start ? `&start=${encodeURIComponent(data.start)}` : '';
-        nodes.push(
-          <div key={`yt-${i++}`} className="my-6 w-full overflow-hidden border border-blue-500/30 bg-black/40">
-            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src={`https://www.youtube-nocookie.com/embed/${data.id}?rel=0${start}`}
-                title="YouTube video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        );
-      } else if (m[1] === 'IMAGE' && data.src) {
-        nodes.push(
-          <figure key={`img-${i++}`} className="my-6">
-            <img
-              src={data.src}
-              alt={data.alt || data.caption || ''}
-              className="max-w-full w-full h-auto object-contain border border-blue-500/20"
-            />
-            {data.caption && (
-              <figcaption className="mt-2 text-xs text-blue-400/80 font-mono italic">
-                {renderInline(data.caption, `cap${i}`)}
-              </figcaption>
-            )}
-          </figure>
-        );
-      } else if (m[1] === 'TWEET') {
-        nodes.push(
-          <a
-            key={`tw-${i++}`}
-            href={data.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="my-6 block border border-blue-500/30 bg-blue-900/10 p-4 hover:border-blue-400 transition-colors"
-          >
-            <div className="text-white font-bold">{data.name}</div>
-            {data.username && (
-              <div className="text-xs text-blue-400 font-mono mb-2">@{data.username}</div>
-            )}
-            <p className="text-sm text-blue-100 whitespace-pre-wrap">{data.text}</p>
-          </a>
-        );
-      }
-    } catch {
-      // skip malformed media tokens
-    }
-    last = m.index + m[0].length;
-  }
-  if (last < content.length) {
-    const text = content.slice(last);
-    if (text.length) {
-      nodes.push(
-        <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
-          {renderInline(text, `t${i}`)}
-        </div>
-      );
-    }
-  }
-  return <>{nodes}</>;
+const newestFirst = (a: { date?: string }, b: { date?: string }): number => {
+  const aTime = a.date ? Date.parse(a.date) : NaN;
+  const bTime = b.date ? Date.parse(b.date) : NaN;
+  if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+  if (Number.isNaN(aTime)) return 1;
+  if (Number.isNaN(bTime)) return -1;
+  return bTime - aTime;
 };
 
-const scrollbarStyles = `
-  .ps2-scroll::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .ps2-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .ps2-scroll::-webkit-scrollbar-thumb {
-    background: rgba(100, 150, 255, 0.15);
-    border-radius: 3px;
-  }
-  .ps2-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 150, 255, 0.4);
-  }
-  .no-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .ps2-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(100, 150, 255, 0.15) transparent;
-    scrollbar-gutter: stable;
-  }
-`;
+function groupByYear<T extends { date?: string }>(items: T[]): { year: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  items.forEach((item) => {
+    const year = yearOf(item.date);
+    const bucket = groups.get(year);
+    if (bucket) bucket.push(item);
+    else groups.set(year, [item]);
+  });
+  return Array.from(groups, ([year, grouped]) => ({ year, items: grouped }))
+    .sort((a, b) => {
+      if (a.year === 'Undated') return 1;
+      if (b.year === 'Undated') return -1;
+      const rank = (year: string) => {
+        const value = Number.parseInt(year, 10) || 0;
+        return /BCE/i.test(year) ? -value : value;
+      };
+      return rank(b.year) - rank(a.year);
+    });
+}
+
+function groupBySource<T extends { source?: string }>(items: T[]): { source: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  items.forEach((item) => {
+    const source = item.source || 'Other';
+    const bucket = groups.get(source);
+    if (bucket) bucket.push(item);
+    else groups.set(source, [item]);
+  });
+  return Array.from(groups, ([source, grouped]) => ({ source, items: grouped }));
+}
+
+const CONTENT_TAB_META: Record<ContentTab, { noun: string; blurb: string }> = {
+  essays: { noun: 'essays', blurb: 'Long-form writing, newest first.' },
+  posts: { noun: 'posts', blurb: 'Top posts by engagement from @BTCBap.' },
+  podcasts: { noun: 'episodes', blurb: 'Host of Value Stack, plus guest appearances.' },
+  lectures: { noun: 'lectures', blurb: 'Talks and panels, grouped by year.' },
+  tutorials: { noun: 'tutorials', blurb: 'Guides and walkthroughs.' },
+  reading: { noun: 'books and essays', blurb: 'Worth your time.' },
+};
+
+interface MediaData {
+  valueStack: MediaItem[];
+  appearances: MediaItem[];
+  lectures: MediaItem[];
+  tutorials: MediaItem[];
+  reading: ReadingItem[];
+}
 
 type PortfolioTab = 'projects' | 'investments' | 'design';
 
-const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
-  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
-  const [contentTab, setContentTab] = useState<ContentTab>('essays');
-  const [selectedEssay, setSelectedEssay] = useState<EssayItem | null>(null);
-  const contentMounted = useRef(false);
+const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEnabled = true }) => {
+  const { route, previous, origin } = useRouter();
+
+  const contentTab: ContentTab = section.id === 'content'
+    && CONTENT_TAB_IDS.includes(route.tab as ContentTabId)
+    ? route.tab as ContentTab
+    : 'essays';
+  const portfolioTab: PortfolioTab = section.id === 'portfolio'
+    && PORTFOLIO_TAB_IDS.includes(route.tab as PortfolioTab)
+    ? route.tab as PortfolioTab
+    : 'projects';
+  const essaySlug = section.id === 'content' ? route.slug : null;
+  const selectedEssay = essaySlug ? ESSAYS.find(essay => essay.slug === essaySlug) ?? null : null;
+
+  const [essayContent, setEssayContent] = useState<string | null>(null);
+  const [essayLoading, setEssayLoading] = useState(false);
+  const [essayError, setEssayError] = useState(false);
+  const [essayReload, setEssayReload] = useState(0);
+  const [posts, setPosts] = useState<PostItem[] | null>(null);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [visiblePosts, setVisiblePosts] = useState(20);
+  const [media, setMedia] = useState<MediaData | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [visibleMedia, setVisibleMedia] = useState(20);
+  const [query, setQuery] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
+  const [closing, setClosing] = useState(false);
+
+  const reducedMotion = usePrefersReducedMotion();
   const bodyRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const essayTitleRef = useRef<HTMLHeadingElement>(null);
+  const cardRefs = useRef(new Map<string, HTMLElement>());
+  const listScroll = useRef(0);
+  const returnSlug = useRef<string | null>(null);
+  const hadEssay = useRef(false);
+  const lastEssaySlug = useRef<string | null>(null);
+  const headingFocusDone = useRef(false);
+  const closingTimer = useRef<number | null>(null);
+
+  // Section entry: grow out of the selected menu card when there is one.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (!origin) {
+      panel.style.transformOrigin = '';
+      return;
+    }
+    const rect = panel.getBoundingClientRect();
+    panel.style.transformOrigin = `${origin.x - rect.left}px ${origin.y - rect.top}px`;
+  }, [origin, section.id]);
+
+  // Move focus into the dialog once the boot gate has handed over the screen.
+  useEffect(() => {
+    if (!focusEnabled || headingFocusDone.current) return;
+    headingFocusDone.current = true;
+    if (essaySlug) return;
+    const frame = requestAnimationFrame(() => headingRef.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [focusEnabled, essaySlug]);
+
+  // Essay reader: start at the top (including when moving between essays),
+  // focus the title, and put the reader back where they were on return.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (essaySlug) {
+      hadEssay.current = true;
+      if (lastEssaySlug.current !== essaySlug) {
+        lastEssaySlug.current = essaySlug;
+        body?.scrollTo({ top: 0 });
+      }
+      if (!focusEnabled) return;
+      const frame = requestAnimationFrame(() => essayTitleRef.current?.focus({ preventScroll: true }));
+      return () => cancelAnimationFrame(frame);
+    }
+    lastEssaySlug.current = null;
+    if (!hadEssay.current) return;
+    hadEssay.current = false;
+    if (contentTab !== 'essays') {
+      returnSlug.current = null;
+      listScroll.current = 0;
+      return;
+    }
+    const top = listScroll.current;
+    const slug = returnSlug.current;
+    const frame = requestAnimationFrame(() => {
+      if (body) body.scrollTop = top;
+      const card = slug ? cardRefs.current.get(slug) : undefined;
+      (card ?? headingRef.current)?.focus({ preventScroll: true });
+      announce('Returned to Essays');
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [essaySlug, focusEnabled, contentTab]);
+
+  // A new tab or section starts at the top; returning from an essay is handled
+  // by the effect above so the list keeps its place.
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [contentTab, portfolioTab, section.id]);
+
+  // Search and progressive disclosure belong to one tab at a time.
+  useEffect(() => {
+    setQuery('');
+    setYearFilter('all');
+    setVisibleMedia(20);
+    setVisiblePosts(20);
+  }, [contentTab]);
 
   useEffect(() => {
-    bodyRef.current?.scrollTo(0, 0);
-  }, [selectedEssay, contentTab, section.id]);
+    setVisiblePosts(20);
+  }, [query]);
 
-  // Track virtual pageviews for content tabs / essay reader (skip initial mount — section open is tracked by App.tsx)
+  useEffect(() => {
+    if (!essaySlug) {
+      setEssayContent(null);
+      setEssayLoading(false);
+      setEssayError(false);
+      return;
+    }
+    let cancelled = false;
+    setEssayContent(null);
+    setEssayError(false);
+    setEssayLoading(true);
+    loadEssayContent(essaySlug)
+      .then((content) => {
+        if (cancelled) return;
+        setEssayContent(content);
+        setEssayLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEssayError(true);
+        setEssayLoading(false);
+        interaction.interact('error', { source: 'system' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [essaySlug, essayReload]);
+
+  // Posts and media metadata are separate on-demand chunks: the menu and the
+  // essay index never pay for them.
   useEffect(() => {
     if (section.id !== 'content') return;
-    if (!contentMounted.current) { contentMounted.current = true; return; }
-    const url = selectedEssay
-      ? `/content/essays/${selectedEssay.slug}`
-      : `/content/${contentTab}`;
-    const title = selectedEssay ? selectedEssay.title : `Content / ${contentTab}`;
-    window.umami?.track(props => ({ ...props, url, title }));
-  }, [selectedEssay, contentTab, section.id]);
+    let cancelled = false;
 
-  const handleBack = () => {
-    soundManager.playBack();
-    hapticManager.medium();
-    if (selectedEssay) {
-      setSelectedEssay(null);
-    } else {
-      onBack();
+    if (contentTab === 'posts' && posts === null) {
+      setPostsLoading(true);
+      import('../data/posts')
+        .then((data) => { if (!cancelled) setPosts(data.POSTS); })
+        .catch(() => { if (!cancelled) setPosts([]); })
+        .finally(() => { if (!cancelled) setPostsLoading(false); });
     }
+
+    const needsMedia = contentTab === 'podcasts' || contentTab === 'lectures' || contentTab === 'tutorials' || contentTab === 'reading';
+    if (needsMedia && media === null) {
+      setMediaLoading(true);
+      import('../data/media')
+        .then((data) => {
+          if (!cancelled) {
+            setMedia({
+              valueStack: data.PODCASTS_VALUE_STACK,
+              appearances: data.PODCASTS_APPEARANCES,
+              lectures: data.LECTURES,
+              tutorials: data.TUTORIALS,
+              reading: data.READING_LIST,
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setMedia({ valueStack: [], appearances: [], lectures: [], tutorials: [], reading: [] });
+        })
+        .finally(() => { if (!cancelled) setMediaLoading(false); });
+    }
+
+    return () => { cancelled = true; };
+  }, [contentTab, section.id, posts, media]);
+
+  const rankedPosts = useMemo(
+    () => (posts ? [...posts].sort((a, b) => postEngagement(b) - postEngagement(a)) : []),
+    [posts]
+  );
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesQuery = (...parts: (string | undefined)[]): boolean =>
+    !normalizedQuery || parts.some(part => part?.toLowerCase().includes(normalizedQuery));
+
+  const filteredEssays = useMemo(
+    () => [...ESSAYS].sort(newestFirst).filter(essay => (
+      !normalizedQuery
+      || essay.title.toLowerCase().includes(normalizedQuery)
+      || essay.excerpt.toLowerCase().includes(normalizedQuery)
+    )),
+    [normalizedQuery]
+  );
+
+  const orderedEssays = useMemo(() => [...ESSAYS].sort(newestFirst), []);
+  const essayDoc = useMemo(() => (essayContent ? parseEssay(essayContent) : null), [essayContent]);
+  const essayIndex = selectedEssay
+    ? orderedEssays.findIndex(essay => essay.slug === selectedEssay.slug)
+    : -1;
+  const newerEssay = essayIndex > 0 ? orderedEssays[essayIndex - 1] : undefined;
+  const olderEssay = essayIndex >= 0 && essayIndex < orderedEssays.length - 1
+    ? orderedEssays[essayIndex + 1]
+    : undefined;
+
+  const filteredPosts = useMemo(
+    () => rankedPosts.filter(post => (
+      !normalizedQuery || post.text.toLowerCase().includes(normalizedQuery)
+    )),
+    [rankedPosts, normalizedQuery]
+  );
+
+  const openEssay = (post: EssaySummary) => {
+    if (essaySlug === post.slug) return;
+    listScroll.current = bodyRef.current?.scrollTop ?? 0;
+    returnSlug.current = post.slug;
+    navigate(pathForEssay(post.slug));
   };
 
+  const openEssayBySlug = useCallback((slug: string) => {
+    if (slug === essaySlug) return;
+    navigate(pathForEssay(slug));
+  }, [essaySlug]);
+
+  const handleBack = useCallback(() => {
+    if (closingTimer.current !== null) return;
+    interaction.interact('back', { source: 'pointer' });
+    if (essaySlug) {
+      closeTo('/content/essays');
+      return;
+    }
+    // Shrink toward the card that opened this section, even after tab changes
+    // cleared the entry origin.
+    const panel = panelRef.current;
+    const card = document.querySelector<HTMLElement>(`[data-section-id="${section.id}"]`);
+    if (panel && card) {
+      const panelRect = panel.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      panel.style.transformOrigin = `${cardRect.left + cardRect.width / 2 - panelRect.left}px ${cardRect.top + cardRect.height / 2 - panelRect.top}px`;
+    }
+    if (reducedMotion) {
+      onBack();
+      return;
+    }
+    setClosing(true);
+    closingTimer.current = window.setTimeout(() => onBack(), CLOSE_MS);
+  }, [essaySlug, onBack, reducedMotion, section.id]);
+
+  useEffect(() => () => {
+    if (closingTimer.current !== null) window.clearTimeout(closingTimer.current);
+  }, []);
+
+  const goContentTab = useCallback((tab: ContentTab, source: 'pointer' | 'keyboard' = 'pointer') => {
+    if (tab === contentTab && !essaySlug) return;
+    interaction.interact('cursor', {
+      id: `content-tab:${tab}`,
+      source,
+      haptic: source === 'pointer' ? 'tick' : undefined,
+    });
+    navigate(pathForTab('content', tab));
+  }, [contentTab, essaySlug]);
+
+  const handleContentTabChange = (tab: ContentTab, source: 'pointer' | 'keyboard' = 'pointer') => {
+    goContentTab(tab, source);
+  };
+
+  const handleTabChange = (tab: PortfolioTab, source: 'pointer' | 'keyboard' = 'pointer') => {
+    if (portfolioTab === tab) return;
+    interaction.interact('cursor', {
+      id: `portfolio-tab:${tab}`,
+      source,
+      haptic: source === 'pointer' ? 'tick' : undefined,
+    });
+    navigate(pathForTab('portfolio', tab));
+  };
+
+  // Escape closes the reader or the screen; Tab stays inside the dialog and
+  // 1–6 switch Content tabs, matching the help bar.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace') {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (trapTabKey(event, dialogRef.current)) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
         handleBack();
+        return;
+      }
+      if (
+        section.id === 'content'
+        && !essaySlug
+        && /^[1-6]$/.test(event.key)
+        && !(event.target instanceof HTMLElement
+          && event.target.closest('input, textarea, select, [contenteditable="true"]'))
+      ) {
+        const tab = CONTENT_TAB_IDS[Number(event.key) - 1];
+        if (tab) {
+          event.preventDefault();
+          goContentTab(tab, 'keyboard');
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEssay, onBack]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [essaySlug, handleBack, goContentTab, section.id]);
 
-  const handleTabChange = (tab: PortfolioTab) => {
-    if (portfolioTab !== tab) {
-      soundManager.playHover();
-      hapticManager.light();
-      setPortfolioTab(tab);
+  const panelDir: 'next' | 'prev' = (() => {
+    if (essaySlug && !previous?.slug) return 'next';
+    if (!essaySlug && previous?.slug) return 'prev';
+    if (previous && previous.section === section.id && previous.tab) {
+      const list: readonly string[] = section.id === 'portfolio' ? PORTFOLIO_TAB_IDS : CONTENT_TAB_IDS;
+      const nextTab = section.id === 'portfolio' ? portfolioTab : contentTab;
+      const previousIndex = list.indexOf(previous.tab);
+      const nextIndex = list.indexOf(nextTab);
+      if (previousIndex >= 0 && nextIndex >= 0 && previousIndex !== nextIndex) {
+        return nextIndex > previousIndex ? 'next' : 'prev';
+      }
     }
-  };
-
-  const handleContentTabChange = (tab: ContentTab) => {
-    if (contentTab !== tab) {
-      soundManager.playHover();
-      hapticManager.light();
-      setContentTab(tab);
-      setSelectedEssay(null);
-    }
-  };
-
-  const renderMediaCard = (item: MediaItem, extra?: string) => (
-    <a
-      key={item.url}
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
-      }}
-      onClick={() => { hapticManager.medium(); }}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
-          {item.title}
-        </h3>
-        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>}
-      </div>
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>{extra || item.source}</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
-  );
-
-  const renderPostCard = (item: PostItem) => {
-    const raw = item.text.trim() || 'View post';
-    const title = raw.length > 160 ? `${raw.slice(0, 157).trimEnd()}…` : raw;
-    return (
-    <a
-      key={item.id}
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
-      }}
-      onClick={() => { hapticManager.medium(); }}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
-          {title}
-        </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
-      </div>
-      {item.image && (
-        <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
-          <img
-            src={item.image}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="max-h-96 max-w-full w-auto h-auto object-contain"
-          />
-        </div>
-      )}
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>@BTCBap</span>
-        <span className="mx-2">::</span>
-        <span>{item.likes.toLocaleString()} likes</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
-    );
-  };
-
-  const renderReadingCard = (item: ReadingItem) => (
-    <a
-      key={item.url}
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-      onMouseEnter={() => {
-        soundManager.playHover();
-        hapticManager.light();
-      }}
-      onClick={() => { hapticManager.medium(); }}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
-          {item.title}
-        </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
-      </div>
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>{item.author}</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
-  );
-
-  // Render Helpers
-  const renderSocials = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-      {SOCIAL_LINKS.map((link, i) => (
-        <a
-          key={i}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block bg-blue-900/20 border border-blue-500/30 p-6 hover:bg-blue-800/40 transition-all duration-200"
-          onMouseEnter={() => {
-            soundManager.playHover();
-            hapticManager.light();
-          }}
-          onClick={() => { hapticManager.medium(); window.umami?.track('social-click', { platform: link.platform }); }}
-        >
-          <div className="text-blue-400 text-xs tracking-widest uppercase mb-1">{link.platform}</div>
-          <div className="text-xl font-mono text-white group-hover:ps2-text-shadow flex items-center justify-between">
-            {link.handle}
-            <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </a>
-      ))}
-    </div>
-  );
-
-  const renderAbout = () => (
-    <div className="max-w-3xl mx-auto space-y-8 text-blue-100 font-light">
-      <div className="flex justify-center">
-        <div className="border border-blue-500/40 p-1 bg-black/40 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
-          <img
-            src="/about-portrait.webp"
-            alt="Pencil sketch portrait of Zach Wischler"
-            width={320}
-            height={320}
-            className="block w-36 md:w-40 h-auto"
-          />
-        </div>
-      </div>
-
-      <div className="border-b border-blue-500/30 pb-6">
-        <p className="text-xl leading-relaxed text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
-          Dedicated to advancing individual sovereignty through cryptography.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div>
-           <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Core Beliefs</h3>
-           <ul className="space-y-3 text-sm">
-             {[
-               "Financial freedom from centralized authority",
-               "Data ownership and privacy as fundamental rights",
-               "Time is our scarcest asset",
-               "Critical thinking and AI literacy are the major skills you'll need to thrive",
-               "Tools should be open and accessible to all"
-             ].map((belief, i) => (
-               <li key={i} className="flex items-start">
-                 <span className="mr-2 text-blue-500">▶</span>
-                 <span className="text-blue-100/90">{belief}</span>
-               </li>
-             ))}
-           </ul>
-        </div>
-        <div>
-           <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Current Objectives</h3>
-           <ul className="space-y-3 text-sm">
-             {[
-               "Building open source tools",
-               "Leveraging AI and automation to win back time",
-               "Promoting Bitcoin adoption and freedom technologies",
-               "Prioritizing long-term value creation over short-term gains",
-             ].map((goal, i) => (
-               <li key={i} className="flex items-start">
-                 <span className="mr-2 text-blue-500">◉</span>
-                 <span className="text-blue-100/90">{goal}</span>
-               </li>
-             ))}
-           </ul>
-        </div>
-      </div>
-
-      <p className="text-sm leading-relaxed text-blue-200/80">
-        After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
-      </p>
-    </div>
-  );
-
-  const renderInvestmentTable = () => (
-    <div className="bg-black/40 border border-blue-500/20">
-      <table className="w-full text-left">
-        <thead className="bg-blue-900/20 text-blue-300 text-xs uppercase tracking-wider font-mono">
-          <tr>
-            <th className="p-4">Asset</th>
-            <th className="p-4">Stage / Type</th>
-            <th className="p-4 text-right">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-blue-500/10 font-mono text-sm">
-          {INVESTMENT_DATA.map((inv, i) => (
-            <tr key={i} className="hover:bg-blue-900/10 transition-colors" onMouseEnter={() => soundManager.playHover()}>
-              <td className="p-4">
-                <div className="text-white font-bold">{inv.asset}</div>
-                {inv.ticker && <div className="text-xs text-blue-500">{inv.ticker}</div>}
-              </td>
-              <td className="p-4 text-blue-200">{inv.type}</td>
-              <td className="p-4 text-right">
-                <span className={`px-2 py-1 rounded text-xs ${
-                  inv.status === 'Active' ? 'bg-green-900/30 text-green-400' :
-                  inv.status === 'Acquired' ? 'bg-purple-900/30 text-purple-400' :
-                  inv.status === 'Exited' ? 'bg-red-900/30 text-red-400' :
-                  'bg-gray-800 text-gray-400'
-                }`}>
-                  {inv.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const renderDesigns = () => (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-      {DESIGN_DATA.map(item => (
-        <figure
-          key={item.image}
-          className="bg-black/40 border border-blue-500/30 flex flex-col hover:border-blue-400 transition-colors"
-          onMouseEnter={() => soundManager.playHover()}
-        >
-          <div className="aspect-square flex items-center justify-center p-2 md:p-4 bg-[#1c1c1c] border-b border-blue-500/30">
-            <img
-              src={item.image}
-              alt={item.alt}
-              width={item.width}
-              height={item.height}
-              loading="lazy"
-              decoding="async"
-              className="max-w-full max-h-full w-auto h-auto object-contain"
-            />
-          </div>
-          <figcaption className="p-3 md:p-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-3">
-            <span className="text-sm md:text-lg font-bold leading-snug text-white ps2-text-shadow">{item.title}</span>
-            <span className="text-xs font-mono uppercase tracking-wider text-blue-400 shrink-0">{item.type}</span>
-          </figcaption>
-        </figure>
-      ))}
-    </div>
-  );
+    return 'next';
+  })();
+  const animatePanel = previous?.section === section.id;
 
   const renderPortfolio = () => (
     <div className="flex flex-col h-full">
-      {/* Tabs */}
-      <div className="shrink-0 flex items-center gap-6 md:gap-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => handleTabChange('projects')}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'projects' 
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Projects</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('investments')}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'investments' 
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Investments</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('design')}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'design'
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <PenTool className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
-        </button>
-      </div>
+      <Tabs
+        baseId="portfolio"
+        label="Portfolio sections"
+        items={PORTFOLIO_TABS}
+        activeId={portfolioTab}
+        onChange={(id, source) => handleTabChange(id as PortfolioTab, source)}
+        layout="portfolio"
+        className="mb-6 shrink-0 md:mb-8"
+      />
 
-      {/* Content Area */}
-      <motion.div 
+      <div
         key={portfolioTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex-grow overflow-auto ps2-scroll"
+        data-dir={panelDir}
+        role="tabpanel"
+        id={tabPanelId('portfolio', portfolioTab)}
+        aria-labelledby={tabId('portfolio', portfolioTab)}
+        tabIndex={0}
+        className={`flex-grow overflow-auto ps2-scroll focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${animatePanel ? 'panel-shift' : ''}`}
       >
         {portfolioTab === 'projects' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {PORTFOLIO_DATA.map((item, i) => (
-              <div 
-                  key={i} 
-                  className="bg-black/40 border border-blue-500/30 p-5 flex flex-col h-full hover:border-blue-400 transition-colors relative group"
-                  onMouseEnter={() => soundManager.playHover()}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col">
-                    <h3 className="text-xl font-bold text-white ps2-text-shadow flex items-center gap-2">
-                        {item.title}
-                        {item.url && (
-                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-white transition-colors">
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        )}
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shrink-0 ml-2">{item.year}</span>
-                </div>
-                <p className="text-sm text-blue-100 mb-4 flex-grow">{item.description}</p>
-                <div className="space-y-2">
-                  <div className="text-xs uppercase text-blue-500 tracking-wider">Role: {item.role}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.tech.map(t => (
-                      <span key={t} className="text-xs bg-blue-900/50 text-blue-200 px-2 py-1 rounded-sm">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                {item.url && (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-10" aria-label={`View ${item.title}`} onClick={() => window.umami?.track('portfolio-project-click', { title: item.title })}></a>
-                )}
-              </div>
-            ))}
-          </div>
+          <ProjectsTab />
         ) : portfolioTab === 'design' ? (
-          renderDesigns()
+          <DesignTab />
         ) : (
-          renderInvestmentTable()
+          <InvestmentsTab />
         )}
-      </motion.div>
-    </div>
-  );
-
-  const renderBooks = () => (
-    <div className="flex items-center justify-center min-h-full">
-      {BOOK_DATA.map((book, i) => {
-        const handleOpen = () => {
-          if (book.url) {
-            window.umami?.track('book-purchase-click', { title: book.title });
-            window.open(book.url, '_blank', 'noopener,noreferrer');
-          }
-        };
-        return (
-          <div
-            key={i}
-            className="max-w-4xl w-full flex flex-col md:flex-row gap-8 md:gap-12 items-center bg-black/40 px-5 py-8 md:p-12 border border-blue-500/30 rounded-lg"
-            onMouseEnter={() => soundManager.playHover()}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleOpen(); }}
-            tabIndex={book.url ? 0 : undefined}
-          >
-            <div
-              className={`w-48 h-72 shrink-0 ${book.coverImage ? '' : book.coverColor} shadow-[0_0_30px_rgba(234,88,12,0.3)] flex items-center justify-center text-center border-2 border-white/10 rotate-[-2deg] overflow-hidden ${book.url ? 'cursor-pointer' : ''}`}
-              onClick={handleOpen}
-            >
-              {book.coverImage ? (
-                <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full p-4 border border-white/20 flex flex-col items-center justify-center">
-                  <span className="text-xl font-bold text-white/90 uppercase tracking-widest font-serif">{book.title}</span>
-                  <span className="mt-4 text-xs text-white/70 uppercase tracking-widest">{book.author}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-3xl md:text-4xl font-serif text-white mb-1">{book.title}</h3>
-              {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
-              <div className="text-xl text-blue-400 mb-6">{book.author}</div>
-
-              <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
-                <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
-                <span className="uppercase tracking-widest text-sm font-bold text-white/50">Available Now</span>
-                <span className="h-px w-8 bg-blue-500/50"></span>
-                <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
-              </div>
-
-              {book.url && (
-                <button
-                  onClick={handleOpen}
-                  className="uppercase tracking-widest text-sm font-bold text-blue-400 border border-blue-500/50 px-6 py-2 rounded hover:bg-blue-500/20 transition-colors"
-                >
-                  Get the Book →
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      </div>
     </div>
   );
 
   const renderEssays = () => {
     if (selectedEssay) {
-       return (
-         <div className="max-w-3xl mx-auto font-mono text-blue-100">
-             {/* Header */}
-             <div className="border-b border-blue-500/30 pb-4 mb-6 pt-2">
-                 <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
-                 <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
-                    <span>{selectedEssay.date}</span>
-                    <span className="text-blue-600">//</span>
-                    <span>{selectedEssay.readTime} read</span>
-                 </div>
-                 {selectedEssay.sourceUrl && (
-                   <a
-                     href={selectedEssay.sourceUrl}
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     className="inline-block mt-2 text-xs text-blue-400 font-mono hover:text-white underline underline-offset-2"
-                   >
-                     {selectedEssay.sourceLabel || 'Published elsewhere'}
-                   </a>
-                 )}
-             </div>
-
-             {/* Content - preserving whitespace, with **bold**, links, and Substack media */}
-             <div className="leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8">
-                 <EssayBody content={selectedEssay.content} />
-             </div>
-         </div>
-       );
+      return (
+        <EssayArticle
+          essay={selectedEssay}
+          doc={essayDoc}
+          loading={essayLoading}
+          error={essayError}
+          titleRef={essayTitleRef}
+          onRetry={() => setEssayReload(count => count + 1)}
+          onNavigateEssay={openEssayBySlug}
+          newer={newerEssay}
+          older={olderEssay}
+        />
+      );
     }
 
+    if (filteredEssays.length === 0) return null;
+
+    const [featured, ...rest] = filteredEssays;
+    const sourceLink = (post: EssaySummary) => post.sourceUrl ? (
+      <a
+        href={post.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => interaction.interact('confirm', { source: 'pointer' })}
+        className="essay-source"
+      >
+        {post.sourceLabel || 'Published elsewhere'}
+        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    ) : null;
+
+    const open = (post: EssaySummary) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      openEssay(post);
+    };
+
+    const registerCard = (slug: string) => (element: HTMLAnchorElement | null) => {
+      if (element) cardRefs.current.set(slug, element);
+      else cardRefs.current.delete(slug);
+    };
+
     return (
-        <div className="space-y-8">
-          {ESSAY_DATA.map((post, i) => (
-            <article
-                key={i}
-                className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 p-6 rounded transition-all duration-300"
-                onMouseEnter={() => {
-                  soundManager.playHover();
-                  hapticManager.light();
-                }}
-                onClick={() => {
-                    soundManager.playSelect();
-                    hapticManager.medium();
-                    setSelectedEssay(post);
-                }}
-            >
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-                <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
-                <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
-              </div>
-              <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
-              <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-                <span>OPEN FILE</span>
-                <span className="mx-2">::</span>
-                <span>{post.readTime} READ</span>
-              </div>
-              {post.sourceUrl && (
-                <a
-                  href={post.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2"
-                >
-                  {post.sourceLabel || 'Published elsewhere'}
-                </a>
-              )}
-            </article>
-          ))}
+      <div className="essay-index">
+        <div className="essay-featured-wrap">
+          <FeaturedEssay
+            essay={featured}
+            href={pathForEssay(featured.slug)}
+            feedbackId={`essay:${featured.slug}`}
+            innerRef={registerCard(featured.slug)}
+            onNavigate={open(featured)}
+          />
+          {sourceLink(featured)}
         </div>
+
+        {rest.length > 0 && (
+          <div className="essay-index__rows">
+            {rest.map((post) => (
+              <div key={post.slug} className="essay-index__item">
+                <EssayRow
+                  essay={post}
+                  href={pathForEssay(post.slug)}
+                  feedbackId={`essay:${post.slug}`}
+                  innerRef={registerCard(post.slug)}
+                  onNavigate={open(post)}
+                />
+                {sourceLink(post)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
   const renderContentTabs = () => (
-    <div className="shrink-0 border-b border-blue-500/30 bg-[#050a14]">
-      <div className="flex w-full items-end overflow-x-auto no-scrollbar px-3 md:px-6" role="tablist">
-        {CONTENT_TABS.map(tab => {
-          const Icon = tab.icon;
-          const active = contentTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={active}
-              onClick={(e) => {
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-                handleContentTabChange(tab.id);
-              }}
-              className={`shrink-0 md:flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-1 pb-3 pt-3 transition-all duration-300 border-b-2 whitespace-nowrap ${
-                active
-                  ? 'text-white border-blue-400 ps2-text-shadow'
-                  : 'text-blue-400/70 border-transparent hover:text-blue-200'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none">{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <Tabs
+      baseId="content"
+      label="Content sections"
+      items={CONTENT_TABS}
+      activeId={contentTab}
+      onChange={(id, source) => handleContentTabChange(id as ContentTab, source)}
+      layout="content"
+      className="shrink-0"
+    />
   );
 
-  const renderContentHub = () => (
-    <motion.div
-      key={selectedEssay ? selectedEssay.slug : contentTab}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+  const renderListSkeleton = (count: number, variant: 'row' | 'card' | 'media' = 'card') => (
+    <ListSkeleton count={count} variant={variant} />
+  );
+
+  const renderEmptyState = (
+    title: string,
+    message = 'Try a different search, or clear the filters to see everything.',
+    error = false,
+  ) => {
+    const filtered = !!query.trim() || yearFilter !== 'all';
+    return (
+      <EmptyState
+        title={title}
+        message={filtered ? message : undefined}
+        actionLabel={filtered ? 'Clear filters' : undefined}
+        onAction={filtered ? () => { setQuery(''); setYearFilter('all'); } : undefined}
+        error={error}
+      />
+    );
+  };
+
+  const renderYearHeading = (year: string, count: number) => (
+    <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[12px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+      <span>{year}</span>
+      <span aria-hidden="true" className="text-[var(--accent-soft)]">·</span>
+      <span>{count}</span>
+    </h4>
+  );
+
+  const renderShowMore = (remaining: number, noun: string, onClick: () => void, id: string) => (
+    <button
+      type="button"
+      onFocus={() => interaction.interact('cursor', { id, source: 'focus' })}
+      onClick={() => {
+        interaction.interact('cursor', { id, source: 'pointer', haptic: 'tick' });
+        onClick();
+      }}
+      className="w-full min-h-[44px] border border-blue-400/30 bg-blue-900/10 px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
     >
-      {contentTab === 'essays' && renderEssays()}
-      {contentTab === 'posts' && (
-        <div className="space-y-4">
-          <p className="text-blue-400/80 text-xs font-mono uppercase tracking-widest">
-            Top posts by engagement · {RANKED_POSTS.length} from @BTCBap
-          </p>
-          {RANKED_POSTS.map(item => renderPostCard(item))}
-        </div>
-      )}
-      {contentTab === 'podcasts' && (
-        <div className="space-y-10">
-          <div>
-            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-              Value Stack (host)
-            </h3>
-            <div className="space-y-4">
-              {PODCASTS_VALUE_STACK.map(item => renderMediaCard(item))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-              Guest appearances
-            </h3>
-            <div className="space-y-4">
-              {PODCASTS_APPEARANCES.map(item => renderMediaCard(item))}
-            </div>
-          </div>
-        </div>
-      )}
-      {contentTab === 'lectures' && (
-        <div className="space-y-4">
-          {LECTURES.map(item => renderMediaCard(item))}
-        </div>
-      )}
-      {contentTab === 'tutorials' && (
-        <div className="space-y-4">
-          {TUTORIALS.map(item => renderMediaCard(item))}
-        </div>
-      )}
-      {contentTab === 'reading' && (
-        <div className="space-y-4">
-          {READING_LIST.map(item => renderReadingCard(item))}
-        </div>
-      )}
-    </motion.div>
+      Show more {noun} ({remaining} remaining)
+    </button>
   );
 
-  const renderWork = () => (
-    <div className="space-y-4 max-w-4xl mx-auto">
-       <div className="flex justify-between items-center text-xs uppercase tracking-widest text-blue-500/60 border-b border-blue-500/20 pb-2 mb-4">
-         <span>Organization</span>
-         <span>Duration</span>
-       </div>
-      {WORK_DATA.map((job, i) => (
-        <div 
-          key={i} 
-          className="group relative bg-blue-900/10 border border-blue-500/10 hover:border-blue-500/40 p-5 rounded-sm transition-all duration-300"
-          onMouseEnter={() => soundManager.playHover()}
-        >
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-2">
-            <div>
-               <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{job.company}</h3>
-               {job.subRoles ? (
-                 <div className="mt-2 space-y-1 pl-4 border-l border-blue-500/30">
-                   {job.subRoles.map((role, idx) => (
-                      <div key={idx} className="text-sm">
-                         <span className="text-blue-300 font-medium">{role.title}</span>
-                         <span className="text-blue-500/50 mx-2">|</span>
-                         <span className="text-blue-400/70 text-xs font-mono">{role.period}</span>
-                      </div>
-                   ))}
-                 </div>
-               ) : (
-                 <div className="text-blue-300 font-medium mt-1">{job.role}</div>
-               )}
+  const renderContentHub = () => {
+    const meta = CONTENT_TAB_META[contentTab];
+    const searchable = contentTab === 'essays'
+      || contentTab === 'posts'
+      || contentTab === 'podcasts'
+      || contentTab === 'lectures';
+
+    const podcastItems: MediaItem[] = media ? [...media.valueStack, ...media.appearances] : [];
+    const isFiltered = !!normalizedQuery || yearFilter !== 'all';
+    const matchesYear = (item: { date?: string }) => yearFilter === 'all' || yearOf(item.date) === yearFilter;
+    const filteredPodcasts = podcastItems.filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredValueStack: MediaItem[] = (media?.valueStack ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredAppearances: MediaItem[] = (media?.appearances ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredLectures: MediaItem[] = (media?.lectures ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredTutorials: MediaItem[] = (media?.tutorials ?? []).filter(item => matchesQuery(item.title, item.source));
+    const filteredReading: ReadingItem[] = (media?.reading ?? []).filter(item => matchesQuery(item.title, item.author));
+
+    // One year filter serves the two chronological lists; it stays out of the
+    // way when a list covers a single year.
+    const yearPool = contentTab === 'lectures'
+      ? media?.lectures ?? []
+      : contentTab === 'podcasts'
+        ? podcastItems
+        : [];
+    const yearRank = (year: string) => {
+      const value = Number.parseInt(year, 10) || 0;
+      return /BCE/i.test(year) ? -value : value;
+    };
+    const yearOptions = Array.from(new Set<string>(yearPool.map(item => yearOf(item.date))))
+      .filter(year => year !== 'Undated')
+      .sort((a, b) => yearRank(b) - yearRank(a));
+
+    const counts: Record<ContentTab, { total: number; shown: number; loading: boolean }> = {
+      essays: { total: ESSAYS.length, shown: filteredEssays.length, loading: false },
+      posts: { total: rankedPosts.length, shown: filteredPosts.length, loading: posts === null || postsLoading },
+      podcasts: { total: podcastItems.length, shown: filteredPodcasts.length, loading: media === null || mediaLoading },
+      lectures: { total: media?.lectures.length ?? 0, shown: filteredLectures.length, loading: media === null || mediaLoading },
+      tutorials: { total: media?.tutorials.length ?? 0, shown: filteredTutorials.length, loading: media === null || mediaLoading },
+      reading: { total: media?.reading.length ?? 0, shown: filteredReading.length, loading: media === null || mediaLoading },
+    };
+    const current = counts[contentTab];
+    const countText = current.loading
+      ? `Loading ${meta.noun}…`
+      : isFiltered
+        ? `${current.shown} of ${current.total} ${meta.noun} · ${meta.blurb}`
+        : `${current.total} ${meta.noun} · ${meta.blurb}`;
+
+    const featuredEpisode = filteredValueStack[0];
+    const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
+    const remainingEpisodes = filteredValueStack.length - 1 - hostRest.length;
+
+    const emptyFor = (tab: ContentTab): string => {
+      if (tab === 'lectures' && yearFilter !== 'all') return `No lectures for ${yearFilter} yet.`;
+      if (tab === 'podcasts' && yearFilter !== 'all') return `No episodes for ${yearFilter} yet.`;
+      if (normalizedQuery) return `No ${meta.noun} match “${query.trim()}”.`;
+      if (tab === 'essays') return 'No essays are listed yet.';
+      if (tab === 'posts') return 'No posts are listed yet.';
+      if (tab === 'podcasts') return 'No episodes are listed yet.';
+      if (tab === 'lectures') return 'No lectures are listed yet.';
+      if (tab === 'tutorials') return 'No tutorials are listed yet.';
+      return 'Nothing on the shelf yet.';
+    };
+
+    return (
+      <div
+        key={essaySlug ?? contentTab}
+        data-dir={panelDir}
+        role="tabpanel"
+        id={tabPanelId('content', contentTab)}
+        aria-labelledby={tabId('content', contentTab)}
+        className={animatePanel ? 'panel-shift' : undefined}
+      >
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <p className="content-count ps2-meta" role="status" aria-live="polite">
+            {countText}
+          </p>
+          {searchable && (
+            <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto">
+              <label htmlFor="content-search" className="sr-only">Search {meta.noun}</label>
+              <input
+                id="content-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${meta.noun}`}
+                autoComplete="off"
+                enterKeyHint="search"
+                className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-3 text-base font-light text-white placeholder:text-blue-200/75 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-56"
+              />
+              {(contentTab === 'lectures' || contentTab === 'podcasts') && yearOptions.length > 1 && (
+                <>
+                  <label htmlFor="content-year" className="sr-only">Filter {meta.noun} by year</label>
+                  <select
+                    id="content-year"
+                    value={yearFilter}
+                    onChange={(event) => {
+                      setYearFilter(event.target.value);
+                      setVisibleMedia(20);
+                      interaction.interact('cursor', { id: 'content:year', source: 'pointer', haptic: 'tick' });
+                    }}
+                    className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-2 text-base font-light text-blue-100 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-auto sm:text-sm"
+                  >
+                    <option value="all">All years</option>
+                    {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                  </select>
+                </>
+              )}
+              {query.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="min-h-[44px] shrink-0 border border-blue-400/30 px-3 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            <div className="text-right mt-2 md:mt-0">
-               <div className="font-mono text-sm text-blue-400">{job.period}</div>
-               <div className="text-xs uppercase tracking-widest text-blue-600 mt-1">{job.location}</div>
-            </div>
-          </div>
+          )}
         </div>
-      ))}
-    </div>
-  );
+
+        {contentTab === 'essays' && (
+          filteredEssays.length === 0
+            ? renderEmptyState(emptyFor('essays'))
+            : renderEssays()
+        )}
+
+        {contentTab === 'posts' && (
+          <div>
+            {postsLoading || posts === null
+              ? renderListSkeleton(4, 'card')
+              : filteredPosts.length === 0
+                ? renderEmptyState(emptyFor('posts'))
+                : (
+                  <>
+                    <div className="post-grid">
+                      {filteredPosts.slice(0, visiblePosts).map(item => (
+                        <PostCard key={item.id} post={item} />
+                      ))}
+                    </div>
+                    {filteredPosts.length > visiblePosts && renderShowMore(
+                      filteredPosts.length - visiblePosts,
+                      'posts',
+                      () => setVisiblePosts(count => count + 20),
+                      'posts:show-more',
+                    )}
+                  </>
+                )}
+          </div>
+        )}
+
+        {contentTab === 'podcasts' && (
+          mediaLoading || !media ? renderListSkeleton(4, 'media') : (
+            filteredPodcasts.length === 0 ? renderEmptyState(emptyFor('podcasts')) : (
+              <div className="content-sections">
+                <section className="content-section" aria-labelledby="podcast-host-heading">
+                  <h3 id="podcast-host-heading" className="content-section__head ps2-label">
+                    Value Stack <span className="content-section__count">{filteredValueStack.length}</span>
+                  </h3>
+                  {filteredValueStack.length === 0 ? (
+                    <p className="content-section__empty">No host episodes for this filter.</p>
+                  ) : (
+                    <>
+                      {featuredEpisode && (
+                        <MediaFeature item={featuredEpisode} label="Latest episode" />
+                      )}
+                      {groupByYear(hostRest).map(group => (
+                        <div key={group.year} className="content-group">
+                          {renderYearHeading(group.year, group.items.length)}
+                          <div className="media-rows">
+                            {group.items.map(item => <MediaRow key={item.url} item={item} />)}
+                          </div>
+                        </div>
+                      ))}
+                      {remainingEpisodes > 0 && renderShowMore(
+                        remainingEpisodes,
+                        'episodes',
+                        () => setVisibleMedia(count => count + 20),
+                        'podcasts:show-more',
+                      )}
+                    </>
+                  )}
+                </section>
+
+                <section className="content-section" aria-labelledby="podcast-guest-heading">
+                  <h3 id="podcast-guest-heading" className="content-section__head ps2-label">
+                    Guest appearances <span className="content-section__count">{filteredAppearances.length}</span>
+                  </h3>
+                  {filteredAppearances.length === 0 ? (
+                    <p className="content-section__empty">No guest appearances for this filter.</p>
+                  ) : (
+                    groupByYear(filteredAppearances).map(group => (
+                      <div key={group.year} className="content-group">
+                        {renderYearHeading(group.year, group.items.length)}
+                        <div className="media-rows">
+                          {group.items.map(item => <MediaRow key={item.url} item={item} />)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </section>
+              </div>
+            )
+          )
+        )}
+
+        {contentTab === 'lectures' && (
+          mediaLoading || !media ? renderListSkeleton(4, 'media') : (
+            filteredLectures.length === 0 ? renderEmptyState(emptyFor('lectures')) : (
+              <div className="content-sections content-sections--tight">
+                {groupByYear(filteredLectures).map(group => (
+                  <section key={group.year} className="content-group">
+                    {renderYearHeading(group.year, group.items.length)}
+                    {groupBySource(group.items).map(sourceGroup => (
+                      <div key={sourceGroup.source} className="content-venue">
+                        <p className="content-venue__head">
+                          <span>{sourceGroup.source}</span>
+                          <span className="content-venue__count">{sourceGroup.items.length}</span>
+                        </p>
+                        <div className="media-rows">
+                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} wide />)}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            )
+          )
+        )}
+
+        {contentTab === 'tutorials' && (
+          mediaLoading || !media ? renderListSkeleton(4, 'card') : (
+            filteredTutorials.length === 0
+              ? renderEmptyState(emptyFor('tutorials'))
+              : (
+                <div className="tutorial-rows">
+                  {filteredTutorials.map(item => <TutorialRow key={item.url} item={item} />)}
+                </div>
+              )
+          )
+        )}
+
+        {contentTab === 'reading' && (
+          mediaLoading || !media ? renderListSkeleton(4, 'row') : (
+            filteredReading.length === 0
+              ? renderEmptyState(emptyFor('reading'))
+              : (
+                <div className="content-sections content-sections--tight">
+                  {groupByYear(filteredReading).map(group => (
+                    <section key={group.year} className="content-group">
+                      {renderYearHeading(group.year, group.items.length)}
+                      <div className="reading-rows">
+                        {group.items.map(item => <ReadingRow key={item.url} item={item} />)}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )
+          )
+        )}
+      </div>
+    );
+  };
 
   const getContent = () => {
     switch (section.id) {
-      case 'social': return renderSocials();
-      case 'about': return renderAbout();
+      case 'social': return <SocialScreen />;
+      case 'about': return <AboutScreen />;
       case 'portfolio': return renderPortfolio();
-      case 'book': return renderBooks();
+      case 'book': return <BookScreen />;
       case 'content': return renderContentHub();
-      case 'work': return renderWork();
-      default: return <div>Under Construction</div>;
+      case 'work': return <WorkScreen />;
+      default: return (
+        <EmptyState
+          title="That screen is not available"
+          message="Return to the main menu to choose another section."
+          error
+        />
+      );
     }
   };
 
+  const helpActions = selectedEssay
+    ? [
+        { keys: ['Esc'], label: 'Back', touch: 'Tap Back for the list' },
+        { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+      ]
+    : section.id === 'content'
+      ? [
+          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
+          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+          { keys: ['1–6'], label: 'Tabs', touch: 'Tap a tab' },
+        ]
+      : [
+          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
+          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+        ];
+
+  const helpDescription = selectedEssay
+    ? 'Press Escape to return to the essay list. Up and down arrows scroll the essay.'
+    : section.id === 'content'
+      ? 'Press Escape to return to the main menu. Up and down arrows scroll. Number keys 1 to 6 switch content tabs.'
+      : 'Press Escape to return to the main menu. Up and down arrows scroll.';
+
   return (
-    <motion.div 
-      className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/80 backdrop-blur-md"
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={selectedEssay ? 'essay-title' : 'screen-title'}
+      tabIndex={-1}
+      className={`screen-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center ${selectedEssay ? 'px-2' : 'px-4'} pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60 focus:outline-none`}
       style={{ height: 'var(--app-height)' }}
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      data-closing={closing ? 'true' : undefined}
     >
-      <style>{scrollbarStyles}</style>
-      <div className="w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
+      <div
+        ref={panelRef}
+        className="screen-panel w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[var(--bg)] shadow-[0_0_50px_rgba(110,168,255,0.14)]"
+        data-closing={closing ? 'true' : undefined}
+      >
         
         {/* Header */}
         <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center justify-between px-6 bg-gradient-to-r from-blue-900/20 to-transparent overflow-hidden">
           <div className="flex items-center space-x-4">
-            <section.icon className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow">
+            <section.icon className="w-6 h-6 text-blue-400" aria-hidden="true" />
+            <h1
+              id="screen-title"
+              ref={headingRef}
+              tabIndex={-1}
+              className="ps2-screen-title focus:outline-none"
+            >
               {section.title}
-            </h2>
+            </h1>
           </div>
         </div>
 
-        {section.id === 'content' && renderContentTabs()}
+        {section.id === 'content' && !selectedEssay && renderContentTabs()}
+
+        {selectedEssay && (
+          <ReaderBar
+            essay={selectedEssay}
+            headings={essayDoc?.headings ?? []}
+            bodyRef={bodyRef}
+            content={essayContent}
+          />
+        )}
 
         {/* Content Body */}
-        <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-10 relative ps2-scroll">
+        <div ref={bodyRef} className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative ps2-scroll ${selectedEssay ? 'px-4 py-6 md:p-10' : 'p-6 md:p-10'}`}>
           {getContent()}
         </div>
 
-        {/* Footer Controls */}
-        <div className="shrink-0 border-t border-blue-500/30 flex items-center px-6 py-4 bg-black/40 text-sm">
+        {/* One context-aware footer: Back, the shortcuts for this screen, settings */}
+        <div className="shrink-0 border-t border-blue-500/30 flex flex-wrap items-center justify-between gap-x-2 md:gap-x-4 gap-y-1 px-4 md:px-6 py-2 bg-black/40 text-sm">
           <button 
+            type="button"
             onClick={handleBack}
-            className="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
+            onFocus={() => interaction.interact('cursor', { id: 'nav:back', source: 'focus' })}
+            className="flex min-h-[44px] items-center space-x-2 text-blue-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="uppercase tracking-widest font-mono text-xs">
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            <span className="uppercase tracking-[0.14em] font-mono text-xs">
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
+          <HelpBar
+            className="order-3 w-full md:order-2 md:w-auto"
+            actions={helpActions}
+            description={helpDescription}
+          />
+          <SystemSettings compact />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

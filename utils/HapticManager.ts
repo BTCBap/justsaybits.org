@@ -1,89 +1,80 @@
+import { canVibrate, isCoarsePointer, preferences, prefersReducedMotionNow } from './preferences';
+
+export type HapticKind = 'tick' | 'confirm' | 'success' | 'error';
+
+const PATTERNS: Record<HapticKind, number | number[]> = {
+  // Android quantizes very short pulses; keep the tick above the floor.
+  tick: 14,
+  confirm: 22,
+  success: [16, 45, 16],
+  error: [28, 55, 28],
+};
+
+const patternLength = (pattern: number | number[]): number =>
+  Array.isArray(pattern) ? pattern.reduce((total, value) => total + value, 0) : pattern;
+
 /**
- * HapticManager
- * Provides haptic feedback for mobile devices using the Vibration API
+ * Haptics are an enhancement for touch devices only. iOS Safari has no
+ * Vibration API, so it is an honest no-op there rather than a silent promise.
  */
-
-type HapticPattern = number | number[];
-
 class HapticManager {
-  private isSupported: boolean;
+  private lastKind: HapticKind | null = null;
+  private lastAt = 0;
+  private lastLength = 0;
 
-  constructor() {
-    // Check if the Vibration API is supported
-    this.isSupported = 'vibrate' in navigator;
+  public get available(): boolean {
+    return canVibrate() && isCoarsePointer();
   }
 
-  /**
-   * Trigger a vibration pattern
-   * @param pattern - Single duration (ms) or array of [vibrate, pause, vibrate, ...]
-   */
-  private vibrate(pattern: HapticPattern): void {
-    if (!this.isSupported) return;
+  public play(kind: HapticKind): void {
+    if (!this.available) return;
+    if (!preferences.get().haptics) return;
+    if (prefersReducedMotionNow()) return;
+
+    const activation = (navigator as Navigator & {
+      userActivation?: { isActive: boolean };
+    }).userActivation;
+    if (activation && !activation.isActive) return;
+
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    // One response per action: ignore a duplicate that follows immediately.
+    if (this.lastKind === kind && now - this.lastAt < 80) return;
+    // A stray tick must not cut off a success or error pattern.
+    if (kind === 'tick' && (this.lastKind === 'success' || this.lastKind === 'error') && now - this.lastAt < 500) {
+      return;
+    }
+    // A deliberate new pattern supersedes one that is still running. If the
+    // previous pulse has already finished, do not add an extra cancel call.
+    if (this.lastKind && this.lastKind !== kind && now - this.lastAt < this.lastLength) {
+      try {
+        navigator.vibrate(0);
+      } catch {
+        // Vibration can be blocked by the browser.
+      }
+    }
 
     try {
+      const pattern = PATTERNS[kind];
       navigator.vibrate(pattern);
-    } catch (error) {
-      console.warn('Haptic feedback failed:', error);
+      this.lastKind = kind;
+      this.lastAt = now;
+      this.lastLength = patternLength(pattern);
+    } catch {
+      // Vibration can be blocked by the browser.
     }
   }
 
-  /**
-   * Light tap - for hover/navigation
-   */
-  public light(): void {
-    this.vibrate(10);
-  }
-
-  /**
-   * Medium tap - for selections and button presses
-   */
-  public medium(): void {
-    this.vibrate(20);
-  }
-
-  /**
-   * Strong tap - for important actions or confirmations
-   */
-  public strong(): void {
-    this.vibrate(40);
-  }
-
-  /**
-   * Success pattern - two quick taps
-   */
-  public success(): void {
-    this.vibrate([15, 50, 15]);
-  }
-
-  /**
-   * Error pattern - three short pulses
-   */
-  public error(): void {
-    this.vibrate([30, 50, 30, 50, 30]);
-  }
-
-  /**
-   * Navigation swipe - subtle feedback for carousel navigation
-   */
-  public swipe(): void {
-    this.vibrate(15);
-  }
-
-  /**
-   * Cancel all ongoing vibrations
-   */
   public cancel(): void {
-    if (!this.isSupported) return;
-    navigator.vibrate(0);
-  }
-
-  /**
-   * Check if haptic feedback is available
-   */
-  public get available(): boolean {
-    return this.isSupported;
+    if (!this.available) return;
+    try {
+      navigator.vibrate(0);
+    } catch {
+      // Vibration can be blocked by the browser.
+    }
+    this.lastKind = null;
+    this.lastAt = 0;
+    this.lastLength = 0;
   }
 }
 
-// Export singleton instance
 export const hapticManager = new HapticManager();
