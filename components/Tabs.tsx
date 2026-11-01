@@ -89,10 +89,10 @@ const Tabs: React.FC<TabsProps> = ({
             }}
             onFocus={() => interaction.interact('cursor', { id: `${baseId}-tab:${item.id}`, source: 'focus' })}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`tab flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 pb-0 pt-0 font-mono text-[12px] uppercase tracking-[0.12em] transition-colors md:flex-1 md:gap-2 md:text-xs md:tracking-[0.16em] ${
+            className={`tab flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 pb-0 pt-0 font-sans text-[12px] uppercase tracking-[0.14em] transition-colors md:flex-1 md:gap-2 md:tracking-[0.16em] ${
               active
                 ? 'tab--active border-blue-300 bg-blue-500/15 text-white'
-                : 'border-transparent text-blue-200/85 hover:bg-blue-500/10 hover:text-white'
+                : 'border-transparent text-[var(--text-secondary)] hover:bg-blue-500/10 hover:text-white'
             } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white`}
           >
             <Icon className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" />

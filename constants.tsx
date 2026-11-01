@@ -181,10 +181,10 @@ export const SOCIAL_LINKS = [
 ];
 
 export const SECTIONS: Section[] = [
-  { id: 'about', title: 'About', icon: IconAbout, description: 'Mission & Values', color: 'purple', component: null },
+  { id: 'about', title: 'About', icon: IconAbout, description: 'Mission & Values', color: 'blue', component: null },
   { id: 'social', title: 'Social', icon: IconSocial, description: 'Connect with me', color: 'blue', component: null },
   { id: 'work', title: 'Work', icon: IconHistory, description: 'Career History', color: 'cyan', component: null },
-  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'green', component: null },
-  { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'red', component: null },
-  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'indigo', component: null },
+  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'blue', component: null },
+  { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'blue', component: null },
+  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'cyan', component: null },
 ];

@@ -32,7 +32,7 @@ const HelpBar: React.FC<HelpBarProps> = ({ actions, description, className = '' 
       <p className="sr-only">{description}</p>
       <div
         aria-hidden="true"
-        className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-xs uppercase tracking-widest text-blue-200/80 ${className}`}
+        className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-sans text-[12px] uppercase tracking-[0.14em] text-[var(--text-secondary)] ${className}`}
       >
         {touch ? (
           <span className="text-center leading-relaxed">
@@ -44,7 +44,7 @@ const HelpBar: React.FC<HelpBarProps> = ({ actions, description, className = '' 
               {action.keys.map(key => (
                 <kbd
                   key={key}
-                  className="min-w-[1.5rem] rounded-sm border border-blue-300/50 bg-black/40 px-1.5 py-0.5 text-center font-mono text-[11px] leading-tight text-blue-50"
+                  className="min-w-[1.5rem] rounded-sm border border-blue-300/50 bg-black/40 px-1.5 py-0.5 text-center font-mono text-[12px] leading-tight text-blue-50"
                 >
                   {key}
                 </kbd>

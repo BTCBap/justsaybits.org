@@ -22,7 +22,7 @@ import {
 } from '../constants';
 import { ESSAYS } from '../data/essays';
 import { loadEssayContent } from '../data/essayContent';
-import { ESSAY_IMAGE_META, POST_IMAGE_META } from '../data/imageMeta';
+import { POST_IMAGE_META } from '../data/imageMeta';
 import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
@@ -42,6 +42,8 @@ import HelpBar from './HelpBar';
 import SystemSettings from './SystemSettings';
 import SystemCard from './SystemCard';
 import Tabs, { tabId, tabPanelId } from './Tabs';
+import { parseEssay } from './EssayBody';
+import { EssayArticle, ReaderBar } from './EssayReader';
 
 interface ContentScreenProps {
   section: Section;
@@ -131,140 +133,6 @@ interface MediaData {
   reading: ReadingItem[];
 }
 
-const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
-  const re = /(\*\*[\s\S]*?\*\*|\*[^*\n]+?\*|\[[^\]]+\]\([^)]+\))/g;
-  const parts: React.ReactNode[] = [];
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    if (m.index > last) {
-      parts.push(text.slice(last, m.index));
-    }
-    const tok = m[0];
-    if (tok.startsWith('**') && tok.endsWith('**') && tok.length >= 4) {
-      parts.push(
-        <span key={`${keyPrefix}-b-${i++}`} className="font-bold text-white text-base md:text-lg tracking-wide">
-          {tok.slice(2, -2)}
-        </span>
-      );
-    } else if (tok.startsWith('*') && tok.endsWith('*') && tok.length >= 2) {
-      parts.push(<em key={`${keyPrefix}-i-${i++}`}>{tok.slice(1, -1)}</em>);
-    } else {
-      const lm = tok.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (lm) {
-        parts.push(
-          <a
-            key={`${keyPrefix}-a-${i++}`}
-            href={lm[2]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 underline underline-offset-2 hover:text-white"
-          >
-            {lm[1]}
-          </a>
-        );
-      } else {
-        parts.push(tok);
-      }
-    }
-    last = m.index + tok.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts;
-};
-
-const EssayBody: React.FC<{ content: string }> = ({ content }) => {
-  const nodes: React.ReactNode[] = [];
-  const re = /%%(YOUTUBE|IMAGE|TWEET):([\s\S]*?)%%/g;
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content))) {
-    if (m.index > last) {
-      const text = content.slice(last, m.index);
-      if (text.length) {
-        nodes.push(
-          <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
-            {renderInline(text, `t${i}`)}
-          </div>
-        );
-      }
-    }
-    try {
-      const data = JSON.parse(m[2]);
-      if (m[1] === 'YOUTUBE' && data.id) {
-        const start = data.start ? `&start=${encodeURIComponent(data.start)}` : '';
-        nodes.push(
-          <div key={`yt-${i++}`} className="my-6 w-full overflow-hidden border border-blue-500/30 bg-black/40">
-            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src={`https://www.youtube-nocookie.com/embed/${data.id}?rel=0${start}`}
-                title="YouTube video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        );
-      } else if (m[1] === 'IMAGE' && data.src) {
-        const imageMeta = ESSAY_IMAGE_META[data.src];
-        nodes.push(
-          <figure key={`img-${i++}`} className="my-6">
-            <img
-              src={data.src}
-              srcSet={imageMeta?.srcSet || undefined}
-              sizes={imageMeta?.sizes}
-              width={imageMeta?.width}
-              height={imageMeta?.height}
-              alt={data.alt || data.caption || ''}
-              loading="lazy"
-              decoding="async"
-              className="max-w-full w-full h-auto object-contain border border-blue-500/20"
-            />
-            {data.caption && (
-              <figcaption className="mt-2 text-xs text-blue-400/80 font-mono italic">
-                {renderInline(data.caption, `cap${i}`)}
-              </figcaption>
-            )}
-          </figure>
-        );
-      } else if (m[1] === 'TWEET') {
-        nodes.push(
-          <a
-            key={`tw-${i++}`}
-            href={data.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="my-6 block border border-blue-500/30 bg-blue-900/10 p-4 hover:border-blue-400 transition-colors"
-          >
-            <div className="text-white font-bold">{data.name}</div>
-            {data.username && (
-              <div className="text-xs text-blue-400 font-mono mb-2">@{data.username}</div>
-            )}
-            <p className="text-sm text-blue-100 whitespace-pre-wrap">{data.text}</p>
-          </a>
-        );
-      }
-    } catch {
-      // skip malformed media tokens
-    }
-    last = m.index + m[0].length;
-  }
-  if (last < content.length) {
-    const text = content.slice(last);
-    if (text.length) {
-      nodes.push(
-        <div key={`t-${i++}`} className="whitespace-pre-wrap leading-relaxed">
-          {renderInline(text, `t${i}`)}
-        </div>
-      );
-    }
-  }
-  return <>{nodes}</>;
-};
-
 type PortfolioTab = 'projects' | 'investments' | 'design';
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEnabled = true }) => {
@@ -305,6 +173,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   const listScroll = useRef(0);
   const returnSlug = useRef<string | null>(null);
   const hadEssay = useRef(false);
+  const lastEssaySlug = useRef<string | null>(null);
   const headingFocusDone = useRef(false);
   const closingTimer = useRef<number | null>(null);
 
@@ -329,19 +198,21 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     return () => cancelAnimationFrame(frame);
   }, [focusEnabled, essaySlug]);
 
-  // Essay reader: start at the top, focus the title, and put the reader back
-  // where they were (scroll and card focus) on return.
+  // Essay reader: start at the top (including when moving between essays),
+  // focus the title, and put the reader back where they were on return.
   useEffect(() => {
     const body = bodyRef.current;
     if (essaySlug) {
-      if (!hadEssay.current) {
-        hadEssay.current = true;
+      hadEssay.current = true;
+      if (lastEssaySlug.current !== essaySlug) {
+        lastEssaySlug.current = essaySlug;
         body?.scrollTo({ top: 0 });
       }
       if (!focusEnabled) return;
       const frame = requestAnimationFrame(() => essayTitleRef.current?.focus({ preventScroll: true }));
       return () => cancelAnimationFrame(frame);
     }
+    lastEssaySlug.current = null;
     if (!hadEssay.current) return;
     hadEssay.current = false;
     if (contentTab !== 'essays') {
@@ -462,6 +333,16 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     [normalizedQuery]
   );
 
+  const orderedEssays = useMemo(() => [...ESSAYS].sort(newestFirst), []);
+  const essayDoc = useMemo(() => (essayContent ? parseEssay(essayContent) : null), [essayContent]);
+  const essayIndex = selectedEssay
+    ? orderedEssays.findIndex(essay => essay.slug === selectedEssay.slug)
+    : -1;
+  const newerEssay = essayIndex > 0 ? orderedEssays[essayIndex - 1] : undefined;
+  const olderEssay = essayIndex >= 0 && essayIndex < orderedEssays.length - 1
+    ? orderedEssays[essayIndex + 1]
+    : undefined;
+
   const filteredPosts = useMemo(
     () => rankedPosts.filter(post => (
       !normalizedQuery || post.text.toLowerCase().includes(normalizedQuery)
@@ -475,6 +356,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     returnSlug.current = post.slug;
     navigate(pathForEssay(post.slug));
   };
+
+  const openEssayBySlug = useCallback((slug: string) => {
+    if (slug === essaySlug) return;
+    navigate(pathForEssay(slug));
+  }, [essaySlug]);
 
   const handleBack = useCallback(() => {
     if (closingTimer.current !== null) return;
@@ -652,7 +538,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             external={!isEmail}
             feedbackId={`social:${link.platform}`}
             eyebrow={link.platform}
-            title={<span className="font-mono text-lg normal-case tracking-normal">{link.handle}</span>}
+            title={<span className="font-mono text-[20px] normal-case tracking-normal">{link.handle}</span>}
             onNavigate={() => window.umami?.track('social-click', { platform: link.platform })}
           />
         );
@@ -661,29 +547,29 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   );
 
   const renderAbout = () => (
-    <div className="max-w-3xl mx-auto space-y-8 text-blue-100 font-light">
+    <div className="mx-auto max-w-3xl space-y-8 font-light text-blue-100">
       <div className="flex justify-center">
-        <div className="border border-blue-500/40 p-1 bg-black/40 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
+        <div className="border border-blue-500/40 bg-black/40 p-1 shadow-[0_0_28px_rgba(50,100,255,0.28)]">
           <img
             src="/about-portrait.webp"
             alt="Pencil sketch portrait of Zach Wischler"
             width={320}
             height={320}
-            className="block w-36 md:w-40 h-auto"
+            className="block h-auto w-36 md:w-40"
           />
         </div>
       </div>
 
       <div className="border-b border-blue-500/30 pb-6">
-        <p className="text-xl leading-relaxed text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
+        <p className="text-[20px] leading-relaxed text-white md:text-[28px]">
           Dedicated to advancing individual sovereignty through cryptography.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <div>
-           <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Core Beliefs</h3>
-           <ul className="space-y-3 text-sm">
+           <h3 className="ps2-label mb-3 border-l-2 border-blue-500 pl-2 text-blue-200">Core Beliefs</h3>
+           <ul className="space-y-3 text-[16px] leading-relaxed">
              {[
                "Financial freedom from centralized authority",
                "Data ownership and privacy as fundamental rights",
@@ -692,15 +578,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                "Tools should be open and accessible to all"
              ].map((belief, i) => (
                <li key={i} className="flex items-start">
-                 <span className="mr-2 text-blue-500">▶</span>
-                 <span className="text-blue-100/90">{belief}</span>
+                 <span aria-hidden="true" className="mr-2 text-blue-400">▶</span>
+                 <span className="text-[var(--text-secondary)]">{belief}</span>
                </li>
              ))}
            </ul>
         </div>
         <div>
-           <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-3 border-l-2 border-blue-500 pl-2">Current Objectives</h3>
-           <ul className="space-y-3 text-sm">
+           <h3 className="ps2-label mb-3 border-l-2 border-blue-500 pl-2 text-blue-200">Current Objectives</h3>
+           <ul className="space-y-3 text-[16px] leading-relaxed">
              {[
                "Building open source tools",
                "Leveraging AI and automation to win back time",
@@ -708,15 +594,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                "Prioritizing long-term value creation over short-term gains",
              ].map((goal, i) => (
                <li key={i} className="flex items-start">
-                 <span className="mr-2 text-blue-500">◉</span>
-                 <span className="text-blue-100/90">{goal}</span>
+                 <span aria-hidden="true" className="mr-2 text-blue-400">◉</span>
+                 <span className="text-[var(--text-secondary)]">{goal}</span>
                </li>
              ))}
            </ul>
         </div>
       </div>
 
-      <p className="text-sm leading-relaxed text-blue-200/80">
+      <p className="text-[16px] leading-relaxed text-[var(--text-secondary)]">
         After a decade in traditional finance, I saw the limitations of centralized institutions firsthand. My time is now dedicated to building the alternatives that prioritize individual freedom, ensuring users retain control over their assets and digital lives.
       </p>
     </div>
@@ -725,27 +611,27 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   const renderInvestmentTable = () => (
     <div className="bg-black/40 border border-blue-500/20">
       <table className="w-full text-left">
-        <thead className="bg-blue-900/20 text-blue-300 text-xs uppercase tracking-wider font-mono">
+        <thead className="bg-blue-900/20 text-blue-300 text-xs uppercase tracking-[0.14em] font-mono">
           <tr>
             <th className="p-4">Asset</th>
             <th className="p-4">Stage / Type</th>
             <th className="p-4 text-right">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-blue-500/10 font-mono text-sm">
+        <tbody className="divide-y divide-blue-500/10 text-[14px] font-light">
           {INVESTMENT_DATA.map((inv, i) => (
-            <tr key={i} className="hover:bg-blue-900/10 transition-colors">
+            <tr key={i} className="transition-colors hover:bg-blue-900/10">
               <td className="p-4">
-                <div className="text-white font-bold">{inv.asset}</div>
-                {inv.ticker && <div className="text-xs text-blue-500">{inv.ticker}</div>}
+                <div className="font-normal text-white">{inv.asset}</div>
+                {inv.ticker && <div className="mt-0.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text-muted)]">{inv.ticker}</div>}
               </td>
-              <td className="p-4 text-blue-200">{inv.type}</td>
+              <td className="p-4 text-[var(--text-secondary)]">{inv.type}</td>
               <td className="p-4 text-right">
-                <span className={`px-2 py-1 rounded text-xs ${
-                  inv.status === 'Active' ? 'bg-green-900/30 text-green-400' :
-                  inv.status === 'Acquired' ? 'bg-purple-900/30 text-purple-400' :
-                  inv.status === 'Exited' ? 'bg-red-900/30 text-red-400' :
-                  'bg-gray-800 text-gray-400'
+                <span className={`status-pill ${
+                  inv.status === 'Active' ? 'status-pill--active' :
+                  inv.status === 'Acquired' ? 'status-pill--acquired' :
+                  inv.status === 'Exited' ? 'status-pill--exited' :
+                  'status-pill--watching'
                 }`}>
                   {inv.status}
                 </span>
@@ -778,8 +664,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             />
           </div>
           <figcaption className="p-3 md:p-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-3">
-            <span className="text-sm md:text-lg font-bold leading-snug text-white ps2-text-shadow">{item.title}</span>
-            <span className="text-xs font-mono uppercase tracking-wider text-blue-400 shrink-0">{item.type}</span>
+            <span className="text-[16px] font-normal leading-snug text-white md:text-[20px]">{item.title}</span>
+            <span className="shrink-0 font-mono text-[12px] uppercase tracking-[0.12em] text-[var(--text-muted)]">{item.type}</span>
           </figcaption>
         </figure>
       ))}
@@ -823,7 +709,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 footer={(
                   <span className="flex flex-wrap gap-1.5">
                     {item.tech.map(tech => (
-                      <span key={tech} className="border border-blue-400/30 bg-blue-500/10 px-1.5 py-0.5 text-[11px] normal-case tracking-normal text-blue-100">
+                      <span key={tech} className="border border-blue-400/30 bg-blue-500/10 px-1.5 py-0.5 text-[12px] normal-case tracking-normal text-blue-100">
                         {tech}
                       </span>
                     ))}
@@ -869,7 +755,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             tabIndex={book.url ? 0 : undefined}
           >
             <div
-              className={`w-48 h-72 shrink-0 ${book.coverImage ? '' : book.coverColor} shadow-[0_0_30px_rgba(234,88,12,0.3)] flex items-center justify-center text-center border-2 border-white/10 rotate-[-2deg] overflow-hidden ${book.url ? 'cursor-pointer' : ''}`}
+              className={`w-48 h-72 shrink-0 ${book.coverImage ? '' : book.coverColor} shadow-[0_0_30px_rgba(70,130,255,0.18)] flex items-center justify-center text-center border-2 border-white/10 rotate-[-2deg] overflow-hidden ${book.url ? 'cursor-pointer' : ''}`}
               onClick={handleOpen}
             >
               {book.coverImage ? (
@@ -886,30 +772,30 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 />
               ) : (
                 <div className="w-full h-full p-4 border border-white/20 flex flex-col items-center justify-center">
-                  <span className="text-xl font-bold text-white/90 uppercase tracking-widest">{book.title}</span>
-                  <span className="mt-4 text-xs text-white/70 uppercase tracking-widest">{book.author}</span>
+                  <span className="text-xl font-normal text-white/90 uppercase tracking-[0.14em]">{book.title}</span>
+                  <span className="mt-4 text-xs text-white/70 uppercase tracking-[0.14em]">{book.author}</span>
                 </div>
               )}
             </div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="text-3xl md:text-4xl text-white mb-1">{book.title}</h3>
-              {book.subtitle && <p className="text-sm text-blue-200/85 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
-              <div className="text-xl text-blue-400 mb-6">{book.author}</div>
+              <h3 className="text-[28px] font-light leading-tight tracking-[0.02em] text-white md:text-[36px]">{book.title}</h3>
+              {book.subtitle && <p className="mb-3 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-200/85">{book.subtitle}</p>}
+              <div className="mb-6 text-[20px] font-light text-blue-200">{book.author}</div>
 
               <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
                 <p className="text-base text-blue-100 italic leading-relaxed">"{book.thoughts}"</p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
-                <span className="uppercase tracking-widest text-sm font-bold text-blue-200/85">Available Now</span>
+              <div className="mb-6 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                <span className="text-[12px] font-normal uppercase tracking-[0.16em] text-blue-200/85">Available Now</span>
                 <span className="h-px w-8 bg-blue-500/50"></span>
-                <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
+                <span className="font-mono text-[12px] tracking-[0.08em] text-cyan-200">Bitcoin Magazine Books</span>
               </div>
 
               {book.url && (
                 <button
                   onClick={handleOpen}
-                  className="inline-flex min-h-[44px] items-center uppercase tracking-widest text-sm font-bold text-blue-100 border border-blue-400/50 px-6 py-3 rounded hover:bg-blue-500/20 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="inline-flex min-h-[44px] items-center rounded border border-blue-400/50 px-6 py-3 text-[14px] font-normal uppercase tracking-[0.14em] text-blue-100 transition-colors hover:bg-blue-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   Get the Book →
                 </button>
@@ -923,69 +809,19 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
   const renderEssays = () => {
     if (selectedEssay) {
-       return (
-         <div className="max-w-3xl mx-auto text-blue-100">
-             {/* Header */}
-             <div className="border-b border-blue-500/30 pb-4 mb-6 pt-2">
-                 <h2
-                   id="essay-title"
-                   ref={essayTitleRef}
-                   tabIndex={-1}
-                   className="text-2xl font-bold text-white mb-2 leading-tight focus:outline-none"
-                 >
-                   {selectedEssay.title}
-                 </h2>
-                 <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
-                    <span>{selectedEssay.date}</span>
-                    <span className="text-blue-600">//</span>
-                    <span>{selectedEssay.readTime} read</span>
-                 </div>
-                 {selectedEssay.sourceUrl && (
-                   <a
-                     href={selectedEssay.sourceUrl}
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     onFocus={() => interaction.interact('cursor', { id: 'essay:source', source: 'focus' })}
-                     onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-                     className="inline-block mt-2 text-xs text-blue-400 font-mono hover:text-white underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                   >
-                     {selectedEssay.sourceLabel || 'Published elsewhere'}
-                   </a>
-                 )}
-             </div>
-
-             {/* Content - preserving whitespace, with **bold**, links, and Substack media */}
-             <div className="leading-relaxed opacity-90 text-sm md:text-base font-light text-blue-50 pb-8" aria-busy={essayLoading}>
-                 {essayLoading ? (
-                   <div className="space-y-4" role="status" aria-live="polite">
-                     <span className="sr-only">Loading essay…</span>
-                     {[92, 100, 96, 88, 76, 100, 94].map((width, i) => (
-                       <div
-                         key={i}
-                         className="h-4 bg-blue-900/40 animate-pulse motion-reduce:animate-none"
-                         style={{ width: `${width}%` }}
-                       />
-                     ))}
-                     <div className="h-48 bg-blue-900/20 animate-pulse motion-reduce:animate-none" />
-                   </div>
-                 ) : essayError ? (
-                   <div className="border border-blue-500/30 bg-blue-900/10 p-6 text-sm text-blue-200" role="status">
-                     <p>That file did not open.</p>
-                     <button
-                       type="button"
-                       onFocus={() => interaction.interact('cursor', { id: 'essay:retry', source: 'focus' })}
-                       onClick={() => setEssayReload(count => count + 1)}
-                       className="mt-3 min-h-[44px] text-blue-300 hover:text-white uppercase tracking-widest font-mono text-xs underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                     >
-                       Try again
-                     </button>
-                   </div>
-                 ) : essayContent ? (
-                   <EssayBody content={essayContent} />
-                 ) : null}
-             </div>
-         </div>
-       );
+      return (
+        <EssayArticle
+          essay={selectedEssay}
+          doc={essayDoc}
+          loading={essayLoading}
+          error={essayError}
+          titleRef={essayTitleRef}
+          onRetry={() => setEssayReload(count => count + 1)}
+          onNavigateEssay={openEssayBySlug}
+          newer={newerEssay}
+          older={olderEssay}
+        />
+      );
     }
 
     return (
@@ -1078,9 +914,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   );
 
   const renderYearHeading = (year: string, count: number) => (
-    <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-blue-200/85">
+    <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[12px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">
       <span>{year}</span>
-      <span aria-hidden="true" className="text-blue-300/60">·</span>
+      <span aria-hidden="true" className="text-[var(--accent-soft)]">·</span>
       <span>{count}</span>
     </h4>
   );
@@ -1196,7 +1032,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="min-h-[44px] shrink-0 border border-blue-400/30 px-3 font-mono text-[11px] uppercase tracking-[0.16em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="min-h-[44px] shrink-0 border border-blue-400/30 px-3 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   Clear
                 </button>
@@ -1291,7 +1127,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                     {renderYearHeading(group.year, group.items.length)}
                     {groupBySource(group.items).map(sourceGroup => (
                       <div key={sourceGroup.source} className="space-y-2">
-                        <p className="pl-1 font-mono text-[11px] uppercase tracking-[0.16em] text-blue-300/90">
+                        <p className="pl-1 font-mono text-[12px] uppercase tracking-[0.16em] text-blue-300/90">
                           {sourceGroup.source}
                         </p>
                         <div className="space-y-3">
@@ -1335,7 +1171,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
   const renderWork = () => (
     <div className="space-y-4 max-w-4xl mx-auto">
-       <div className="flex justify-between items-center text-xs uppercase tracking-widest text-blue-200/85 border-b border-blue-500/20 pb-2 mb-4">
+       <div className="flex justify-between items-center text-xs uppercase tracking-[0.14em] text-blue-200/85 border-b border-blue-500/20 pb-2 mb-4">
          <span>Organization</span>
          <span>Duration</span>
        </div>
@@ -1346,24 +1182,24 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         >
           <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-2">
             <div>
-               <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{job.company}</h3>
+               <h3 className="text-[20px] font-normal text-white transition-colors group-hover:text-blue-200">{job.company}</h3>
                {job.subRoles ? (
-                 <div className="mt-2 space-y-1 pl-4 border-l border-blue-500/30">
+                 <div className="mt-2 space-y-1 border-l border-blue-500/30 pl-4">
                    {job.subRoles.map((role, idx) => (
-                      <div key={idx} className="text-sm">
-                         <span className="text-blue-300 font-medium">{role.title}</span>
-                         <span className="text-blue-500/50 mx-2">|</span>
-                         <span className="text-blue-400/70 text-xs font-mono">{role.period}</span>
+                      <div key={idx} className="text-[14px]">
+                         <span className="font-normal text-[var(--text-secondary)]">{role.title}</span>
+                         <span aria-hidden="true" className="mx-2 text-[var(--accent-soft)]">|</span>
+                         <span className="font-mono text-[12px] text-[var(--text-muted)]">{role.period}</span>
                       </div>
                    ))}
                  </div>
                ) : (
-                 <div className="text-blue-300 font-medium mt-1">{job.role}</div>
+                 <div className="mt-1 font-normal text-[var(--text-secondary)]">{job.role}</div>
                )}
             </div>
-            <div className="text-right mt-2 md:mt-0">
-               <div className="font-mono text-sm text-blue-400">{job.period}</div>
-               <div className="text-xs uppercase tracking-widest text-blue-200/85 mt-1">{job.location}</div>
+            <div className="mt-2 text-right md:mt-0">
+               <div className="font-mono text-[12px] text-[var(--text-muted)]">{job.period}</div>
+               <div className="ps2-meta mt-1">{job.location}</div>
             </div>
           </div>
         </div>
@@ -1412,7 +1248,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       aria-modal="true"
       aria-labelledby={selectedEssay ? 'essay-title' : 'screen-title'}
       tabIndex={-1}
-      className="screen-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60 focus:outline-none"
+      className={`screen-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center ${selectedEssay ? 'px-2' : 'px-4'} pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60 focus:outline-none`}
       style={{ height: 'var(--app-height)' }}
       data-closing={closing ? 'true' : undefined}
     >
@@ -1430,17 +1266,26 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               id="screen-title"
               ref={headingRef}
               tabIndex={-1}
-              className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow focus:outline-none"
+              className="ps2-screen-title focus:outline-none"
             >
               {section.title}
             </h1>
           </div>
         </div>
 
-        {section.id === 'content' && renderContentTabs()}
+        {section.id === 'content' && !selectedEssay && renderContentTabs()}
+
+        {selectedEssay && (
+          <ReaderBar
+            essay={selectedEssay}
+            headings={essayDoc?.headings ?? []}
+            bodyRef={bodyRef}
+            content={essayContent}
+          />
+        )}
 
         {/* Content Body */}
-        <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-10 relative ps2-scroll">
+        <div ref={bodyRef} className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative ps2-scroll ${selectedEssay ? 'px-4 py-6 md:p-10' : 'p-6 md:p-10'}`}>
           {getContent()}
         </div>
 
@@ -1453,7 +1298,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             className="flex min-h-[44px] items-center space-x-2 text-blue-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            <span className="uppercase tracking-widest font-mono text-xs">
+            <span className="uppercase tracking-[0.14em] font-mono text-xs">
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>

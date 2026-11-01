@@ -20,7 +20,7 @@ interface SystemSettingsProps {
 
 const buttonBase =
   'inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 border px-2 '
-  + 'font-mono uppercase tracking-widest transition-colors '
+  + 'font-mono uppercase tracking-[0.14em] transition-colors '
   + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 '
   + 'focus-visible:ring-offset-black';
 
@@ -81,7 +81,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ compact = false, showHi
   return (
     <div className={`flex flex-col items-center gap-2 ${className}`}>
       {showSoundHint && (
-        <div className="flex items-center justify-center gap-3 border border-blue-500/25 bg-black/50 px-3 text-[11px] text-blue-200/80">
+        <div className="flex items-center justify-center gap-3 border border-blue-500/25 bg-black/50 px-3 text-[12px] text-blue-200/80">
           <span>
             {soundAvailable
               ? 'iPhone: the Ring/Silent switch mutes site audio.'
@@ -90,7 +90,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ compact = false, showHi
           <button
             type="button"
             onClick={dismissHint}
-            className="min-h-[44px] px-1 font-mono uppercase tracking-widest text-blue-300 underline underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            className="min-h-[44px] px-1 font-mono uppercase tracking-[0.14em] text-blue-300 underline underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             Dismiss
           </button>
@@ -109,7 +109,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ compact = false, showHi
           title={`Sound: ${soundLabel} (M)`}
           onFocus={focusCursor('sound')}
           onClick={toggleSound}
-          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[10px] ${
+          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[12px] ${
             prefs.sound && soundAvailable
               ? 'border-blue-400/60 bg-blue-500/20 text-white'
               : 'border-transparent text-blue-300/70 hover:border-blue-500/40 hover:text-white'
@@ -129,9 +129,9 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ compact = false, showHi
           title={hapticsAvailable ? `Haptics: ${hapticLabel}` : 'Haptics: not available on this device'}
           onFocus={focusCursor('haptics')}
           onClick={toggleHaptics}
-          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[10px] ${
+          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[12px] ${
             !hapticsAvailable
-              ? 'border-transparent text-blue-300/40'
+              ? 'border-transparent text-blue-200/75'
               : prefs.haptics
                 ? 'border-blue-400/60 bg-blue-500/20 text-white'
                 : 'border-transparent text-blue-300/70 hover:border-blue-500/40 hover:text-white'
@@ -148,7 +148,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ compact = false, showHi
           title={`Reduced motion: ${prefs.motion === 'on' ? 'on' : 'follow system'}`}
           onFocus={focusCursor('motion')}
           onClick={toggleMotion}
-          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[10px] ${
+          className={`${buttonBase} ${compact ? 'min-w-[44px]' : 'min-w-[100px]'} text-[12px] ${
             reducedMotion
               ? 'border-blue-400/60 bg-blue-500/20 text-white'
               : 'border-transparent text-blue-300/70 hover:border-blue-500/40 hover:text-white'

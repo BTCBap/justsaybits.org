@@ -57,7 +57,7 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
             id="notfound-title"
             ref={headingRef}
             tabIndex={-1}
-            className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow focus:outline-none"
+            className="ps2-screen-title focus:outline-none"
           >
             Screen not found
           </h1>
@@ -65,13 +65,13 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
 
         <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10">
           <div className="max-w-xl">
-            <p className="mb-3 font-mono text-xs uppercase tracking-widest text-blue-200/80">
+            <p className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-blue-200/80">
               Error 404
             </p>
-            <p className="mb-4 text-lg text-blue-100">
+            <p className="mb-4 text-base text-blue-100">
               No screen lives at <span className="font-mono text-blue-200">{path}</span>.
             </p>
-            <p className="text-sm leading-relaxed text-blue-200/80">
+            <p className="text-[16px] leading-relaxed text-[var(--text-secondary)]">
               The link may be mistyped or the file may have moved. The main menu has every screen
               on the system.
             </p>
@@ -89,7 +89,7 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
             className="flex min-h-[44px] items-center space-x-2 text-blue-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-            <span className="uppercase tracking-widest font-mono text-xs">Back to Home</span>
+            <span className="uppercase tracking-[0.14em] font-mono text-xs">Back to Home</span>
           </button>
           <HelpBar
             className="order-3 w-full md:order-2 md:w-auto"

@@ -25,6 +25,70 @@
 :root {
   --font-sans: 'Jost', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* PS2 palette. One blue plus white/cyan; amber is the only warning hue. */
+  --bg: #050a14;
+  --panel: #081326;
+  --text: #eef5ff;
+  --text-secondary: #c3d8f6;
+  --text-muted: #93b4dd;
+  --accent: #6ea8ff;
+  --accent-soft: #4f8ae0;
+  --success: #8fe0b8;
+  --danger: #ffaaaa;
+  --warning: #f2c46b;
+
+  /* PS2 system type scale: 12 / 14 / 16 / 20 / 28 / 36. */
+  --type-12: 0.75rem;
+  --type-14: 0.875rem;
+  --type-16: 1rem;
+  --type-20: 1.25rem;
+  --type-28: 1.75rem;
+  --type-36: 2.25rem;
+
+  --measure: 65ch;
+}
+
+.ps2-label {
+  font-family: var(--font-sans);
+  font-size: var(--type-12);
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ps2-meta {
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps2-body {
+  font-size: var(--type-16);
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.ps2-screen-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-28);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(120, 170, 255, 0.5);
+}
+
+.ps2-tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 html {
@@ -40,16 +104,12 @@ body {
   background: radial-gradient(circle at 50% 50%, #0f172a 0%, #000 68%);
 }
 
-.ps2-text-shadow {
-  text-shadow: 0 0 10px rgba(100, 150, 255, 0.7);
-}
-
 /* Sparse, monochrome scanlines. Disabled where they cost legibility or GPU time. */
 .crt-overlay {
   background-image: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.12) 0,
-    rgba(0, 0, 0, 0.12) 1px,
+    rgba(0, 0, 0, 0.1) 0,
+    rgba(0, 0, 0, 0.1) 1px,
     transparent 1px,
     transparent 3px
   );
@@ -800,9 +860,9 @@ html[data-motion="reduced"] .boot__skip {
 .system-card__title {
   margin: 0;
   color: #fff;
-  font-size: 1.05rem;
+  font-size: var(--type-16);
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.35;
   letter-spacing: 0.03em;
 }
 
@@ -813,25 +873,26 @@ html[data-motion="reduced"] .boot__skip {
 .system-card__meta {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--type-12);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(190, 215, 255, 0.85);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .system-card__eyebrow {
   margin: 0 0 0.15rem;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--type-12);
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(160, 200, 255, 0.9);
+  color: var(--text-secondary);
 }
 
 .system-card__desc {
   margin: 0.4rem 0 0;
-  color: rgba(214, 231, 255, 0.9);
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-size: var(--type-14);
   font-weight: 300;
   line-height: 1.5;
 }
@@ -855,10 +916,10 @@ html[data-motion="reduced"] .boot__skip {
   padding-top: 0.55rem;
   border-top: 1px solid rgba(100, 150, 255, 0.16);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--type-12);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(170, 205, 255, 0.85);
+  color: var(--text-muted);
 }
 
 .system-card__foot-text {
@@ -886,4 +947,440 @@ html[data-motion="reduced"] .menu-option {
   .menu-option {
     transition: none !important;
   }
+}
+
+/* Inactive navigation is still body text: measured at 10.2:1 on --bg. */
+.tabs .tab:not(.tab--active) {
+  color: var(--text-secondary);
+}
+
+/* Investment status: icon-free text on one blue field, with success/danger
+   reserved for the two outcomes that need them. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  padding: 0.15rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-pill--active {
+  border-color: rgba(143, 224, 184, 0.5);
+  background: rgba(143, 224, 184, 0.1);
+  color: var(--success);
+}
+
+.status-pill--acquired {
+  border-color: rgba(110, 168, 255, 0.45);
+  background: rgba(110, 168, 255, 0.1);
+  color: var(--accent);
+}
+
+.status-pill--exited {
+  border-color: rgba(255, 170, 170, 0.45);
+  background: rgba(255, 170, 170, 0.08);
+  color: var(--danger);
+}
+
+.status-pill--watching {
+  border-color: rgba(242, 196, 107, 0.45);
+  background: rgba(242, 196, 107, 0.08);
+  color: var(--warning);
+}
+
+/* ---------------------------------------------------------------------------
+   Essay reader
+   Prose sits in the display face at a 65ch measure; mono is reserved for the
+   date, read time, captions, and keycaps. Headings are real h2/h3 with ids.
+--------------------------------------------------------------------------- */
+
+.reader-bar {
+  position: relative;
+  z-index: 20;
+  border-bottom: 1px solid rgba(90, 140, 235, 0.28);
+  background: rgba(4, 10, 20, 0.94);
+}
+
+.reader-bar__meta {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  line-height: 1.35;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-bar__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--type-14);
+  font-weight: 300;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-action {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(110, 168, 255, 0.32);
+  padding: 0 0.7rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.reader-action:hover {
+  border-color: rgba(220, 240, 255, 0.75);
+  background: rgba(30, 78, 160, 0.3);
+  color: #fff;
+}
+
+.reader-action:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: 2px;
+}
+
+.reader-progress {
+  height: 2px;
+  background: rgba(110, 168, 255, 0.12);
+}
+
+.reader-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-soft), #d9ecff);
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.reader-contents {
+  position: relative;
+  border-bottom: 1px solid rgba(90, 140, 235, 0.22);
+  background: rgba(8, 19, 38, 0.96);
+}
+
+/* The open list floats over the essay, so opening it never resizes the
+   reading area or shifts the line the visitor is on. */
+.reader-contents > nav {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: min(52vh, 20rem);
+  overflow-y: auto;
+  border-bottom: 1px solid rgba(90, 140, 235, 0.35);
+  background: rgba(4, 10, 20, 0.98);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45);
+}
+
+.reader-contents > summary {
+  display: flex;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.reader-contents > summary::-webkit-details-marker {
+  display: none;
+}
+
+.reader-contents > summary::before {
+  content: '+';
+  display: inline-block;
+  width: 0.8rem;
+  color: var(--accent);
+}
+
+.reader-contents[open] > summary::before {
+  content: '−';
+}
+
+.reader-contents > summary:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: -2px;
+}
+
+.reader-contents__list {
+  margin: 0;
+  padding: 0 1rem 0.8rem 2.2rem;
+  color: var(--text-secondary);
+}
+
+.reader-contents__list li {
+  margin: 0.1rem 0;
+  font-size: var(--type-14);
+  line-height: 1.45;
+}
+
+.reader-contents__list li[data-level="3"] {
+  margin-left: 1rem;
+  font-size: var(--type-12);
+}
+
+.reader-contents__list a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.reader-contents__list a:hover,
+.reader-contents__list a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.essay-article {
+  max-width: calc(var(--measure) + 2rem);
+  margin: 0 auto;
+}
+
+.essay-article__header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(90, 140, 235, 0.24);
+  padding-bottom: 1rem;
+}
+
+.essay-article__title {
+  margin: 0 0 0.6rem;
+  color: var(--text);
+  font-size: var(--type-28);
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
+
+.essay-article__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.essay-article__meta .sep {
+  color: var(--accent-soft);
+}
+
+.essay-prose {
+  max-width: var(--measure);
+  color: var(--text);
+  font-size: 1.0625rem;
+  font-weight: 300;
+  line-height: 1.66;
+  letter-spacing: 0.005em;
+}
+
+@media (min-width: 768px) {
+  .essay-prose {
+    font-size: 1.125rem;
+  }
+}
+
+.essay-prose > * + * {
+  margin-top: 1.1em;
+}
+
+.essay-prose p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.essay-prose strong {
+  color: #fff;
+  font-weight: 400;
+}
+
+.essay-prose em {
+  font-style: italic;
+}
+
+.essay-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.essay-prose a:hover,
+.essay-prose a:focus-visible {
+  color: #fff;
+  text-decoration-thickness: 2px;
+}
+
+.essay-prose a:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: 2px;
+}
+
+.essay-prose code {
+  border: 1px solid rgba(110, 168, 255, 0.28);
+  background: rgba(8, 24, 48, 0.75);
+  padding: 0.08em 0.32em;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.essay-prose h2,
+.essay-prose h3 {
+  scroll-margin-top: 1rem;
+  color: var(--text);
+  font-weight: 300;
+  line-height: 1.3;
+}
+
+.essay-prose h2 {
+  margin-top: 1.9em;
+  margin-bottom: 0.55em;
+  font-size: var(--type-28);
+  letter-spacing: 0.02em;
+}
+
+.essay-prose h3 {
+  margin-top: 1.6em;
+  margin-bottom: 0.45em;
+  font-size: var(--type-20);
+  letter-spacing: 0.06em;
+}
+
+.essay-prose h2:focus-visible,
+.essay-prose h3:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: 4px;
+}
+
+.essay-anchor {
+  margin-left: 0.45rem;
+  color: var(--accent-soft);
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+  text-decoration: none;
+  vertical-align: 0.35em;
+}
+
+.essay-anchor:hover,
+.essay-anchor:focus-visible {
+  color: #fff;
+}
+
+.essay-prose ul,
+.essay-prose ol {
+  padding-left: 1.35em;
+}
+
+.essay-prose ul {
+  list-style: disc;
+}
+
+.essay-prose ol {
+  list-style: decimal;
+}
+
+.essay-prose li + li {
+  margin-top: 0.35em;
+}
+
+.essay-prose blockquote {
+  margin: 1.4em 0;
+  border-left: 2px solid var(--accent-soft);
+  padding-left: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.essay-prose hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid rgba(110, 168, 255, 0.3);
+}
+
+.essay-prose figure {
+  margin: 1.6em 0;
+}
+
+.essay-prose figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid rgba(110, 168, 255, 0.2);
+}
+
+.essay-prose figcaption {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  font-style: normal;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+}
+
+.essay-prose .essay-embed {
+  border: 1px solid rgba(110, 168, 255, 0.28);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.essay-footer {
+  margin-top: 2.5rem;
+  border-top: 1px solid rgba(90, 140, 235, 0.24);
+  padding-top: 1rem;
+}
+
+.essay-footer__head {
+  margin-bottom: 0.6rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.essay-next {
+  display: grid;
+  gap: 0.6rem;
+}
+
+@media (min-width: 640px) {
+  .essay-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.essay-next .system-card {
+  height: 100%;
+}
+
+html[data-motion="reduced"] .reader-action,
+html[data-motion="reduced"] .essay-prose a {
+  transition: none !important;
 }

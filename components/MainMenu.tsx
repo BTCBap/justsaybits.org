@@ -290,10 +290,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
       {/* System bar */}
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6">
-        <div className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.28em] text-blue-200/80">
+        <div className="flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-blue-200/80">
           <span aria-hidden="true" className="block h-1.5 w-1.5 bg-cyan-200 shadow-[0_0_8px_rgba(140,220,255,0.9)]" />
           <span>System</span>
-          <span aria-hidden="true" className="text-blue-400/50">//</span>
+          <span aria-hidden="true" className="text-[var(--accent-soft)]">//</span>
           <span className="hidden sm:inline">Main menu</span>
         </div>
         <div className={`text-right font-mono leading-tight ${hideClock ? 'invisible' : ''}`}>
@@ -319,20 +319,20 @@ const MainMenu: React.FC<MainMenuProps> = ({
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-blue-200/75">
+                <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-blue-200/75">
                   Section {String(activeIndex + 1).padStart(2, '0')} / {String(sections.length).padStart(2, '0')}
                 </p>
-                <h2 className="mt-1 text-[22px] font-light uppercase leading-tight tracking-[0.2em] text-white md:text-3xl">
+                <h2 className="mt-1 text-[28px] font-light uppercase leading-tight tracking-[0.16em] text-white md:text-[36px]">
                   {activeSection.title}
                 </h2>
-                <p className="mt-1.5 min-h-[1.35rem] text-[13px] font-light leading-snug text-blue-100/90 md:text-sm">
+                <p className="mt-1.5 min-h-[1.35rem] text-[14px] font-light leading-snug text-[var(--text-secondary)]">
                   {activeSection.description}
                 </p>
                 <button
                   type="button"
                   onClick={() => openAt(activeIndex, 'pointer')}
                   onFocus={() => interaction.interact('cursor', { id: 'menu:open', source: 'focus' })}
-                  className="mt-3 inline-flex min-h-[44px] items-center gap-2 border border-blue-300/50 bg-blue-500/10 px-4 font-mono text-[11px] uppercase tracking-[0.22em] text-blue-50 transition-colors hover:border-white hover:bg-blue-500/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                  className="mt-3 inline-flex min-h-[44px] items-center gap-2 border border-blue-300/50 bg-blue-500/10 px-4 font-mono text-[12px] uppercase tracking-[0.18em] text-blue-50 transition-colors hover:border-white hover:bg-blue-500/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
                   Open
                   <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -389,7 +389,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 }`}
                 style={{
                   transform,
-                  opacity: active ? 1 : Math.max(0.4, 0.78 - (distance - 1) * 0.14),
+                  opacity: active ? 1 : Math.max(0.6, 0.8 - (distance - 1) * 0.09),
                   zIndex: 20 - distance,
                   transition: reducedMotion || dragging
                     ? 'none'
@@ -406,8 +406,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   <Icon className="h-8 w-8 md:h-9 md:w-9" aria-hidden="true" />
                 </span>
                 <span
-                  className={`mt-2.5 text-center font-mono text-[12px] uppercase leading-tight tracking-[0.16em] md:text-[13px] ${
-                    active ? 'text-white' : 'text-blue-200/80'
+                  className={`mt-2.5 text-center text-[12px] uppercase leading-tight tracking-[0.16em] ${
+                    active ? 'text-white' : 'text-[var(--text-secondary)]'
                   }`}
                 >
                   {section.title}
@@ -438,7 +438,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         </button>
 
         <div className="flex items-center justify-center gap-3 pb-2 pt-1">
-          <span className="font-mono text-[11px] tabular-nums tracking-[0.2em] text-blue-200/75">
+          <span className="font-mono text-[12px] tabular-nums tracking-[0.2em] text-blue-200/75">
             {String(activeIndex + 1).padStart(2, '0')} / {String(sections.length).padStart(2, '0')}
           </span>
           <span aria-hidden="true" className="flex items-center gap-1.5">
@@ -495,9 +495,9 @@ const Clock: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   });
 
   return (
-    <div className="tabular-nums">
-      <div className="text-lg font-light tracking-[0.16em] text-blue-50 md:text-xl">{timeString}</div>
-      <div className="mt-0.5 text-[11px] uppercase tracking-[0.2em] text-blue-200/70">{dateString}</div>
+    <div className="ps2-tnum">
+      <div className="text-[20px] font-light tracking-[0.16em] text-blue-50">{timeString}</div>
+      <div className="mt-0.5 text-[12px] uppercase tracking-[0.16em] text-[var(--text-muted)]">{dateString}</div>
     </div>
   );
 };

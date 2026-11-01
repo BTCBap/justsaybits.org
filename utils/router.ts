@@ -53,8 +53,12 @@ export interface NavigateOptions {
 }
 
 const SITE = 'https://justsaybits.org';
+const DEFAULT_IMAGE = `${SITE}/og-image.jpg`;
+const DEFAULT_IMAGE_ALT = 'Pencil sketch portrait of Zach Wischler beside the text: Personal website, Zach Wischler, author of The Bitcoin Tao.';
 const HOME_DESCRIPTION =
   'The personal website of Zach Wischler, author of The Bitcoin Tao. Essays, talks and media, dedicated to advancing individual sovereignty through cryptography.';
+
+export const canonicalUrl = (path: string): string => `${SITE}${path === '/' ? '/' : path}`;
 
 const SECTION_TITLES: Record<string, string> = {
   about: 'About',
@@ -141,7 +145,11 @@ export const pathForTab = (section: string, tab: string): string => {
   return pathForSection(section);
 };
 
-export const pathForEssay = (slug: string): string => `/content/essays/${encodeURIComponent(slug)}`;
+export const pathForEssay = (slug: string): string => `/content/essays/${encodeURIComponent(slug)}/`;
+
+/** Browser URL for a route. Essay routes keep the slash of their static shell. */
+const routeUrl = (route: Route): string =>
+  route.section === 'content' && route.slug ? pathForEssay(route.slug) : route.path;
 
 export const parseRoute = (input: string): Route => {
   const path = normalizePath(input);
@@ -240,19 +248,66 @@ const ensureCanonical = (): HTMLLinkElement => {
   return element;
 };
 
+const ensureJsonLd = (): HTMLScriptElement => {
+  let element = document.head.querySelector<HTMLScriptElement>('script#jsb-article-jsonld');
+  if (!element) {
+    element = document.createElement('script');
+    element.type = 'application/ld+json';
+    element.id = 'jsb-article-jsonld';
+    document.head.appendChild(element);
+  }
+  return element;
+};
+
+const isoDate = (value: string): string | null => {
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? null : new Date(time).toISOString();
+};
+
 export const applyRouteMeta = (route: Route): void => {
   if (typeof document === 'undefined') return;
   const meta = routeMeta(route);
+  const url = canonicalUrl(routeUrl(route));
   document.title = meta.title;
 
   ensureMeta('name', 'description').content = meta.description;
-  ensureCanonical().href = `${SITE}${route.path === '/' ? '/' : route.path}`;
+  ensureCanonical().href = url;
   ensureMeta('property', 'og:title').content = meta.title;
   ensureMeta('property', 'og:description').content = meta.description;
-  ensureMeta('property', 'og:url').content = `${SITE}${route.path === '/' ? '/' : route.path}`;
+  ensureMeta('property', 'og:url').content = url;
   ensureMeta('property', 'og:type').content = meta.type;
+  ensureMeta('property', 'og:image').content = DEFAULT_IMAGE;
+  ensureMeta('property', 'og:image:alt').content = DEFAULT_IMAGE_ALT;
+  ensureMeta('name', 'twitter:card').content = 'summary_large_image';
   ensureMeta('name', 'twitter:title').content = meta.title;
   ensureMeta('name', 'twitter:description').content = meta.description;
+  ensureMeta('name', 'twitter:image').content = DEFAULT_IMAGE;
+  ensureMeta('name', 'twitter:image:alt').content = DEFAULT_IMAGE_ALT;
+
+  const essay = route.section === 'content' && route.slug
+    ? ESSAYS.find(item => item.slug === route.slug) ?? null
+    : null;
+  const published = essay ? isoDate(essay.date) : null;
+
+  if (essay && published) {
+    ensureMeta('property', 'article:published_time').content = published;
+    ensureJsonLd().textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: essay.title,
+      description: essay.excerpt,
+      datePublished: published,
+      dateModified: published,
+      url,
+      mainEntityOfPage: url,
+      image: DEFAULT_IMAGE,
+      author: { '@type': 'Person', name: 'Zach Wischler', url: SITE },
+      publisher: { '@type': 'Person', name: 'Zach Wischler', url: SITE },
+    });
+  } else {
+    document.head.querySelector('meta[property="article:published_time"]')?.remove();
+    document.head.querySelector('script#jsb-article-jsonld')?.remove();
+  }
 };
 
 // --- redirect consumption (GitHub Pages 404 fallback) ----------------------
@@ -293,8 +348,12 @@ const buildInitialState = (): RouterState => {
     window.history.replaceState({ ...(window.history.state ?? {}), __jsb: 0 }, '', window.location.href);
   }
   const route = parseRoute(window.location.pathname);
-  if (!route.notFound && normalizePath(window.location.pathname) !== route.path) {
-    window.history.replaceState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', route.path);
+  if (!route.notFound) {
+    const path = routeUrl(route);
+    if (window.location.pathname !== path) {
+      const suffix = `${window.location.search}${window.location.hash}`;
+      window.history.replaceState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', `${path}${suffix}`);
+    }
   }
   return { route, previous: null, direction: 'forward', origin: null };
 };
@@ -343,10 +402,10 @@ export const navigate = (path: string, options: NavigateOptions = {}): void => {
   if (nextRoute.path === state.route.path) return;
 
   if (options.replace) {
-    window.history.replaceState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', nextRoute.path);
+    window.history.replaceState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', routeUrl(nextRoute));
   } else {
     currentIndex += 1;
-    window.history.pushState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', nextRoute.path);
+    window.history.pushState({ ...(window.history.state ?? {}), __jsb: currentIndex }, '', routeUrl(nextRoute));
   }
   commit(nextRoute, options.direction ?? 'forward', options.origin ?? null);
 };

@@ -166,8 +166,8 @@ const App: React.FC = () => {
             </Suspense>
           </div>
 
-          {/* CRT Scanline Effect Overlay */}
-          <div className="crt-overlay pointer-events-none fixed inset-0 z-[100]" />
+          {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
+          <div className="crt-overlay pointer-events-none fixed inset-0 z-[5]" />
 
           {bootVisible && (
             <BootSequence
