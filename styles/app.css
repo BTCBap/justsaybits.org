@@ -1491,16 +1491,10 @@ html[data-motion="reduced"] .essay-prose a {
   border-left: 2px solid var(--accent);
   padding-left: 1rem;
   color: var(--text);
-  font-size: var(--type-20);
+  font-size: clamp(24px, 6vw, 28px);
   font-weight: 300;
   line-height: 1.3;
   letter-spacing: 0.005em;
-}
-
-@media (min-width: 768px) {
-  .about-quote {
-    font-size: var(--type-28);
-  }
 }
 
 .about-copy {
@@ -1896,6 +1890,10 @@ html[data-motion="reduced"] .essay-prose a {
   border-left: 1px solid rgba(110, 168, 255, 0.32);
   padding: 0.15rem 0 0.15rem 0.9rem;
   list-style: none;
+}
+
+.work-subroles[hidden] {
+  display: none;
 }
 
 .work-subroles li {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { WORK_DATA } from '../../constants';
 import ScreenLink from '../ScreenLink';
 
@@ -75,13 +75,13 @@ const AboutScreen: React.FC = () => {
 
           <nav className="about-links" aria-label="More about Zach">
             <ScreenLink to="/work" feedbackId="about:work" className="about-link">
-              Work history <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              Work history <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </ScreenLink>
             <ScreenLink to="/book" feedbackId="about:book" className="about-link">
-              The Bitcoin Tao <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              The Bitcoin Tao <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </ScreenLink>
             <ScreenLink to="/social" feedbackId="about:social" className="about-link">
-              Say hello <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              Say hello <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </ScreenLink>
           </nav>
         </div>
