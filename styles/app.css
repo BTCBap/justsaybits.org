@@ -2015,6 +2015,23 @@ html[data-motion="reduced"] .essay-prose a {
   font-weight: 400;
 }
 
+.investment-asset-link {
+  text-decoration: none;
+}
+
+.investment-asset-link:hover,
+.investment-asset-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.investment-asset__cue {
+  display: inline-block;
+  margin-left: 0.35rem;
+  vertical-align: -0.1em;
+  color: var(--text-muted);
+}
+
 .investment-ticker {
   display: block;
   margin-top: 0.1rem;

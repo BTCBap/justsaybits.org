@@ -66,7 +66,20 @@ export const InvestmentsTab: React.FC = () => (
         {INVESTMENT_DATA.map((investment) => (
           <tr key={investment.asset}>
             <td data-label="Asset">
-              <span className="investment-asset">{investment.asset}</span>
+              {investment.url ? (
+                <a
+                  className="investment-asset investment-asset-link"
+                  href={investment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {investment.asset}
+                  <ExternalLink className="investment-asset__cue h-3 w-3" aria-hidden="true" />
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              ) : (
+                <span className="investment-asset">{investment.asset}</span>
+              )}
               {investment.ticker && (
                 <span className="investment-ticker ps2-meta">{investment.ticker}</span>
               )}

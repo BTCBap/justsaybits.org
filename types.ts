@@ -32,6 +32,7 @@ export interface DesignItem {
 export interface InvestmentItem {
   asset: string;
   ticker?: string;
+  url?: string;
   type: string;
   status: 'Active' | 'Exited' | 'Watching' | 'Acquired';
 }
