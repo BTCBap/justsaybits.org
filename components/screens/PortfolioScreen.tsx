@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -115,11 +114,12 @@ const DesignLightbox: React.FC<DesignLightboxProps> = ({
 
   useEffect(() => {
     const panel = document.querySelector<HTMLElement>('.screen-panel');
+    const focusTarget = returnFocusRef.current;
     panel?.setAttribute('inert', '');
     closeRef.current?.focus({ preventScroll: true });
     return () => {
       panel?.removeAttribute('inert');
-      returnFocusRef.current?.focus({ preventScroll: true });
+      focusTarget?.focus({ preventScroll: true });
     };
   }, []);
 

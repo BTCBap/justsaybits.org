@@ -112,19 +112,19 @@ const MainMenu: React.FC<MainMenuProps> = ({
     }
   }, [sections, onActiveIndexChange]);
 
-  const originOf = (index: number): NavOrigin | undefined => {
+  const originOf = useCallback((index: number): NavOrigin | undefined => {
     const element = optionRefs.current.get(sections[index]?.id ?? '');
     if (!element) return undefined;
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  };
+  }, [sections]);
 
   const openAt = useCallback((index: number, source: 'pointer' | 'keyboard') => {
     const section = sections[index];
     if (!section) return;
     interaction.interact('confirm', { source });
     onSelect(section.id, originOf(index));
-  }, [sections, onSelect]);
+  }, [sections, onSelect, originOf]);
 
   const moveTo = useCallback((index: number, source: 'keyboard' | 'gesture') => {
     const total = sections.length;

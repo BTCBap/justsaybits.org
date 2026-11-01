@@ -1,8 +1,6 @@
-import React from 'react';
 import {
   IconSocial,
   IconAbout,
-  IconPortfolio,
   IconInvestments,
   IconBook,
   IconContent,

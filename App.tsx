@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const activeSection = route.section
     ? SECTIONS.find(section => section.id === route.section) ?? null
     : null;
+  const activeSectionId = activeSection?.id ?? null;
   const screenOpen = !!activeSection || route.notFound;
 
   // The menu is composited from the first frame, behind the boot, so there is
@@ -46,10 +47,10 @@ const App: React.FC = () => {
 
   // Keep the hidden menu's selected card in step with a deep link.
   useEffect(() => {
-    if (!activeSection) return;
-    const index = SECTIONS.findIndex(section => section.id === activeSection.id);
+    if (!activeSectionId) return;
+    const index = SECTIONS.findIndex(section => section.id === activeSectionId);
     if (index >= 0 && index !== activeMenuIndex) setActiveMenuIndex(index);
-  }, [activeSection?.id, activeMenuIndex]);
+  }, [activeSectionId, activeMenuIndex]);
 
   // Return focus to the card that opened the screen when the visitor comes
   // back with the Back button or browser Back. Keyed to the route only: a
@@ -57,12 +58,13 @@ const App: React.FC = () => {
   useEffect(() => {
     if (screenOpen || !previous) return;
     if (!previous.section && !previous.notFound) return;
-    const id = previous.section ?? SECTIONS[activeMenuIndex]?.id;
-    if (!id) return;
+    const id = previous.section;
     const frame = requestAnimationFrame(() => {
-      menuRef.current
-        ?.querySelector<HTMLElement>(`[data-section-id="${id}"]`)
-        ?.focus({ preventScroll: true });
+      const menu = menuRef.current;
+      const target = id
+        ? menu?.querySelector<HTMLElement>(`[data-section-id="${id}"]`)
+        : menu?.querySelector<HTMLElement>('[data-section-id][aria-selected="true"]');
+      target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [route.path, screenOpen, previous]);
