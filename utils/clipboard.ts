@@ -1,8 +1,12 @@
-/** Clipboard write with a textarea fallback for older or insecure contexts. */
+/** Clipboard write with a textarea fallback for older, insecure, or denied contexts. */
 export const writeClipboard = async (text: string): Promise<void> => {
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Permission denied or an unfocused document: use the selection fallback.
+    }
   }
   const area = document.createElement('textarea');
   area.value = text;

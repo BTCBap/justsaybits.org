@@ -66,7 +66,12 @@ const SafeImage: React.FC<SafeImageProps> = ({
           onError={() => setState('error')}
         />
       ) : (
-        <span className="safe-image__fallback" role="img" aria-label={alt}>
+        <span
+          className="safe-image__fallback"
+          role={alt ? 'img' : undefined}
+          aria-label={alt || undefined}
+          aria-hidden={alt ? undefined : true}
+        >
           <span aria-hidden="true" className="safe-image__fallback-mark">×</span>
           <span>{fallbackLabel ?? 'Image unavailable'}</span>
         </span>
