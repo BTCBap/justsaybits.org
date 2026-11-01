@@ -84,7 +84,8 @@ const App: React.FC = () => {
   }, [activeSection?.id, activeMenuIndex]);
 
   // Return focus to the card that opened the screen when the visitor comes
-  // back with the Back button or browser Back.
+  // back with the Back button or browser Back. Keyed to the route only: a
+  // later arrow-key move must not be pulled back to the card just closed.
   useEffect(() => {
     if (screenOpen || !previous) return;
     if (!previous.section && !previous.notFound) return;
@@ -96,7 +97,7 @@ const App: React.FC = () => {
         ?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [route.path, screenOpen, previous, activeMenuIndex]);
+  }, [route.path, screenOpen, previous]);
 
   // One pageview per URL, not per rendered component.
   useEffect(() => {

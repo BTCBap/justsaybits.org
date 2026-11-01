@@ -40,6 +40,8 @@ import {
 } from '../utils/router';
 import HelpBar from './HelpBar';
 import SystemSettings from './SystemSettings';
+import SystemCard from './SystemCard';
+import Tabs, { tabId, tabPanelId } from './Tabs';
 
 interface ContentScreenProps {
   section: Section;
@@ -59,11 +61,67 @@ const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{
   { id: 'reading', label: 'Reading', icon: BookOpen },
 ];
 
+const PORTFOLIO_TABS: { id: PortfolioTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'projects', label: 'Projects', icon: LayoutGrid },
+  { id: 'investments', label: 'Investments', icon: TrendingUp },
+  { id: 'design', label: 'Design', icon: PenTool },
+];
+
 const postEngagement = (p: PostItem) =>
   p.likes + p.reposts * 2 + p.replies + (p.quotes ?? 0) + (p.bookmarks ?? 0);
 
 const twitterImage = (url: string, format: 'webp' | 'jpg') =>
   `${url}${url.includes('?') ? '&' : '?'}format=${format}&name=small`;
+
+const yearOf = (date?: string): string => {
+  const match = date?.match(/\b(\d{4})\b/);
+  return match ? match[1] : 'Undated';
+};
+
+const newestFirst = (a: { date?: string }, b: { date?: string }): number => {
+  const aTime = a.date ? Date.parse(a.date) : NaN;
+  const bTime = b.date ? Date.parse(b.date) : NaN;
+  if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+  if (Number.isNaN(aTime)) return 1;
+  if (Number.isNaN(bTime)) return -1;
+  return bTime - aTime;
+};
+
+function groupByYear<T extends { date?: string }>(items: T[]): { year: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  items.forEach((item) => {
+    const year = yearOf(item.date);
+    const bucket = groups.get(year);
+    if (bucket) bucket.push(item);
+    else groups.set(year, [item]);
+  });
+  return Array.from(groups, ([year, grouped]) => ({ year, items: grouped }))
+    .sort((a, b) => {
+      if (a.year === 'Undated') return 1;
+      if (b.year === 'Undated') return -1;
+      return Number(b.year) - Number(a.year);
+    });
+}
+
+function groupBySource<T extends { source?: string }>(items: T[]): { source: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  items.forEach((item) => {
+    const source = item.source || 'Other';
+    const bucket = groups.get(source);
+    if (bucket) bucket.push(item);
+    else groups.set(source, [item]);
+  });
+  return Array.from(groups, ([source, grouped]) => ({ source, items: grouped }));
+}
+
+const CONTENT_TAB_META: Record<ContentTab, { noun: string; blurb: string }> = {
+  essays: { noun: 'essays', blurb: 'Long-form writing, newest first.' },
+  posts: { noun: 'posts', blurb: 'Top posts by engagement from @BTCBap.' },
+  podcasts: { noun: 'episodes', blurb: 'Host of Value Stack, plus guest appearances.' },
+  lectures: { noun: 'lectures', blurb: 'Talks and panels, grouped by year.' },
+  tutorials: { noun: 'tutorials', blurb: 'Guides and walkthroughs.' },
+  reading: { noun: 'books and essays', blurb: 'Worth your time.' },
+};
 
 interface MediaData {
   valueStack: MediaItem[];
@@ -232,6 +290,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   const [visiblePosts, setVisiblePosts] = useState(20);
   const [media, setMedia] = useState<MediaData | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  const [visibleMedia, setVisibleMedia] = useState(20);
+  const [query, setQuery] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
   const [closing, setClosing] = useState(false);
 
   const reducedMotion = usePrefersReducedMotion();
@@ -305,6 +366,18 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     bodyRef.current?.scrollTo({ top: 0 });
   }, [contentTab, portfolioTab, section.id]);
 
+  // Search and progressive disclosure belong to one tab at a time.
+  useEffect(() => {
+    setQuery('');
+    setYearFilter('all');
+    setVisibleMedia(20);
+    setVisiblePosts(20);
+  }, [contentTab]);
+
+  useEffect(() => {
+    setVisiblePosts(20);
+  }, [query]);
+
   useEffect(() => {
     if (!essaySlug) {
       setEssayContent(null);
@@ -376,11 +449,30 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     [posts]
   );
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesQuery = (...parts: (string | undefined)[]): boolean =>
+    !normalizedQuery || parts.some(part => part?.toLowerCase().includes(normalizedQuery));
+
+  const filteredEssays = useMemo(
+    () => [...ESSAYS].sort(newestFirst).filter(essay => (
+      !normalizedQuery
+      || essay.title.toLowerCase().includes(normalizedQuery)
+      || essay.excerpt.toLowerCase().includes(normalizedQuery)
+    )),
+    [normalizedQuery]
+  );
+
+  const filteredPosts = useMemo(
+    () => rankedPosts.filter(post => (
+      !normalizedQuery || post.text.toLowerCase().includes(normalizedQuery)
+    )),
+    [rankedPosts, normalizedQuery]
+  );
+
   const openEssay = (post: EssaySummary) => {
     if (essaySlug === post.slug) return;
     listScroll.current = bodyRef.current?.scrollTop ?? 0;
     returnSlug.current = post.slug;
-    interaction.interact('confirm', { source: 'pointer' });
     navigate(pathForEssay(post.slug));
   };
 
@@ -422,14 +514,16 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     navigate(pathForTab('content', tab));
   }, [contentTab, essaySlug]);
 
-  const handleContentTabChange = (tab: ContentTab) => goContentTab(tab, 'pointer');
+  const handleContentTabChange = (tab: ContentTab, source: 'pointer' | 'keyboard' = 'pointer') => {
+    goContentTab(tab, source);
+  };
 
-  const handleTabChange = (tab: PortfolioTab) => {
+  const handleTabChange = (tab: PortfolioTab, source: 'pointer' | 'keyboard' = 'pointer') => {
     if (portfolioTab === tab) return;
     interaction.interact('cursor', {
       id: `portfolio-tab:${tab}`,
-      source: 'pointer',
-      haptic: 'tick',
+      source,
+      haptic: source === 'pointer' ? 'tick' : undefined,
     });
     navigate(pathForTab('portfolio', tab));
   };
@@ -481,31 +575,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   const animatePanel = previous?.section === section.id;
 
   const renderMediaCard = (item: MediaItem, extra?: string) => (
-    <a
+    <SystemCard
       key={item.url}
       href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
-      onPointerEnter={(e) => {
-        if (e.pointerType === 'mouse') {
-          interaction.interact('cursor', { id: `media:${item.url}`, source: 'hover' });
-        }
-      }}
-      onFocus={() => interaction.interact('cursor', { id: `media:${item.url}`, source: 'focus' })}
-      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
-          {item.title}
-        </h3>
-        {item.date && <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>}
-      </div>
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>{extra || item.source}</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
+      external
+      feedbackId={`media:${item.url}`}
+      title={item.title}
+      meta={item.date}
+      footer={extra || item.source}
+    />
   );
 
   const renderPostCard = (item: PostItem) => {
@@ -513,110 +591,72 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     const title = raw.length > 160 ? `${raw.slice(0, 157).trimEnd()}…` : raw;
     const imageMeta = item.image ? POST_IMAGE_META[item.image] : undefined;
     return (
-    <a
-      key={item.id}
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
-      onPointerEnter={(e) => {
-        if (e.pointerType === 'mouse') {
-          interaction.interact('cursor', { id: `post:${item.id}`, source: 'hover' });
-        }
-      }}
-      onFocus={() => interaction.interact('cursor', { id: `post:${item.id}`, source: 'focus' })}
-      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow break-words">
-          {title}
-        </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
-      </div>
-      {item.image && (
-        <div className="mb-4 flex justify-center border border-blue-500/20 bg-black/30">
-          <picture className="contents">
-            <source srcSet={twitterImage(item.image, 'webp')} type="image/webp" />
-            <img
-              src={twitterImage(item.image, 'jpg')}
-              alt=""
-              referrerPolicy="no-referrer"
-              width={imageMeta?.width}
-              height={imageMeta?.height}
-              loading="lazy"
-              decoding="async"
-              style={imageMeta ? { aspectRatio: `${imageMeta.width} / ${imageMeta.height}` } : undefined}
-              className="max-h-96 max-w-full w-auto h-auto object-contain"
-            />
-          </picture>
-        </div>
-      )}
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>@BTCBap</span>
-        <span className="mx-2">::</span>
-        <span>{item.likes.toLocaleString()} likes</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
+      <SystemCard
+        key={item.id}
+        href={item.url}
+        external
+        feedbackId={`post:${item.id}`}
+        title={title}
+        titleClassName="break-words"
+        meta={item.date}
+        media={item.image ? (
+          <div className="system-card__media">
+            <picture className="contents">
+              <source srcSet={twitterImage(item.image, 'webp')} type="image/webp" />
+              <img
+                src={twitterImage(item.image, 'jpg')}
+                alt=""
+                referrerPolicy="no-referrer"
+                width={imageMeta?.width}
+                height={imageMeta?.height}
+                loading="lazy"
+                decoding="async"
+                style={imageMeta ? { aspectRatio: `${imageMeta.width} / ${imageMeta.height}` } : undefined}
+                className="max-h-96 max-w-full w-auto h-auto object-contain"
+              />
+            </picture>
+          </div>
+        ) : undefined}
+        footer={(
+          <>
+            <span>@BTCBap</span>
+            <span aria-hidden="true"> :: </span>
+            <span>{item.likes.toLocaleString()} likes</span>
+          </>
+        )}
+      />
     );
   };
 
   const renderReadingCard = (item: ReadingItem) => (
-    <a
+    <SystemCard
       key={item.url}
       href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:outline-none focus-visible:border-blue-400 focus-visible:bg-blue-900/20 p-6 rounded transition-all duration-300"
-      onPointerEnter={(e) => {
-        if (e.pointerType === 'mouse') {
-          interaction.interact('cursor', { id: `reading:${item.url}`, source: 'hover' });
-        }
-      }}
-      onFocus={() => interaction.interact('cursor', { id: `reading:${item.url}`, source: 'focus' })}
-      onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-    >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-        <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">
-          {item.title}
-        </h3>
-        <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{item.date}</span>
-      </div>
-      <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-        <span>{item.author}</span>
-        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </a>
+      external
+      feedbackId={`reading:${item.url}`}
+      title={item.title}
+      meta={item.date}
+      footer={item.author}
+    />
   );
 
   // Render Helpers
   const renderSocials = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-      {SOCIAL_LINKS.map((link, i) => (
-        <a
-          key={i}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block bg-blue-900/20 border border-blue-500/30 p-6 hover:bg-blue-800/40 focus-visible:outline-none focus-visible:border-blue-300 transition-all duration-200"
-          onPointerEnter={(e) => {
-            if (e.pointerType === 'mouse') {
-              interaction.interact('cursor', { id: `social:${link.platform}`, source: 'hover' });
-            }
-          }}
-          onFocus={() => interaction.interact('cursor', { id: `social:${link.platform}`, source: 'focus' })}
-          onClick={() => {
-            interaction.interact('confirm', { source: 'pointer' });
-            window.umami?.track('social-click', { platform: link.platform });
-          }}
-        >
-          <div className="text-blue-400 text-xs tracking-widest uppercase mb-1">{link.platform}</div>
-          <div className="text-xl font-mono text-white group-hover:ps2-text-shadow flex items-center justify-between">
-            {link.handle}
-            <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </a>
-      ))}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {SOCIAL_LINKS.map((link) => {
+        const isEmail = link.url.startsWith('mailto:');
+        return (
+          <SystemCard
+            key={link.platform}
+            href={link.url}
+            external={!isEmail}
+            feedbackId={`social:${link.platform}`}
+            eyebrow={link.platform}
+            title={<span className="font-mono text-lg normal-case tracking-normal">{link.handle}</span>}
+            onNavigate={() => window.umami?.track('social-click', { platform: link.platform })}
+          />
+        );
+      })}
     </div>
   );
 
@@ -748,109 +788,49 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
   const renderPortfolio = () => (
     <div className="flex flex-col h-full">
-      {/* Tabs */}
-      <div className="shrink-0 flex items-center gap-6 md:gap-8 mb-8 border-b border-blue-500/30 px-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => handleTabChange('projects')}
-          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:projects', source: 'focus' })}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'projects' 
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Projects</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('investments')}
-          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:investments', source: 'focus' })}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'investments' 
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow' 
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Investments</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('design')}
-          onFocus={() => interaction.interact('cursor', { id: 'portfolio-tab:design', source: 'focus' })}
-          className={`shrink-0 flex items-center space-x-2 pb-3 transition-all duration-300 ${
-            portfolioTab === 'design'
-              ? 'text-white border-b-2 border-blue-400 ps2-text-shadow'
-              : 'text-blue-500/50 hover:text-blue-300'
-          }`}
-        >
-          <PenTool className="w-4 h-4" />
-          <span className="uppercase tracking-widest text-sm font-bold">Design</span>
-        </button>
-      </div>
+      <Tabs
+        baseId="portfolio"
+        label="Portfolio sections"
+        items={PORTFOLIO_TABS}
+        activeId={portfolioTab}
+        onChange={(id, source) => handleTabChange(id as PortfolioTab, source)}
+        layout="portfolio"
+        className="mb-6 shrink-0 md:mb-8"
+      />
 
       {/* Content Area */}
-      <div 
+      <div
         key={portfolioTab}
         data-dir={panelDir}
-        className={`flex-grow overflow-auto ps2-scroll ${animatePanel ? 'panel-shift' : ''}`}
+        role="tabpanel"
+        id={tabPanelId('portfolio', portfolioTab)}
+        aria-labelledby={tabId('portfolio', portfolioTab)}
+        tabIndex={0}
+        className={`flex-grow overflow-auto ps2-scroll focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${animatePanel ? 'panel-shift' : ''}`}
       >
         {portfolioTab === 'projects' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {PORTFOLIO_DATA.map((item, i) => (
-              <div 
-                  key={i} 
-                  className="bg-black/40 border border-blue-500/30 p-5 flex flex-col h-full hover:border-blue-400 focus-within:border-blue-300 transition-colors relative group"
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === 'mouse') {
-                      interaction.interact('cursor', { id: `project:${item.title}`, source: 'hover' });
-                    }
-                  }}
-                  onFocus={() => interaction.interact('cursor', { id: `project:${item.title}`, source: 'focus' })}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col">
-                    <h3 className="text-xl font-bold text-white ps2-text-shadow flex items-center gap-2">
-                        {item.title}
-                        {item.url && (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                              onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        )}
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-blue-400 border border-blue-500/50 px-2 py-0.5 rounded shrink-0 ml-2">{item.year}</span>
-                </div>
-                <p className="text-sm text-blue-100 mb-4 flex-grow">{item.description}</p>
-                <div className="space-y-2">
-                  <div className="text-xs uppercase text-blue-500 tracking-wider">Role: {item.role}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.tech.map(t => (
-                      <span key={t} className="text-xs bg-blue-900/50 text-blue-200 px-2 py-1 rounded-sm">
-                        {t}
+          <div className="space-y-3">
+            {PORTFOLIO_DATA.map((item) => (
+              <SystemCard
+                key={item.title}
+                href={item.url ?? '#'}
+                external={!!item.url}
+                feedbackId={`project:${item.title}`}
+                leading={<span className="font-mono text-xs uppercase tracking-[0.18em] text-blue-200/80">{item.year}</span>}
+                title={item.title}
+                meta={item.role}
+                description={item.description}
+                footer={(
+                  <span className="flex flex-wrap gap-1.5">
+                    {item.tech.map(tech => (
+                      <span key={tech} className="border border-blue-400/30 bg-blue-500/10 px-1.5 py-0.5 text-[11px] normal-case tracking-normal text-blue-100">
+                        {tech}
                       </span>
                     ))}
-                  </div>
-                </div>
-                {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
-                      aria-label={`View ${item.title}`}
-                      onClick={() => {
-                        interaction.interact('confirm', { source: 'pointer' });
-                        window.umami?.track('portfolio-project-click', { title: item.title });
-                      }}
-                    ></a>
+                  </span>
                 )}
-              </div>
+                onNavigate={() => window.umami?.track('portfolio-project-click', { title: item.title })}
+              />
             ))}
           </div>
         ) : portfolioTab === 'design' ? (
@@ -913,7 +893,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             </div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
               <h3 className="text-3xl md:text-4xl text-white mb-1">{book.title}</h3>
-              {book.subtitle && <p className="text-sm text-white/40 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
+              {book.subtitle && <p className="text-sm text-blue-200/85 uppercase tracking-widest mb-3 font-mono">{book.subtitle}</p>}
               <div className="text-xl text-blue-400 mb-6">{book.author}</div>
 
               <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-4 md:px-6 rounded mb-6">
@@ -921,7 +901,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
-                <span className="uppercase tracking-widest text-sm font-bold text-white/50">Available Now</span>
+                <span className="uppercase tracking-widest text-sm font-bold text-blue-200/85">Available Now</span>
                 <span className="h-px w-8 bg-blue-500/50"></span>
                 <span className="font-mono text-green-400">Bitcoin Magazine Books</span>
               </div>
@@ -929,7 +909,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               {book.url && (
                 <button
                   onClick={handleOpen}
-                  className="uppercase tracking-widest text-sm font-bold text-blue-400 border border-blue-500/50 px-6 py-2 rounded hover:bg-blue-500/20 transition-colors"
+                  className="inline-flex min-h-[44px] items-center uppercase tracking-widest text-sm font-bold text-blue-100 border border-blue-400/50 px-6 py-3 rounded hover:bg-blue-500/20 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   Get the Book →
                 </button>
@@ -1009,52 +989,44 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     }
 
     return (
-        <div className="space-y-8">
-          {ESSAYS.map((post) => (
-            <article
-                key={post.slug}
-                className="group bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-within:border-blue-400 focus-within:bg-blue-900/20 p-6 rounded transition-all duration-300"
-            >
-              <a
-                ref={(element) => {
+        <div className="space-y-4">
+          {filteredEssays.map((post) => (
+            <article key={post.slug} className="space-y-1">
+              <SystemCard
+                innerRef={(element) => {
                   if (element) cardRefs.current.set(post.slug, element);
                   else cardRefs.current.delete(post.slug);
                 }}
                 href={pathForEssay(post.slug)}
-                aria-current={essaySlug === post.slug ? 'page' : undefined}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'mouse') {
-                    interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'hover' });
-                  }
-                }}
-                onFocus={() => interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'focus' })}
-                onClick={(e) => {
-                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                  e.preventDefault();
+                feedbackId={`essay:${post.slug}`}
+                title={post.title}
+                titleClassName="text-xl"
+                meta={post.date}
+                description={post.excerpt}
+                footer={(
+                  <>
+                    <span>Open file</span>
+                    <span aria-hidden="true"> :: </span>
+                    <span>{post.readTime} read</span>
+                  </>
+                )}
+                onNavigate={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                  event.preventDefault();
                   openEssay(post);
                 }}
-                className="block rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#050a14]"
-              >
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-                  <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
-                  <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
-                </div>
-                <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
-                <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-                  <span>OPEN FILE</span>
-                  <span className="mx-2">::</span>
-                  <span>{post.readTime} READ</span>
-                </div>
-              </a>
+              />
               {post.sourceUrl && (
                 <a
                   href={post.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => interaction.interact('confirm', { source: 'pointer' })}
-                  className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="inline-flex min-h-[44px] items-center gap-1 px-1 text-xs font-mono normal-case tracking-normal text-blue-200/85 underline underline-offset-2 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   {post.sourceLabel || 'Published elsewhere'}
+                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               )}
             </article>
@@ -1064,38 +1036,15 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   };
 
   const renderContentTabs = () => (
-    <div className="shrink-0 border-b border-blue-500/30 bg-[#050a14]">
-      <div className="flex w-full items-end overflow-x-auto no-scrollbar px-3 md:px-6" role="tablist">
-        {CONTENT_TABS.map(tab => {
-          const Icon = tab.icon;
-          const active = contentTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={active}
-              onFocus={() => interaction.interact('cursor', { id: `content-tab:${tab.id}`, source: 'focus' })}
-              onClick={(e) => {
-                e.currentTarget.scrollIntoView({
-                  behavior: reducedMotion ? 'auto' : 'smooth',
-                  block: 'nearest',
-                  inline: 'nearest',
-                });
-                handleContentTabChange(tab.id);
-              }}
-              className={`shrink-0 md:flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-1 pb-3 pt-3 transition-all duration-300 border-b-2 whitespace-nowrap ${
-                active
-                  ? 'text-white border-blue-400 ps2-text-shadow'
-                  : 'text-blue-400/70 border-transparent hover:text-blue-200'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="uppercase tracking-widest text-[11px] md:text-sm font-bold leading-none">{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <Tabs
+      baseId="content"
+      label="Content sections"
+      items={CONTENT_TABS}
+      activeId={contentTab}
+      onChange={(id, source) => handleContentTabChange(id as ContentTab, source)}
+      layout="content"
+      className="shrink-0"
+    />
   );
 
   const renderListSkeleton = (count: number) => (
@@ -1110,83 +1059,283 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     </div>
   );
 
-  const renderContentHub = () => (
-    <div
-      key={essaySlug ?? contentTab}
-      data-dir={panelDir}
-      className={animatePanel ? 'panel-shift' : undefined}
-    >
-      {contentTab === 'essays' && renderEssays()}
-      {contentTab === 'posts' && (
-        <div className="space-y-4">
-          <p className="text-blue-400/80 text-xs font-mono uppercase tracking-widest" role="status" aria-live="polite">
-            {posts ? `Top posts by engagement · ${rankedPosts.length} from @BTCBap` : 'Loading posts…'}
-          </p>
-          {postsLoading || posts === null ? renderListSkeleton(3) : rankedPosts.slice(0, visiblePosts).map(item => renderPostCard(item))}
-          {posts && rankedPosts.length > visiblePosts && (
-            <button
-              type="button"
-              onFocus={() => interaction.interact('cursor', { id: 'posts:show-more', source: 'focus' })}
-              onClick={() => {
-                interaction.interact('cursor', { id: 'posts:show-more', source: 'pointer', haptic: 'tick' });
-                setVisiblePosts(count => count + 20);
-              }}
-              className="w-full min-h-[44px] border border-blue-500/30 bg-blue-900/10 px-4 py-3 text-xs font-mono uppercase tracking-widest text-blue-300 hover:border-blue-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
-            >
-              Show more posts ({rankedPosts.length - visiblePosts} remaining)
-            </button>
-          )}
-        </div>
-      )}
-      {contentTab === 'podcasts' && (
-        mediaLoading || !media ? renderListSkeleton(4) : (
-        <div className="space-y-10">
-          <div>
-            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-              Value Stack (host)
-            </h3>
-            <div className="space-y-4">
-              {media.valueStack.map(item => renderMediaCard(item))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-blue-400 uppercase tracking-widest text-xs mb-4 border-l-2 border-blue-500 pl-2">
-              Guest appearances
-            </h3>
-            <div className="space-y-4">
-              {media.appearances.map(item => renderMediaCard(item))}
-            </div>
-          </div>
-        </div>
-        )
-      )}
-      {contentTab === 'lectures' && (
-        mediaLoading || !media ? renderListSkeleton(4) : (
-        <div className="space-y-4">
-          {media.lectures.map(item => renderMediaCard(item))}
-        </div>
-        )
-      )}
-      {contentTab === 'tutorials' && (
-        mediaLoading || !media ? renderListSkeleton(4) : (
-        <div className="space-y-4">
-          {media.tutorials.map(item => renderMediaCard(item))}
-        </div>
-        )
-      )}
-      {contentTab === 'reading' && (
-        mediaLoading || !media ? renderListSkeleton(4) : (
-        <div className="space-y-4">
-          {media.reading.map(item => renderReadingCard(item))}
-        </div>
-        )
-      )}
+  const renderEmptyState = (message: string) => (
+    <div className="border border-blue-400/25 bg-blue-900/10 px-5 py-10 text-center" role="status">
+      <p className="text-base font-light text-blue-100">{message}</p>
+      {query.trim() || yearFilter !== 'all' ? (
+        <button
+          type="button"
+          onClick={() => {
+            setQuery('');
+            setYearFilter('all');
+          }}
+          className="mt-4 inline-flex min-h-[44px] items-center border border-blue-400/40 px-4 font-mono text-xs uppercase tracking-[0.18em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          Clear filters
+        </button>
+      ) : null}
     </div>
   );
 
+  const renderYearHeading = (year: string, count: number) => (
+    <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-blue-200/85">
+      <span>{year}</span>
+      <span aria-hidden="true" className="text-blue-300/60">·</span>
+      <span>{count}</span>
+    </h4>
+  );
+
+  const renderShowMore = (remaining: number, noun: string, onClick: () => void, id: string) => (
+    <button
+      type="button"
+      onFocus={() => interaction.interact('cursor', { id, source: 'focus' })}
+      onClick={() => {
+        interaction.interact('cursor', { id, source: 'pointer', haptic: 'tick' });
+        onClick();
+      }}
+      className="w-full min-h-[44px] border border-blue-400/30 bg-blue-900/10 px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+    >
+      Show more {noun} ({remaining} remaining)
+    </button>
+  );
+
+  const renderContentHub = () => {
+    const meta = CONTENT_TAB_META[contentTab];
+    const searchable = contentTab === 'essays'
+      || contentTab === 'posts'
+      || contentTab === 'podcasts'
+      || contentTab === 'lectures';
+
+    const podcastItems: MediaItem[] = media ? [...media.valueStack, ...media.appearances] : [];
+    const isFiltered = !!normalizedQuery || yearFilter !== 'all';
+    const matchesYear = (item: { date?: string }) => yearFilter === 'all' || yearOf(item.date) === yearFilter;
+    const filteredPodcasts = podcastItems.filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredValueStack: MediaItem[] = (media?.valueStack ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredAppearances: MediaItem[] = (media?.appearances ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredLectures: MediaItem[] = (media?.lectures ?? [])
+      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
+    const filteredTutorials: MediaItem[] = (media?.tutorials ?? []).filter(item => matchesQuery(item.title, item.source));
+    const filteredReading: ReadingItem[] = (media?.reading ?? []).filter(item => matchesQuery(item.title, item.author));
+
+    // One year filter serves the two chronological lists; it stays out of the
+    // way when a list covers a single year.
+    const yearPool = contentTab === 'lectures'
+      ? media?.lectures ?? []
+      : contentTab === 'podcasts'
+        ? podcastItems
+        : [];
+    const yearOptions = Array.from(new Set(yearPool.map(item => yearOf(item.date))))
+      .filter(year => year !== 'Undated')
+      .sort((a, b) => Number(b) - Number(a));
+
+    const counts: Record<ContentTab, { total: number; shown: number; loading: boolean }> = {
+      essays: { total: ESSAYS.length, shown: filteredEssays.length, loading: false },
+      posts: { total: rankedPosts.length, shown: filteredPosts.length, loading: posts === null || postsLoading },
+      podcasts: { total: podcastItems.length, shown: filteredPodcasts.length, loading: media === null || mediaLoading },
+      lectures: { total: media?.lectures.length ?? 0, shown: filteredLectures.length, loading: media === null || mediaLoading },
+      tutorials: { total: media?.tutorials.length ?? 0, shown: filteredTutorials.length, loading: media === null || mediaLoading },
+      reading: { total: media?.reading.length ?? 0, shown: filteredReading.length, loading: media === null || mediaLoading },
+    };
+    const current = counts[contentTab];
+    const countText = current.loading
+      ? `Loading ${meta.noun}…`
+      : isFiltered
+        ? `${current.shown} of ${current.total} ${meta.noun} · ${meta.blurb}`
+        : `${current.total} ${meta.noun} · ${meta.blurb}`;
+
+    const visibleValueStack = filteredValueStack.slice(0, visibleMedia);
+    const remainingEpisodes = filteredValueStack.length - visibleValueStack.length;
+
+    return (
+      <div
+        key={essaySlug ?? contentTab}
+        data-dir={panelDir}
+        role="tabpanel"
+        id={tabPanelId('content', contentTab)}
+        aria-labelledby={tabId('content', contentTab)}
+        className={animatePanel ? 'panel-shift' : undefined}
+      >
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <p className="font-mono text-[12px] uppercase leading-relaxed tracking-[0.16em] text-blue-200/85" role="status" aria-live="polite">
+            {countText}
+          </p>
+          {searchable && (
+            <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto">
+              <label htmlFor="content-search" className="sr-only">Search {meta.noun}</label>
+              <input
+                id="content-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${meta.noun}`}
+                autoComplete="off"
+                enterKeyHint="search"
+                className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-3 text-base font-light text-white placeholder:text-blue-200/75 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-56"
+              />
+              {(contentTab === 'lectures' || contentTab === 'podcasts') && yearOptions.length > 1 && (
+                <>
+                  <label htmlFor="content-year" className="sr-only">Filter {meta.noun} by year</label>
+                  <select
+                    id="content-year"
+                    value={yearFilter}
+                    onChange={(event) => {
+                      setYearFilter(event.target.value);
+                      setVisibleMedia(20);
+                      interaction.interact('cursor', { id: 'content:year', source: 'pointer', haptic: 'tick' });
+                    }}
+                    className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-2 text-base font-light text-blue-100 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-auto sm:text-sm"
+                  >
+                    <option value="all">All years</option>
+                    {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                  </select>
+                </>
+              )}
+              {query.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="min-h-[44px] shrink-0 border border-blue-400/30 px-3 font-mono text-[11px] uppercase tracking-[0.16em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {contentTab === 'essays' && (
+          filteredEssays.length === 0
+            ? renderEmptyState(`No essays match “${query.trim()}”.`)
+            : renderEssays()
+        )}
+
+        {contentTab === 'posts' && (
+          <div className="space-y-4">
+            {postsLoading || posts === null
+              ? renderListSkeleton(3)
+              : filteredPosts.length === 0
+                ? renderEmptyState(`No posts match “${query.trim()}”.`)
+                : filteredPosts.slice(0, visiblePosts).map(item => renderPostCard(item))}
+            {posts && filteredPosts.length > visiblePosts
+              && renderShowMore(
+                filteredPosts.length - visiblePosts,
+                'posts',
+                () => setVisiblePosts(count => count + 20),
+                'posts:show-more',
+              )}
+          </div>
+        )}
+
+        {contentTab === 'podcasts' && (
+          mediaLoading || !media ? renderListSkeleton(4) : (
+            filteredPodcasts.length === 0 ? renderEmptyState('No episodes match these filters.') : (
+              <div className="space-y-8">
+                <section className="space-y-3" aria-labelledby="podcast-host-heading">
+                  <h3 id="podcast-host-heading" className="border-l-2 border-blue-400 pl-2 font-mono text-xs uppercase tracking-[0.18em] text-blue-200/90">
+                    Value Stack (host) · {filteredValueStack.length}
+                  </h3>
+                  {filteredValueStack.length === 0 ? (
+                    <p className="text-sm font-light text-blue-200/80">No host episodes match these filters.</p>
+                  ) : (
+                    <>
+                      {groupByYear(visibleValueStack).map(group => (
+                        <div key={group.year} className="space-y-3">
+                          {renderYearHeading(group.year, group.items.length)}
+                          <div className="space-y-3">
+                            {group.items.map(item => renderMediaCard(item))}
+                          </div>
+                        </div>
+                      ))}
+                      {remainingEpisodes > 0 && renderShowMore(
+                        remainingEpisodes,
+                        'episodes',
+                        () => setVisibleMedia(count => count + 20),
+                        'podcasts:show-more',
+                      )}
+                    </>
+                  )}
+                </section>
+
+                <section className="space-y-3" aria-labelledby="podcast-guest-heading">
+                  <h3 id="podcast-guest-heading" className="border-l-2 border-blue-400 pl-2 font-mono text-xs uppercase tracking-[0.18em] text-blue-200/90">
+                    Guest appearances · {filteredAppearances.length}
+                  </h3>
+                  {filteredAppearances.length === 0 ? (
+                    <p className="text-sm font-light text-blue-200/80">No guest appearances match these filters.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {groupByYear(filteredAppearances).map(group => (
+                        <div key={group.year} className="space-y-3">
+                          {renderYearHeading(group.year, group.items.length)}
+                          <div className="space-y-3">
+                            {group.items.map(item => renderMediaCard(item))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+            )
+          )
+        )}
+
+        {contentTab === 'lectures' && (
+          mediaLoading || !media ? renderListSkeleton(4) : (
+            filteredLectures.length === 0 ? renderEmptyState('No lectures match these filters.') : (
+              <div className="space-y-7">
+                {groupByYear(filteredLectures).map(group => (
+                  <section key={group.year} className="space-y-3">
+                    {renderYearHeading(group.year, group.items.length)}
+                    {groupBySource(group.items).map(sourceGroup => (
+                      <div key={sourceGroup.source} className="space-y-2">
+                        <p className="pl-1 font-mono text-[11px] uppercase tracking-[0.16em] text-blue-300/90">
+                          {sourceGroup.source}
+                        </p>
+                        <div className="space-y-3">
+                          {sourceGroup.items.map(item => renderMediaCard(item))}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            )
+          )
+        )}
+
+        {contentTab === 'tutorials' && (
+          mediaLoading || !media ? renderListSkeleton(4) : (
+            filteredTutorials.length === 0
+              ? renderEmptyState('No tutorials are listed yet.')
+              : (
+                <div className="space-y-3">
+                  {filteredTutorials.map(item => renderMediaCard(item, `${item.source} · Video`))}
+                </div>
+              )
+          )
+        )}
+
+        {contentTab === 'reading' && (
+          mediaLoading || !media ? renderListSkeleton(4) : (
+            filteredReading.length === 0
+              ? renderEmptyState('Nothing on the shelf yet.')
+              : (
+                <div className="space-y-3">
+                  {filteredReading.map(item => renderReadingCard(item))}
+                </div>
+              )
+          )
+        )}
+      </div>
+    );
+  };
+
   const renderWork = () => (
     <div className="space-y-4 max-w-4xl mx-auto">
-       <div className="flex justify-between items-center text-xs uppercase tracking-widest text-blue-500/60 border-b border-blue-500/20 pb-2 mb-4">
+       <div className="flex justify-between items-center text-xs uppercase tracking-widest text-blue-200/85 border-b border-blue-500/20 pb-2 mb-4">
          <span>Organization</span>
          <span>Duration</span>
        </div>
@@ -1214,7 +1363,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             </div>
             <div className="text-right mt-2 md:mt-0">
                <div className="font-mono text-sm text-blue-400">{job.period}</div>
-               <div className="text-xs uppercase tracking-widest text-blue-600 mt-1">{job.location}</div>
+               <div className="text-xs uppercase tracking-widest text-blue-200/85 mt-1">{job.location}</div>
             </div>
           </div>
         </div>

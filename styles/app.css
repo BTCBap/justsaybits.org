@@ -674,3 +674,216 @@ html[data-motion="reduced"] .boot__skip {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Main menu: PS2 system browser
+   One selected-item panel, a row of system icons, one quiet help bar. Layout
+   follows the viewport so menu type is never scaled below its real size.
+--------------------------------------------------------------------------- */
+
+.menu-panel {
+  position: relative;
+  border: 1px solid rgba(120, 170, 255, 0.3);
+  background:
+    linear-gradient(155deg, rgba(20, 48, 92, 0.5) 0%, rgba(6, 15, 31, 0.78) 72%),
+    rgba(4, 10, 20, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(220, 240, 255, 0.14),
+    0 18px 44px rgba(0, 16, 48, 0.45);
+}
+
+.menu-panel__orb {
+  background-image: linear-gradient(140deg, rgba(120, 180, 255, 0.18), transparent 70%);
+}
+
+.menu-stage {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.menu-option {
+  transform-origin: 50% 50%;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menu-option:hover > span:first-child {
+  border-color: rgba(225, 240, 255, 0.7);
+}
+
+.menu-option:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: 2px;
+}
+
+.menu-option:active > span:first-child {
+  transform: scale(0.97);
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs: one component for Content and Portfolio
+--------------------------------------------------------------------------- */
+
+.tabs .tab {
+  border-bottom-style: solid;
+}
+
+.tab--active {
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 767px) {
+  .tabs .tab {
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(110, 160, 255, 0.14);
+  }
+
+  .tabs .tab--active {
+    border-bottom-width: 2px;
+    border-bottom-color: #93c5fd;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   One card/row system for every list
+--------------------------------------------------------------------------- */
+
+.system-card {
+  display: block;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid rgba(90, 140, 235, 0.22);
+  background: rgba(9, 24, 50, 0.38);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 120ms ease;
+}
+
+.system-card:hover {
+  border-color: rgba(150, 195, 255, 0.55);
+  background: rgba(18, 44, 88, 0.46);
+}
+
+.system-card:focus-visible {
+  outline: 2px solid #eef7ff;
+  outline-offset: 2px;
+}
+
+.system-card:active {
+  transform: translateY(1px);
+}
+
+.system-card--row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.system-card__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.system-card__leading {
+  flex: none;
+  width: 3rem;
+  padding-top: 0.2rem;
+}
+
+.system-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+}
+
+.system-card__title {
+  margin: 0;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+}
+
+.system-card:hover .system-card__title {
+  color: #dbeafe;
+}
+
+.system-card__meta {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(190, 215, 255, 0.85);
+}
+
+.system-card__eyebrow {
+  margin: 0 0 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(160, 200, 255, 0.9);
+}
+
+.system-card__desc {
+  margin: 0.4rem 0 0;
+  color: rgba(214, 231, 255, 0.9);
+  font-size: 0.9rem;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.system-card__media {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.9rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(100, 150, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.system-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin-top: 0.8rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(100, 150, 255, 0.16);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(170, 205, 255, 0.85);
+}
+
+.system-card__foot-text {
+  min-width: 0;
+}
+
+.system-card__external {
+  display: flex;
+  flex: none;
+  align-items: center;
+  color: rgba(190, 220, 255, 0.9);
+}
+
+.system-card:hover .system-card__external {
+  color: #fff;
+}
+
+html[data-motion="reduced"] .system-card,
+html[data-motion="reduced"] .menu-option {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-card,
+  .menu-option {
+    transition: none !important;
+  }
+}

@@ -83,3 +83,32 @@
 ### Verification
 
 `npx tsc --noEmit -p .` and `npm run build` pass (main 331.04 kB / 106.56 kB gzip, content 48.00 kB / 11.98 kB gzip, CSS 40.40 kB / 8.49 kB gzip). Headless Chrome against the production preview at 1440×900 (keyboard/mouse) and 390×664 (touch, DPR 3) passes 66/66 checks: every route’s path/title/canonical, deep links after boot, browser Back/Forward, Escape and focus restoration, `inert` menu, Tab and Shift+Tab containment, Enter on Previous, Backspace neutrality, essay scroll/card restore, a reader-to-tab switch starting at the top with tab focus kept, tab direction plus fixed chrome, touch vs keyboard help copy, reduced-motion animation suppression, unknown essay slugs, a simulated GitHub Pages 404 response restoring `/deep-link/missing`, mobile 404 footer height 94.5 px, and no horizontal overflow. A final close-origin refinement (shrink toward the section card after a tab change) was rechecked with a focused 7/7 browser run covering the close animation, focus restoration, About dialog, and console. The known Umami `script.js` 400 (MS-01) remains and is outside this phase.
+
+## Menu and tabs phase — design-review items 18–25
+
+- **18 — Done.** `MainMenu` is now a PS2 system browser: a selected-item panel with icon, section name, the live `description`, and an `Open` control; a clock, thin rule, one help bar, and the orbit line as background texture; colour is held to PS2 blue plus white/cyan.
+- **19 — Done.** The six icons are a labelled `role="listbox"` of `role="option"` items with `aria-selected`, one roving `tabIndex`, Arrow/Home/End, and Enter/Space to open; a 2 px white focus ring and polite section announcements are independent of the selected glow, and the global Enter shortcut is gone.
+- **20 — Done.** The phone menu drags with the pointer and snaps on distance or velocity, uses `touch-action: pan-y`, handles `pointercancel`, keeps a neighbour peek plus counter/dots, gives Prev/Next 44 px targets and “Tap to open · Swipe to browse” copy, and centres a neighbour on the first tap; reduced motion disables dragging.
+- **21 — Done.** Hover moves the selection and plays one cursor tick, click confirms the selected item, the stage has a real `perspective: 1000px`, tilt is reduced, and only the active icon gets the bright outline and glow. Hover now follows real pointer movement, so a moving row cannot steal a keyboard selection.
+- **22 — Done.** One `Tabs` component serves Content and Portfolio with `tablist`/`tab`/`tabpanel`, ids, `aria-selected`, `aria-controls`, `aria-labelledby`, roving focus, Arrow/Home/End, a visible focus ring, and a 3×2 mobile grid that keeps Reading on screen.
+- **23 — Done.** The panel is keyed by tab and slides 18 px in the tab direction while the header and tab bar stay mounted and still; the essay reader keeps its forward/back direction, and reduced motion removes the animation.
+- **24 — Done.** Each tab has a count plus one-line description; Essays/Posts/Podcasts/Lectures have client-side search, Podcasts and Lectures add a year filter, Lectures group by year and venue, Value Stack groups by year, Posts and Value Stack disclose 20 at a time, and filtered lists have a clearable empty state.
+- **25 — Done.** Media, posts, reading, socials, and projects share `SystemCard`: one anchor per linked item, rest/hover/focus/pressed states, a persistent external glyph with “(opens in a new tab)”, and lazy dimensioned images; the duplicated project icon/overlay anchors are gone.
+
+### Bug-scan fixes
+
+- **MN-01** — Menu sections are semantic options in a listbox, with selected state, roving focus, keyboard opening, a visible focus ring, and the section description rendered.
+- **MN-02** — Menu arrows are 44 px on touch, the hint reads “Tap to open · Swipe to browse”, and text is no longer scaled below its real size (labels 12 px, descriptions 13 px).
+- **MN-03** — Added `perspective: 1000px`, reduced tilt, made hover preview the selection, and made click confirm it.
+- **CT-01** — Essay cards are single anchors that work with Enter, have a focus ring, and restore list focus/scroll after the reader.
+- **CT-02** — Content tabs follow the ARIA tab pattern with roving focus and panel links, and the mobile 3×2 grid shows all six tabs.
+- **CT-03** — Project cards are one anchor each; the duplicate icon/overlay links and clipped icon focus are gone.
+- **CT-04** — Content/portfolio tab text, menu helper copy, Work location and headers, and the book subtitle now use measured high-contrast blues.
+- **CT-05** — Menu arrows, footer Back, settings buttons, and “Get the Book” meet the 44 px touch target.
+- **CT-06** — Portfolio Projects/Investments/Design use the shared `Tabs` component with roles, selection, panels, roving focus, and keyboard movement.
+- **CT-07** — `mailto:` opens no blank tab, and external glyphs are persistent with visually hidden “opens in a new tab” text.
+- **NV-02** — Removed the global Enter shortcut; Enter/Space belong to the focused option, and Enter on Prev/Next only activates that button.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 327.94 kB / 105.20 kB gzip; content 50.33 kB / 14.09 kB gzip). Headless Chrome against the production preview at 1440×900 keyboard/mouse and 390×664 touch/DPR 3 checked: listbox and tab semantics with one tab stop, Arrow/Home/End/Enter/Space including after closing a screen, the 2 px focus ring, hover preview then click confirm, stationary-pointer stability, 360 ms post-drag click suppression, real touch swipe (left/right snap, vertical gesture ignored, `touchcancel`), neighbour tap → centre → second tap open, 44 px controls, 12 px labels, 13 px description, no horizontal overflow, the 3×2 Content grid, directional panel changes with fixed header/tab bar, counts/search/year filters/empty-state reset, 20 → 40 posts, Value Stack and lecture grouping, one-link project rows with external cues and lazy images, mailto without `target`, and reduced motion (no panel animation, no menu transition, drag disabled). The only console errors are the pre-existing Umami endpoint 400s. Semantics were checked in the DOM/accessibility tree; a physical VoiceOver/TalkBack and iPhone pass remains outside this environment.
