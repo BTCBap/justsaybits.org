@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import { m } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
+import { isInteractiveTarget } from '../utils/focus';
+import type { NavOrigin } from '../utils/router';
+import HelpBar from './HelpBar';
 import SystemSettings from './SystemSettings';
 
 interface MainMenuProps {
   sections: Section[];
-  onSelect: (sectionId: string) => void;
+  onSelect: (sectionId: string, origin?: NavOrigin) => void;
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
   /** False while the boot overlay owns the keyboard. */
@@ -109,6 +112,15 @@ const MainMenu: React.FC<MainMenuProps> = ({
     });
   }, [activeIndex, sections, onActiveIndexChange]);
 
+  const cardRefs = useRef(new Map<string, HTMLElement>());
+
+  const originOfCard = (sectionId: string): NavOrigin | undefined => {
+    const element = cardRefs.current.get(sectionId);
+    if (!element) return undefined;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  };
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!keyboardEnabled || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -117,11 +129,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
     } else if (e.key === 'ArrowLeft') {
       goToAdjacent(-1);
     } else if (e.key === 'Enter') {
-      // Let focused buttons and links handle their own Enter.
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+      // A focused control owns its own Enter (and may have already acted).
+      if (e.defaultPrevented || isInteractiveTarget(e.target)) return;
+      const section = sections[activeIndex];
+      if (!section) return;
       interaction.interact('confirm', { source: 'keyboard' });
-      onSelect(sections[activeIndex].id);
+      onSelect(section.id, originOfCard(section.id));
     }
   }, [sections, activeIndex, onSelect, goToAdjacent, keyboardEnabled]);
 
@@ -166,9 +179,11 @@ const MainMenu: React.FC<MainMenuProps> = ({
   }, [handleKeyDown]);
 
   const handleItemClick = (index: number) => {
+    const section = sections[index];
+    if (!section) return;
     interaction.interact('confirm', { source: 'pointer' });
     onActiveIndexChange(index);
-    onSelect(sections[index].id);
+    onSelect(section.id, originOfCard(section.id));
   };
 
   const handleItemHover = (index: number, pointerType: string) => {
@@ -221,9 +236,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
             return (
               <m.div
                 key={section.id}
+                ref={(element) => {
+                  if (element) cardRefs.current.set(section.id, element);
+                  else cardRefs.current.delete(section.id);
+                }}
+                data-section-id={section.id}
+                tabIndex={-1}
                 className={`absolute top-1/2 left-1/2 cursor-pointer
                   flex flex-col items-center justify-center w-40 h-52
-                  transform -translate-x-1/2 -translate-y-1/2`}
+                  transform -translate-x-1/2 -translate-y-1/2 rounded-xl
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-white
+                  focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
                 initial={false}
                 animate={{
                   x: `calc(-50% + ${xOffset}px)`,
@@ -341,44 +364,24 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <Clock />
       </div>
 
-      {/* Helper Text - pinned to the visible bottom, above the home indicator */}
+      {/* One context-aware help bar, pinned above the home indicator */}
       <div 
-        className="absolute inset-x-0 w-full flex flex-col items-center gap-2 text-center"
+        className="absolute inset-x-0 w-full flex flex-col items-center gap-2 px-4 text-center"
         style={{
           bottom: 0,
           paddingBottom: `calc(${footerBottom}px + env(safe-area-inset-bottom, 0px))`,
         }}
       >
         <SystemSettings showHint />
-        <div className="flex items-center justify-center space-x-8 text-sm text-blue-400/60 font-mono uppercase tracking-widest">
-            <span className="flex items-center">
-                <span className="border border-blue-400/60 px-2 py-0.5 mr-2 text-[10px] rounded-sm font-bold">ENTER</span> 
-                Select
-            </span>
-            <span className="flex items-center">
-                <span className="flex space-x-1 mr-2">
-                     <button
-                       type="button"
-                       aria-label="Previous section"
-                       onFocus={() => interaction.interact('cursor', { id: 'menu:footer-prev', source: 'focus' })}
-                       onClick={() => goToAdjacent(-1)}
-                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
-                     >
-                       ←
-                     </button>
-                     <button
-                       type="button"
-                       aria-label="Next section"
-                       onFocus={() => interaction.interact('cursor', { id: 'menu:footer-next', source: 'focus' })}
-                       onClick={() => goToAdjacent(1)}
-                       className="w-5 h-5 border border-blue-400/60 flex items-center justify-center text-[10px] rounded-sm font-bold hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white transition-colors"
-                     >
-                       →
-                     </button>
-                </span>
-                Navigate
-            </span>
-        </div>
+        <HelpBar
+          className="w-full"
+          actions={[
+            { keys: ['←', '→'], label: 'Browse', touch: 'Swipe to browse' },
+            { keys: ['Enter'], label: 'Open', touch: 'Tap to open' },
+            { keys: ['M'], label: 'Sound' },
+          ]}
+          description="On a keyboard, left and right arrows browse sections, Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe to browse and tap to open."
+        />
       </div>
     </div>
   );

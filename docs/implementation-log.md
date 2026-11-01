@@ -63,3 +63,23 @@
 ### Verification
 
 `npx tsc --noEmit -p .` and `npm run build` pass (main 321.49 kB / 103.20 kB gzip, CSS 38.76 kB / 8.15 kB gzip). Production preview checked with headless Chrome at 1440×900 keyboard/mouse and 390×664 / 390×500 touch: full boot 1.70 s, skip ~200 ms, session return ~290 ms, reduced motion ~420 ms, CLS 0 and no horizontal overflow at every size, deterministic 36/14 tower fields across reloads, zero AudioContexts before the gesture and one running context with the pad starting ~50 ms after it, no long tasks post-gesture at 4× CPU throttle, and menu/section/Back interaction after both a full boot and a skip. The Umami `script.js` 400 in the console is the pre-existing MS-01 analytics issue and is outside this phase.
+
+## Nav phase — design-review items 14–17
+
+- **14 — Done.** A dependency-free History-API router (`utils/router.ts`) gives every screen a canonical path, title, description, canonical link, OG/Twitter tags, `popstate` handling, and working Back/Forward; `public/404.html` stores a deep path and the router restores it before first render on GitHub Pages.
+- **15 — Done.** Content screens and the 404 are modal dialogs with `aria-modal`, a labelled visible H1, initial heading focus, a Tab/Shift+Tab trap, Escape close, focus return to the invoking card, and essay list scroll plus selected-card restoration with a polite “Returned to Essays” announcement.
+- **16 — Done.** Section screens grow from the selected card’s viewport point and shrink back to it; tab and essay changes slide ±18 px along the tab order while the header, tab bar, and help bar stay fixed; transitions are 180–240 ms on one `cubic-bezier(0.2, 0.8, 0.2, 1)` curve and disappear under reduced motion.
+- **17 — Done.** One `HelpBar` renders real keycaps on fine pointers and short tap/swipe copy on coarse pointers, with only the current screen’s actions and a matching `sr-only` description; the duplicate 20 px footer arrows are gone, and menu/content/404 footers share one visual language and 44 px controls.
+
+### Bug-scan fixes
+
+- **NV-01** — Added path routes for all sections, portfolio/content tabs, and essays, with `pushState`/`replaceState`/`popstate`, per-route metadata, canonical URLs, and a GitHub Pages `404.html` fallback; Back from an essay returns to the list.
+- **NV-02** — Menu Enter now ignores `defaultPrevented`, key repeat, and interactive targets, so Enter on Previous/Next moves the carousel instead of opening a section.
+- **NV-03** — Removed the global Backspace shortcut; Escape closes the reader or screen, and explicit Back controls remain.
+- **NV-04** — Content and 404 screens are labelled modal dialogs with focus entry, a Tab trap, Escape, background `inert`, and focus restoration to the originating menu card.
+- **NV-05** — Opening an essay saves the list `scrollTop` and slug, and returning restores both, focuses the card, and announces “Returned to Essays”.
+- **MS-03 (404 part)** — Added a branded in-app 404 route and `public/404.html` SPA fallback. Empty/loading/error states, skeletons, `robots.txt`, and `sitemap.xml` remain for their own phases.
+
+### Verification
+
+`npx tsc --noEmit -p .` and `npm run build` pass (main 331.04 kB / 106.56 kB gzip, content 48.00 kB / 11.98 kB gzip, CSS 40.40 kB / 8.49 kB gzip). Headless Chrome against the production preview at 1440×900 (keyboard/mouse) and 390×664 (touch, DPR 3) passes 66/66 checks: every route’s path/title/canonical, deep links after boot, browser Back/Forward, Escape and focus restoration, `inert` menu, Tab and Shift+Tab containment, Enter on Previous, Backspace neutrality, essay scroll/card restore, a reader-to-tab switch starting at the top with tab focus kept, tab direction plus fixed chrome, touch vs keyboard help copy, reduced-motion animation suppression, unknown essay slugs, a simulated GitHub Pages 404 response restoring `/deep-link/missing`, mobile 404 footer height 94.5 px, and no horizontal overflow. A final close-origin refinement (shrink toward the section card after a tab change) was rechecked with a focused 7/7 browser run covering the close animation, focus restoration, About dialog, and console. The known Umami `script.js` 400 (MS-01) remains and is outside this phase.

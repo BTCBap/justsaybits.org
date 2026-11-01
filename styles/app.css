@@ -123,6 +123,81 @@ html[data-motion="reduced"] .animate-pulse {
 }
 
 /* ---------------------------------------------------------------------------
+   Route transitions
+   Sections grow from the card that opened them; tabs and the essay reader move
+   along the tab order. Transform/opacity only, one curve, 190–240 ms.
+--------------------------------------------------------------------------- */
+
+.screen-backdrop {
+  animation: screen-backdrop-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.screen-panel {
+  animation: screen-panel-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.screen-backdrop[data-closing="true"] {
+  animation: screen-backdrop-out 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.screen-panel[data-closing="true"] {
+  animation: screen-panel-out 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  pointer-events: none;
+}
+
+.panel-shift[data-dir="next"] {
+  animation: panel-next 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.panel-shift[data-dir="prev"] {
+  animation: panel-prev 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes screen-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes screen-panel-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes screen-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes screen-panel-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+@keyframes panel-next {
+  from { opacity: 0; transform: translate3d(18px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes panel-prev {
+  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+html[data-motion="reduced"] .screen-backdrop,
+html[data-motion="reduced"] .screen-panel,
+html[data-motion="reduced"] .panel-shift {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-backdrop,
+  .screen-panel,
+  .panel-shift {
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Boot sequence
    The gate holds a real power-on control; the scene that follows is a designed
    three-band monolith field with one bloom and an original wordmark. All motion

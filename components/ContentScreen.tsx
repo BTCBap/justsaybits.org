@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { m, type Variants } from 'framer-motion';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
   LayoutGrid,
@@ -26,27 +25,30 @@ import { loadEssayContent } from '../data/essayContent';
 import { ESSAY_IMAGE_META, POST_IMAGE_META } from '../data/imageMeta';
 import { Section, EssaySummary, MediaItem, ReadingItem, PostItem, ContentTab } from '../types';
 import { interaction } from '../utils/Interaction';
+import { announce } from '../utils/liveRegion';
+import { usePrefersReducedMotion } from '../utils/preferences';
+import { trapTabKey } from '../utils/focus';
+import {
+  CONTENT_TAB_IDS,
+  PORTFOLIO_TAB_IDS,
+  closeTo,
+  navigate,
+  pathForEssay,
+  pathForTab,
+  useRouter,
+  type ContentTabId,
+} from '../utils/router';
+import HelpBar from './HelpBar';
 import SystemSettings from './SystemSettings';
 
 interface ContentScreenProps {
   section: Section;
   onBack: () => void;
+  /** False while the boot gate owns the screen, so focus is not stolen behind it. */
+  focusEnabled?: boolean;
 }
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    scale: 1,
-    transition: { duration: 0.4, ease: "easeOut" }
-  },
-  exit: { 
-    opacity: 0, 
-    scale: 1.05, 
-    filter: "blur(10px)",
-    transition: { duration: 0.3 } 
-  }
-};
+const CLOSE_MS = 190;
 
 const CONTENT_TABS: { id: ContentTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'essays', label: 'Essays', icon: FileText },
@@ -207,25 +209,129 @@ const EssayBody: React.FC<{ content: string }> = ({ content }) => {
 
 type PortfolioTab = 'projects' | 'investments' | 'design';
 
-const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
-  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>('projects');
-  const [contentTab, setContentTab] = useState<ContentTab>('essays');
-  const [selectedEssay, setSelectedEssay] = useState<EssaySummary | null>(null);
+const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEnabled = true }) => {
+  const { route, previous, origin } = useRouter();
+
+  const contentTab: ContentTab = section.id === 'content'
+    && CONTENT_TAB_IDS.includes(route.tab as ContentTabId)
+    ? route.tab as ContentTab
+    : 'essays';
+  const portfolioTab: PortfolioTab = section.id === 'portfolio'
+    && PORTFOLIO_TAB_IDS.includes(route.tab as PortfolioTab)
+    ? route.tab as PortfolioTab
+    : 'projects';
+  const essaySlug = section.id === 'content' ? route.slug : null;
+  const selectedEssay = essaySlug ? ESSAYS.find(essay => essay.slug === essaySlug) ?? null : null;
+
   const [essayContent, setEssayContent] = useState<string | null>(null);
   const [essayLoading, setEssayLoading] = useState(false);
   const [essayError, setEssayError] = useState(false);
+  const [essayReload, setEssayReload] = useState(0);
   const [posts, setPosts] = useState<PostItem[] | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [visiblePosts, setVisiblePosts] = useState(20);
   const [media, setMedia] = useState<MediaData | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
-  const essayRequest = useRef(0);
-  const contentMounted = useRef(false);
+  const [closing, setClosing] = useState(false);
+
+  const reducedMotion = usePrefersReducedMotion();
   const bodyRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const essayTitleRef = useRef<HTMLHeadingElement>(null);
+  const cardRefs = useRef(new Map<string, HTMLElement>());
+  const listScroll = useRef(0);
+  const returnSlug = useRef<string | null>(null);
+  const hadEssay = useRef(false);
+  const headingFocusDone = useRef(false);
+  const closingTimer = useRef<number | null>(null);
+
+  // Section entry: grow out of the selected menu card when there is one.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (!origin) {
+      panel.style.transformOrigin = '';
+      return;
+    }
+    const rect = panel.getBoundingClientRect();
+    panel.style.transformOrigin = `${origin.x - rect.left}px ${origin.y - rect.top}px`;
+  }, [origin, section.id]);
+
+  // Move focus into the dialog once the boot gate has handed over the screen.
+  useEffect(() => {
+    if (!focusEnabled || headingFocusDone.current) return;
+    headingFocusDone.current = true;
+    if (essaySlug) return;
+    const frame = requestAnimationFrame(() => headingRef.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [focusEnabled, essaySlug]);
+
+  // Essay reader: start at the top, focus the title, and put the reader back
+  // where they were (scroll and card focus) on return.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (essaySlug) {
+      if (!hadEssay.current) {
+        hadEssay.current = true;
+        body?.scrollTo({ top: 0 });
+      }
+      if (!focusEnabled) return;
+      const frame = requestAnimationFrame(() => essayTitleRef.current?.focus({ preventScroll: true }));
+      return () => cancelAnimationFrame(frame);
+    }
+    if (!hadEssay.current) return;
+    hadEssay.current = false;
+    if (contentTab !== 'essays') {
+      returnSlug.current = null;
+      listScroll.current = 0;
+      return;
+    }
+    const top = listScroll.current;
+    const slug = returnSlug.current;
+    const frame = requestAnimationFrame(() => {
+      if (body) body.scrollTop = top;
+      const card = slug ? cardRefs.current.get(slug) : undefined;
+      (card ?? headingRef.current)?.focus({ preventScroll: true });
+      announce('Returned to Essays');
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [essaySlug, focusEnabled, contentTab]);
+
+  // A new tab or section starts at the top; returning from an essay is handled
+  // by the effect above so the list keeps its place.
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [contentTab, portfolioTab, section.id]);
 
   useEffect(() => {
-    bodyRef.current?.scrollTo(0, 0);
-  }, [selectedEssay, contentTab, section.id]);
+    if (!essaySlug) {
+      setEssayContent(null);
+      setEssayLoading(false);
+      setEssayError(false);
+      return;
+    }
+    let cancelled = false;
+    setEssayContent(null);
+    setEssayError(false);
+    setEssayLoading(true);
+    loadEssayContent(essaySlug)
+      .then((content) => {
+        if (cancelled) return;
+        setEssayContent(content);
+        setEssayLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEssayError(true);
+        setEssayLoading(false);
+        interaction.interact('error', { source: 'system' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [essaySlug, essayReload]);
 
   // Posts and media metadata are separate on-demand chunks: the menu and the
   // essay index never pay for them.
@@ -270,90 +376,109 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     [posts]
   );
 
-  // Track virtual pageviews for content tabs / essay reader (skip initial mount — section open is tracked by App.tsx)
-  useEffect(() => {
-    if (section.id !== 'content') return;
-    if (!contentMounted.current) { contentMounted.current = true; return; }
-    const url = selectedEssay
-      ? `/content/essays/${selectedEssay.slug}`
-      : `/content/${contentTab}`;
-    const title = selectedEssay ? selectedEssay.title : `Content / ${contentTab}`;
-    window.umami?.track(props => ({ ...props, url, title }));
-  }, [selectedEssay, contentTab, section.id]);
-
-  const closeEssay = () => {
-    essayRequest.current += 1;
-    setSelectedEssay(null);
-    setEssayContent(null);
-    setEssayLoading(false);
-    setEssayError(false);
-  };
-
-  const openEssay = async (post: EssaySummary) => {
-    const request = ++essayRequest.current;
+  const openEssay = (post: EssaySummary) => {
+    if (essaySlug === post.slug) return;
+    listScroll.current = bodyRef.current?.scrollTop ?? 0;
+    returnSlug.current = post.slug;
     interaction.interact('confirm', { source: 'pointer' });
-    setSelectedEssay(post);
-    setEssayContent(null);
-    setEssayError(false);
-    setEssayLoading(true);
-    try {
-      const content = await loadEssayContent(post.slug);
-      if (essayRequest.current === request) {
-        setEssayContent(content);
-        setEssayLoading(false);
-      }
-    } catch {
-      if (essayRequest.current === request) {
-        setEssayError(true);
-        setEssayLoading(false);
-        interaction.interact('error', { source: 'system' });
-      }
-    }
+    navigate(pathForEssay(post.slug));
   };
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
+    if (closingTimer.current !== null) return;
     interaction.interact('back', { source: 'pointer' });
-    if (selectedEssay) {
-      closeEssay();
-    } else {
-      onBack();
+    if (essaySlug) {
+      closeTo('/content/essays');
+      return;
     }
+    // Shrink toward the card that opened this section, even after tab changes
+    // cleared the entry origin.
+    const panel = panelRef.current;
+    const card = document.querySelector<HTMLElement>(`[data-section-id="${section.id}"]`);
+    if (panel && card) {
+      const panelRect = panel.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      panel.style.transformOrigin = `${cardRect.left + cardRect.width / 2 - panelRect.left}px ${cardRect.top + cardRect.height / 2 - panelRect.top}px`;
+    }
+    if (reducedMotion) {
+      onBack();
+      return;
+    }
+    setClosing(true);
+    closingTimer.current = window.setTimeout(() => onBack(), CLOSE_MS);
+  }, [essaySlug, onBack, reducedMotion, section.id]);
+
+  useEffect(() => () => {
+    if (closingTimer.current !== null) window.clearTimeout(closingTimer.current);
+  }, []);
+
+  const goContentTab = useCallback((tab: ContentTab, source: 'pointer' | 'keyboard' = 'pointer') => {
+    if (tab === contentTab && !essaySlug) return;
+    interaction.interact('cursor', {
+      id: `content-tab:${tab}`,
+      source,
+      haptic: source === 'pointer' ? 'tick' : undefined,
+    });
+    navigate(pathForTab('content', tab));
+  }, [contentTab, essaySlug]);
+
+  const handleContentTabChange = (tab: ContentTab) => goContentTab(tab, 'pointer');
+
+  const handleTabChange = (tab: PortfolioTab) => {
+    if (portfolioTab === tab) return;
+    interaction.interact('cursor', {
+      id: `portfolio-tab:${tab}`,
+      source: 'pointer',
+      haptic: 'tick',
+    });
+    navigate(pathForTab('portfolio', tab));
   };
 
+  // Escape closes the reader or the screen; Tab stays inside the dialog and
+  // 1–6 switch Content tabs, matching the help bar.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'Backspace') {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (trapTabKey(event, dialogRef.current)) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
         handleBack();
+        return;
+      }
+      if (
+        section.id === 'content'
+        && !essaySlug
+        && /^[1-6]$/.test(event.key)
+        && !(event.target instanceof HTMLElement
+          && event.target.closest('input, textarea, select, [contenteditable="true"]'))
+      ) {
+        const tab = CONTENT_TAB_IDS[Number(event.key) - 1];
+        if (tab) {
+          event.preventDefault();
+          goContentTab(tab, 'keyboard');
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEssay, onBack]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [essaySlug, handleBack, goContentTab, section.id]);
 
-  const handleTabChange = (tab: PortfolioTab) => {
-    if (portfolioTab !== tab) {
-      interaction.interact('cursor', {
-        id: `portfolio-tab:${tab}`,
-        source: 'pointer',
-        haptic: 'tick',
-      });
-      setPortfolioTab(tab);
+  const panelDir: 'next' | 'prev' = (() => {
+    if (essaySlug && !previous?.slug) return 'next';
+    if (!essaySlug && previous?.slug) return 'prev';
+    if (previous && previous.section === section.id && previous.tab) {
+      const list: readonly string[] = section.id === 'portfolio' ? PORTFOLIO_TAB_IDS : CONTENT_TAB_IDS;
+      const nextTab = section.id === 'portfolio' ? portfolioTab : contentTab;
+      const previousIndex = list.indexOf(previous.tab);
+      const nextIndex = list.indexOf(nextTab);
+      if (previousIndex >= 0 && nextIndex >= 0 && previousIndex !== nextIndex) {
+        return nextIndex > previousIndex ? 'next' : 'prev';
+      }
     }
-  };
-
-  const handleContentTabChange = (tab: ContentTab) => {
-    if (contentTab !== tab) {
-      interaction.interact('cursor', {
-        id: `content-tab:${tab}`,
-        source: 'pointer',
-        haptic: 'tick',
-      });
-      setContentTab(tab);
-      closeEssay();
-    }
-  };
+    return 'next';
+  })();
+  const animatePanel = previous?.section === section.id;
 
   const renderMediaCard = (item: MediaItem, extra?: string) => (
     <a
@@ -664,12 +789,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
       </div>
 
       {/* Content Area */}
-      <m.div 
+      <div 
         key={portfolioTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex-grow overflow-auto ps2-scroll"
+        data-dir={panelDir}
+        className={`flex-grow overflow-auto ps2-scroll ${animatePanel ? 'panel-shift' : ''}`}
       >
         {portfolioTab === 'projects' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -735,7 +858,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         ) : (
           renderInvestmentTable()
         )}
-      </m.div>
+      </div>
     </div>
   );
 
@@ -824,7 +947,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
          <div className="max-w-3xl mx-auto text-blue-100">
              {/* Header */}
              <div className="border-b border-blue-500/30 pb-4 mb-6 pt-2">
-                 <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{selectedEssay.title}</h3>
+                 <h2
+                   id="essay-title"
+                   ref={essayTitleRef}
+                   tabIndex={-1}
+                   className="text-2xl font-bold text-white mb-2 leading-tight focus:outline-none"
+                 >
+                   {selectedEssay.title}
+                 </h2>
                  <div className="flex items-center space-x-4 text-xs text-blue-400 font-mono">
                     <span>{selectedEssay.date}</span>
                     <span className="text-blue-600">//</span>
@@ -864,7 +994,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
                      <button
                        type="button"
                        onFocus={() => interaction.interact('cursor', { id: 'essay:retry', source: 'focus' })}
-                       onClick={() => openEssay(selectedEssay)}
+                       onClick={() => setEssayReload(count => count + 1)}
                        className="mt-3 min-h-[44px] text-blue-300 hover:text-white uppercase tracking-widest font-mono text-xs underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                      >
                        Try again
@@ -883,43 +1013,45 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           {ESSAYS.map((post) => (
             <article
                 key={post.slug}
-                role="button"
-                tabIndex={0}
-                className="group cursor-pointer bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-visible:border-blue-400 focus-visible:bg-blue-900/20 focus-visible:outline-none p-6 rounded transition-all duration-300"
+                className="group bg-blue-900/10 border border-transparent hover:border-blue-500/30 focus-within:border-blue-400 focus-within:bg-blue-900/20 p-6 rounded transition-all duration-300"
+            >
+              <a
+                ref={(element) => {
+                  if (element) cardRefs.current.set(post.slug, element);
+                  else cardRefs.current.delete(post.slug);
+                }}
+                href={pathForEssay(post.slug)}
+                aria-current={essaySlug === post.slug ? 'page' : undefined}
                 onPointerEnter={(e) => {
                   if (e.pointerType === 'mouse') {
                     interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'hover' });
                   }
                 }}
                 onFocus={() => interaction.interact('cursor', { id: `essay:${post.slug}`, source: 'focus' })}
-                onClick={() => openEssay(post)}
-                onKeyDown={(e) => {
-                  if (e.repeat || e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    void openEssay(post);
-                  }
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  openEssay(post);
                 }}
-            >
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
-                <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
-                <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
-              </div>
-              <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
-              <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
-                <span>OPEN FILE</span>
-                <span className="mx-2">::</span>
-                <span>{post.readTime} READ</span>
-              </div>
+                className="block rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#050a14]"
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 mb-2 border-b border-blue-500/30 pb-2">
+                  <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors ps2-text-shadow">{post.title}</h3>
+                  <span className="font-mono text-xs text-blue-500 shrink-0 whitespace-nowrap">{post.date}</span>
+                </div>
+                <p className="text-blue-200 mb-4 font-light leading-relaxed">{post.excerpt}</p>
+                <div className="flex items-center text-xs text-blue-400 font-mono uppercase tracking-wider group-hover:text-white transition-colors">
+                  <span>OPEN FILE</span>
+                  <span className="mx-2">::</span>
+                  <span>{post.readTime} READ</span>
+                </div>
+              </a>
               {post.sourceUrl && (
                 <a
                   href={post.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    interaction.interact('confirm', { source: 'pointer' });
-                  }}
+                  onClick={() => interaction.interact('confirm', { source: 'pointer' })}
                   className="inline-block mt-3 text-xs text-blue-400 font-mono normal-case tracking-normal hover:text-white underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   {post.sourceLabel || 'Published elsewhere'}
@@ -944,7 +1076,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
               aria-selected={active}
               onFocus={() => interaction.interact('cursor', { id: `content-tab:${tab.id}`, source: 'focus' })}
               onClick={(e) => {
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                e.currentTarget.scrollIntoView({
+                  behavior: reducedMotion ? 'auto' : 'smooth',
+                  block: 'nearest',
+                  inline: 'nearest',
+                });
                 handleContentTabChange(tab.id);
               }}
               className={`shrink-0 md:flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-1 pb-3 pt-3 transition-all duration-300 border-b-2 whitespace-nowrap ${
@@ -975,11 +1111,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   );
 
   const renderContentHub = () => (
-    <m.div
-      key={selectedEssay ? selectedEssay.slug : contentTab}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+    <div
+      key={essaySlug ?? contentTab}
+      data-dir={panelDir}
+      className={animatePanel ? 'panel-shift' : undefined}
     >
       {contentTab === 'essays' && renderEssays()}
       {contentTab === 'posts' && (
@@ -1046,7 +1181,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
         </div>
         )
       )}
-    </m.div>
+    </div>
   );
 
   const renderWork = () => (
@@ -1099,24 +1234,57 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
     }
   };
 
+  const helpActions = selectedEssay
+    ? [
+        { keys: ['Esc'], label: 'Back', touch: 'Tap Back for the list' },
+        { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+      ]
+    : section.id === 'content'
+      ? [
+          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
+          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+          { keys: ['1–6'], label: 'Tabs', touch: 'Tap a tab' },
+        ]
+      : [
+          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
+          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
+        ];
+
+  const helpDescription = selectedEssay
+    ? 'Press Escape to return to the essay list. Up and down arrows scroll the essay.'
+    : section.id === 'content'
+      ? 'Press Escape to return to the main menu. Up and down arrows scroll. Number keys 1 to 6 switch content tabs.'
+      : 'Press Escape to return to the main menu. Up and down arrows scroll.';
+
   return (
-    <m.div 
-      className="fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60"
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={selectedEssay ? 'essay-title' : 'screen-title'}
+      tabIndex={-1}
+      className="screen-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60 focus:outline-none"
       style={{ height: 'var(--app-height)' }}
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      data-closing={closing ? 'true' : undefined}
     >
-      <div className="w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]">
+      <div
+        ref={panelRef}
+        className="screen-panel w-full max-w-5xl h-full min-h-0 flex flex-col border border-blue-500/30 rounded-lg overflow-hidden bg-[#050a14] shadow-[0_0_50px_rgba(0,50,255,0.15)]"
+        data-closing={closing ? 'true' : undefined}
+      >
         
         {/* Header */}
         <div className="shrink-0 h-16 border-b border-blue-500/30 flex items-center justify-between px-6 bg-gradient-to-r from-blue-900/20 to-transparent overflow-hidden">
           <div className="flex items-center space-x-4">
-            <section.icon className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow">
+            <section.icon className="w-6 h-6 text-blue-400" aria-hidden="true" />
+            <h1
+              id="screen-title"
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-2xl font-bold tracking-widest uppercase text-white ps2-text-shadow focus:outline-none"
+            >
               {section.title}
-            </h2>
+            </h1>
           </div>
         </div>
 
@@ -1127,22 +1295,28 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
           {getContent()}
         </div>
 
-        {/* Footer Controls */}
-        <div className="shrink-0 border-t border-blue-500/30 flex items-center justify-between gap-3 px-4 md:px-6 py-2 bg-black/40 text-sm">
+        {/* One context-aware footer: Back, the shortcuts for this screen, settings */}
+        <div className="shrink-0 border-t border-blue-500/30 flex flex-wrap items-center justify-between gap-x-2 md:gap-x-4 gap-y-1 px-4 md:px-6 py-2 bg-black/40 text-sm">
           <button 
+            type="button"
             onClick={handleBack}
             onFocus={() => interaction.interact('cursor', { id: 'nav:back', source: 'focus' })}
             className="flex min-h-[44px] items-center space-x-2 text-blue-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             <span className="uppercase tracking-widest font-mono text-xs">
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
+          <HelpBar
+            className="order-3 w-full md:order-2 md:w-auto"
+            actions={helpActions}
+            description={helpDescription}
+          />
           <SystemSettings compact />
         </div>
       </div>
-    </m.div>
+    </div>
   );
 };
 
