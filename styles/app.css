@@ -748,8 +748,9 @@ html[data-motion="reduced"] .boot__skip {
 
 /* ---------------------------------------------------------------------------
    Main menu: PS2 system browser
-   One selected-item panel, a row of system icons, one quiet help bar. Layout
-   follows the viewport so menu type is never scaled below its real size.
+   One selected-item panel, a row of system icons, the quiet system toggles and
+   the page counter. Layout follows the viewport so menu type is never scaled
+   below its real size.
 --------------------------------------------------------------------------- */
 
 .menu-panel {
@@ -789,6 +790,56 @@ html[data-motion="reduced"] .boot__skip {
 
 .menu-option:active > span:first-child {
   transform: scale(0.97);
+}
+
+.menu-stage-wrap {
+  position: relative;
+}
+
+/* The arrows ride the icon circles, never the labels: the orb's centre sits
+   12.5 px above the stage's midpoint because its label adds a line beneath. */
+.menu-edge {
+  position: absolute;
+  top: calc(50% - 0.78rem);
+  transform: translateY(-50%);
+  z-index: 30;
+}
+
+/* Tuck the controls into the gap either side of the highlighted icon, so a
+   peeking neighbour can never slide under an arrow at any width. */
+.menu-edge--prev {
+  left: calc(50% - 5.4375rem);
+}
+
+.menu-edge--next {
+  right: calc(50% - 5.4375rem);
+}
+
+/* The desktop orb is 12 px wider, so the control steps out with it. */
+@media (min-width: 768px) {
+  .menu-edge--prev {
+    left: calc(50% - 5.8125rem);
+  }
+
+  .menu-edge--next {
+    right: calc(50% - 5.8125rem);
+  }
+}
+
+/* The three quiet glyphs sit right under the icons. */
+.menu-toggles {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+/* The page counter takes the bottom slot, clear of the home indicator. */
+.menu-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------------------------------------------------------------------------
