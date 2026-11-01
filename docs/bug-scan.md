@@ -490,3 +490,55 @@ Legend: **Verified** means reproduced in headless Chrome or measured from the bu
 - **No initial layout shift.** `PerformanceObserver` reported CLS 0 for the boot/menu path. Reader images without dimensions remain a CLS risk once a route is opened.
 - **StrictMode double-play was not reproduced** because the dev server check was cancelled. The code path is clear: `playBoot()` in a mount effect runs twice in development, and `PS2Background` starts two RAF loops because cleanup does not cancel the first. Treat as a development-only bug until measured.
 - **iOS-specific behaviour (silent switch, `interrupted`, no `vibrate`) was reasoned from platform behaviour and the code**, not run on an iPhone; validate on device before shipping the fix.
+
+---
+
+## Status
+
+Current status of every ID against the `feat/ps2-design-pass` production build (1 November 2026). **Fixed** means the described cause is gone, or the review's own fallback was applied; commit areas name where the change lives. Verification for this pass is recorded in `docs/implementation-log.md`.
+
+| ID | Title | Status | Commit area |
+|---|---|---|---|
+| HB-01 | Boot audio scheduled while the AudioContext is suspended | Fixed — gate waits for a gesture; no context is created before it | Audio/boot — 52ccc15, 8181e0c |
+| HB-02 | `resume()` is fire-and-forget; first sounds are dropped | Fixed — `ensureRunning()` is awaited; only the newest pending event fires | Audio — 8181e0c, 52ccc15 |
+| HB-03 | Audio is never recovered from iOS `interrupted` | Fixed — `closed`/`interrupted` handling, `statechange`, `visibilitychange`, `pageshow`, permanent listeners | Audio — 8181e0c, 52ccc15 |
+| HB-04 | No mute control and no persistence | Fixed — settings group, `M` shortcut, `localStorage` v1, `aria-pressed`, live announcements | Audio/settings — 8181e0c, 0c8ebae |
+| HB-05 | Haptics fire on hover and double-fire on touch | Fixed — haptics only from the interaction bus; hover is mouse-only and haptic-free; one vibration per tap | Audio/haptics — 8181e0c |
+| HB-06 | Haptics do not exist on iOS and support detection overpromises | Fixed — coarse-pointer + `canVibrate` gate, 14 ms tick, user-activation guard; iOS reports N/A honestly | Haptics — 8181e0c |
+| HB-07 | Sound on a carpet of hovers, silent on keyboard focus | Fixed — one cursor event per selection, 80 ms throttle, 800 ms dedupe, focus and hover both sound | Audio — 8181e0c, 04a7e84 |
+| HB-08 | Confirm/back share one downward shape; boot is sub-bass | Fixed — rising two-note confirm, falling back, low error, glassy 520/780 Hz boot pad, compressor | Audio — 8181e0c |
+| HB-09 | No throttling or voice cap; key repeat stacks sounds | Fixed — `event.repeat` guards, 80 ms cursor throttle, three-voice cap, haptic cancel policy | Audio — 8181e0c, 52ccc15 |
+| HB-10 | iOS silent switch gives no indication | Fixed — Sound ON/OFF/N/A state plus one-time iOS Ring/Silent hint; no probe tone | Settings — 8181e0c, 0c8ebae |
+| BT-01 | Boot blocks interaction for 7.2 s | Fixed — 1.7 s budget, power-on gate, skip, once-per-session; measured 1.9 s after the gesture | Boot — 52ccc15 |
+| BT-02 | Two and a half seconds of empty black | Fixed — the scene dims and crossfades into the menu; no black hold | Boot — 52ccc15 |
+| BT-03 | Tower scene re-randomizes and is expensive | Fixed — seeded `useMemo` field, fewer mobile towers, no per-element blur | Boot — 52ccc15 |
+| BT-04 | `prefers-reduced-motion` is ignored | Fixed — one motion policy across boot, menu, canvas, screens and haptics | Boot/motion — 52ccc15, bd22653, c8d7fbb |
+| NV-01 | No URL or history state; Back leaves the site | Fixed — History-API router, per-route titles, 404 fallback, static essay shells | Nav — 1f94203, a7781d0 |
+| NV-02 | Enter on a focused button opens a section | Fixed — global Enter removed; Enter/Space belong to the focused option | Nav/menu — 1f94203, 04a7e84 |
+| NV-03 | Global Backspace navigates; Escape does nothing | Fixed — Backspace binding removed; Escape closes the reader, screen and 404 | Nav — 1f94203 |
+| NV-04 | Content screens are not dialogs | Fixed — `role="dialog"`, `aria-modal`, labelled title, focus move, Tab trap, restore | Nav — 1f94203 |
+| NV-05 | Returning from an essay loses the reader's place | Fixed — list scroll and card id saved and focused on return | Reader — a7781d0 |
+| MN-01 | Menu items are non-semantic divs | Fixed — listbox/option pattern, roving tabindex, `aria-selected`, selected panel with descriptions | Menu — 04a7e84 |
+| MN-02 | Mobile controls are 20 px and the hint says "Press Enter" | Fixed — 44 px arrows and footer controls, "Tap to open · Swipe to browse", 12 px helper | Menu — 04a7e84 |
+| MN-03 | Carousel has no perspective; hover does not preview | Fixed — real `perspective`, hover previews, click confirms, drag suppression | Menu — 04a7e84 |
+| CT-01 | Essay cards cannot be opened by keyboard | Fixed — each card is one anchor with a focus ring | Content — 04a7e84 |
+| CT-02 | Tab bar breaks the tab pattern and hides tabs | Fixed — shared `Tabs` with roving focus, roles, panel links, 3×2 mobile grid | Content — 04a7e84 |
+| CT-03 | Two links per project card; overlay covers the icon | Fixed — one anchor per row, decorative external glyph | Content — 04a7e84 |
+| CT-04 | Multiple text/background pairs fail contrast | Fixed — semantic tokens and measured pairs, all at or above 4.5:1 | Style — c8d7fbb |
+| CT-05 | Footer and Book targets below minimum touch size | Fixed — 44 px on every footer, settings, lightbox and book action | Content — 04a7e84, 0c8ebae |
+| CT-06 | Portfolio sub-tabs have no roles | Fixed — same shared `Tabs` component as Content | Content — 04a7e84 |
+| CT-07 | `mailto:` opens a blank tab; external cues are hover-only | Fixed — mailto without `target`, copy action, persistent glyph and hidden text | Screens — a7781d0, f5ccea8 |
+| CT-08 | Book cover is a 2048² 588 KB JPEG | Fixed — 320/640 WebP renditions, `srcSet`, dimensions, lazy decode | Content — 0c8ebae |
+| PF-01 | Tailwind Play CDN compiles at runtime | Fixed — compiled PostCSS stylesheet; no CDN script | Perf — bd22653 |
+| PF-02 | One 461 KB JS chunk | Fixed — lazy screens, per-tab data and per-essay chunks; 104.5 KB initial JS gzip | Perf — bd22653 |
+| PF-03 | Background canvas is 1×, leaks its RAF, runs under screens | Fixed — DPR cap 2, RAF cancel, hidden/screen pause, reduced-motion static frame | Perf — bd22653, c8d7fbb |
+| PF-04 | Google Fonts blocks rendering and fights the brief | Fixed — self-hosted Jost + JetBrains Mono, Latin subset, preload, `font-display: swap` | Perf — bd22653 |
+| PF-05 | Forty post images load eagerly; renditions are oversized | Fixed — lazy/aspect-boxed posts, 20 at a time, srcset for essays/design/book; X images remain on their CDN rather than being rehosted | Perf/content — bd22653, 0c8ebae |
+| MS-01 | Every Umami beacon returns HTTP 400 | Fixed by removal — the failing script is gone, so there is no request or console error (the review's documented fallback) | Analytics — 0c8ebae |
+| MS-02 | Duplicate SVG ids and a dead import map | Fixed — `useId()` ids and no import map | Icons — 8181e0c |
+| MS-03 | No 404, empty/loading/error states, robots or sitemap | Fixed — designed loading/empty/error/offline/404 states, image fallback, generated `robots.txt` and `sitemap.xml` | States — 0c8ebae, 1f94203 |
+
+### Deferred
+
+- **Lighthouse CI assertions for LCP/CLS/INP.** The budget is defined and the bundle/asset/robots/JSON-LD gate runs as `npm run budget`, but there is no CI provider configured in this repository. The lab measurements stay in `docs/performance-budget.md`; wiring a hosted Lighthouse job is deferred until a CI target exists.
+- **iOS device validation for HB-03/HB-06/HB-10.** The code paths are implemented and the honest fallbacks are in place, but a physical iPhone pass (interrupted context, silent switch, no Vibration API) cannot run in this environment.

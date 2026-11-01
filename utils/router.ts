@@ -271,10 +271,18 @@ export const applyRouteMeta = (route: Route): void => {
   document.title = meta.title;
 
   ensureMeta('name', 'description').content = meta.description;
-  ensureCanonical().href = url;
+  // A missing screen is not a canonical page: keep the URL out of the index
+  // and leave the site root as the only canonical entry point.
+  if (route.notFound) {
+    document.head.querySelector('link[rel="canonical"]')?.remove();
+    ensureMeta('name', 'robots').content = 'noindex';
+  } else {
+    document.head.querySelector('meta[name="robots"]')?.remove();
+    ensureCanonical().href = url;
+  }
   ensureMeta('property', 'og:title').content = meta.title;
   ensureMeta('property', 'og:description').content = meta.description;
-  ensureMeta('property', 'og:url').content = url;
+  ensureMeta('property', 'og:url').content = route.notFound ? `${SITE}/` : url;
   ensureMeta('property', 'og:type').content = meta.type;
   ensureMeta('property', 'og:image').content = DEFAULT_IMAGE;
   ensureMeta('property', 'og:image:alt').content = DEFAULT_IMAGE_ALT;
