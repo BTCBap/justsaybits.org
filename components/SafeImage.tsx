@@ -9,6 +9,8 @@ interface SafeImageProps {
   sizes?: string;
   /** Extra class for the aspect-ratio frame, not the image itself. */
   className?: string;
+  /** Force the frame's ratio when the tile must share one shape (e.g. 1 / 1). */
+  frameAspect?: string;
   imageClassName?: string;
   loading?: 'eager' | 'lazy';
   decoding?: 'async' | 'sync' | 'auto';
@@ -30,6 +32,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   srcSet,
   sizes,
   className = '',
+  frameAspect,
   imageClassName = '',
   loading = 'lazy',
   decoding = 'async',
@@ -47,7 +50,13 @@ const SafeImage: React.FC<SafeImageProps> = ({
     <span
       className={`safe-image ${className}`}
       data-state={state}
-      style={width && height ? { aspectRatio: `${width} / ${height}` } : undefined}
+      style={
+        frameAspect
+          ? { aspectRatio: frameAspect }
+          : width && height
+            ? { aspectRatio: `${width} / ${height}` }
+            : undefined
+      }
     >
       {state !== 'error' ? (
         <img

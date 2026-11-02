@@ -9,13 +9,13 @@
  *   back    — lower falling blip plus one tick haptic.
  *   error   — low double pulse plus the error pattern; fires only after the
  *             action has actually failed.
- *   start   — the boot pad, played once after the first user gesture.
+ *   start   — the boot pad plus a light tick, scheduled in the first gesture.
  *
  * The first pointer, touch, click or key press primes the AudioContext in the
- * capture phase with a one-sample silent buffer (the iOS unlock) and asks the
- * system for playback audio. A sound from that same gesture waits for
- * `resume()` to settle and then plays; nothing is queued indefinitely. Once
- * the context is running the priming listeners detach, while visibility and
+ * capture phase with a one-sample silent buffer (the iOS unlock), schedules
+ * the boot pad into it and asks the system for playback audio. `resume()`
+ * settles inside that gesture; nothing is queued indefinitely. Once the
+ * context is running the priming listeners detach, while visibility and
  * page-restore handlers re-resume an interrupted context.
  */
 
@@ -68,6 +68,8 @@ class InteractionBus {
   private startCancelled = false;
   private bootRequested = false;
   private bootPlayed = false;
+  private bootSounded = false;
+  private arrivalHandled = false;
 
   /** Whether this browser exposes the Web Audio API at all. */
   public get soundAvailable(): boolean {
@@ -157,11 +159,25 @@ class InteractionBus {
     return this.unlocking;
   }
 
-  /** Boot pad request; resolves silently when audio is unavailable. */
+  /**
+   * First-gesture boot: schedule the pad into the context synchronously, so
+   * the same touch that unlocks audio also sounds it, then resume alongside.
+   * A light haptic fires in the same activation.
+   */
   public async start(): Promise<void> {
+    // The short intro can finish before any gesture and cancel a pending
+    // start. If it never actually sounded, the first arrival still gets it.
+    if (!this.bootSounded) {
+      this.bootPlayed = false;
+      this.bootRequested = false;
+      this.startCancelled = false;
+    }
     if (this.bootRequested || this.bootPlayed) return;
     this.bootRequested = true;
     this.startCancelled = false;
+
+    hapticManager.play('tick', true);
+
     if (!preferences.get().sound) {
       this.bootRequested = false;
       return;
@@ -169,23 +185,31 @@ class InteractionBus {
 
     this.syncAudioSession();
     soundManager.primeFromGesture();
+
+    // A suspended context still queues nodes; resume() settles in this same
+    // gesture and the pad begins from its first sample.
+    if (soundManager.ready) {
+      soundManager.playBoot(prefersReducedMotionNow());
+      this.bootPlayed = true;
+      this.bootSounded = true;
+    }
+
     const ok = await soundManager.ensureRunning();
     if (!ok) {
+      if (this.bootPlayed) {
+        soundManager.stopBoot();
+        this.bootPlayed = false;
+        this.bootSounded = false;
+      }
       this.bootRequested = false;
       return;
     }
     if (this.startCancelled || !preferences.get().sound) return;
-
-    // The context is running now. Build the pad graph on the next task so
-    // constructing its nodes does not share a long task with the power-on
-    // frame; the chime still begins well inside the bloom.
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 0);
-    });
-    if (this.startCancelled || !preferences.get().sound) return;
-    soundManager.playBoot(prefersReducedMotionNow());
-    this.bootPlayed = true;
-    this.bootRequested = true;
+    if (!this.bootPlayed) {
+      soundManager.playBoot(prefersReducedMotionNow());
+      this.bootPlayed = true;
+      this.bootSounded = true;
+    }
   }
 
   /** Stop the boot pad on unmount and cancel a start that is still resuming. */
@@ -218,11 +242,18 @@ class InteractionBus {
 
     const onGesture = () => {
       this.lastPointerAt = now();
+
+      // The very first gesture gets the boot pad and a light haptic, even on
+      // the intro screen, before any second interaction is needed.
+      if (!this.arrivalHandled) {
+        this.arrivalHandled = true;
+        void this.start();
+      }
+
       if (!preferences.get().sound) return;
 
       this.syncAudioSession();
       soundManager.primeFromGesture();
-      if (!this.bootPlayed) void this.start();
       void this.unlock().then((ok) => {
         if (ok) this.disarmUnlock();
       });

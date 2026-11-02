@@ -91,11 +91,11 @@ export const DESIGN_DATA: DesignItem[] = [
 ];
 
 export const INVESTMENT_DATA: InvestmentItem[] = [
-  { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
-  { asset: "Casa Inc.", type: "Equity", status: "Active" },
-  { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
   { asset: "Maple AI", url: "https://maple.ai", type: "Seed", status: "Active" },
   { asset: "Strike Inc.", type: "Series A", status: "Active" },
+  { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
+  { asset: "Casa Inc.", type: "Equity", status: "Active" },
+  { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
 ];
 
 export const BOOK_DATA: BookItem[] = [
@@ -107,9 +107,9 @@ export const BOOK_DATA: BookItem[] = [
     thoughts: "Where ancient wisdom meets the future of money. The Bitcoin Tao explores the profound parallels between Taoist philosophy and the principles that underpin Bitcoin — decentralization, harmony, patience, and the natural order of sound money. This is more than a book. It's a meditation on why Bitcoin isn't just a technology, but a return to the way things were always meant to be.",
     coverColor: "bg-orange-600",
     coverImage: "/bitcoin-tao-cover-640.webp",
-    coverSrcSet: "/bitcoin-tao-cover-320.webp 320w, /bitcoin-tao-cover-640.webp 640w",
-    coverWidth: 640,
-    coverHeight: 960,
+    coverSrcSet: "/bitcoin-tao-cover-320.webp 318w, /bitcoin-tao-cover-640.webp 636w",
+    coverWidth: 636,
+    coverHeight: 636,
     url: "https://amzn.to/4ej0RbJ",
   },
 ];

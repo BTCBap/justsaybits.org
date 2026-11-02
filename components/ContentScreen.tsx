@@ -44,7 +44,6 @@ import { ListSkeleton } from './Skeleton';
 import {
   EssayRow,
   FeaturedEssay,
-  MediaFeature,
   MediaRow,
   PostCard,
   ReadingRow,
@@ -112,17 +111,6 @@ function groupByYear<T extends { date?: string }>(items: T[]): { year: string; i
       };
       return rank(b.year) - rank(a.year);
     });
-}
-
-function groupBySource<T extends { source?: string }>(items: T[]): { source: string; items: T[] }[] {
-  const groups = new Map<string, T[]>();
-  items.forEach((item) => {
-    const source = item.source || 'Other';
-    const bucket = groups.get(source);
-    if (bucket) bucket.push(item);
-    else groups.set(source, [item]);
-  });
-  return Array.from(groups, ([source, grouped]) => ({ source, items: grouped }));
 }
 
 const CONTENT_TAB_META: Record<ContentTab, { noun: string }> = {
@@ -333,14 +321,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
   const matchesQuery = (...parts: (string | undefined)[]): boolean =>
     !normalizedQuery || parts.some(part => part?.toLowerCase().includes(normalizedQuery));
 
-  const filteredEssays = useMemo(
-    () => [...ESSAYS].sort(newestFirst).filter(essay => (
-      !normalizedQuery
-      || essay.title.toLowerCase().includes(normalizedQuery)
-      || essay.excerpt.toLowerCase().includes(normalizedQuery)
-    )),
-    [normalizedQuery]
-  );
+  const filteredEssays = useMemo(() => [...ESSAYS].sort(newestFirst), []);
 
   const orderedEssays = useMemo(() => [...ESSAYS].sort(newestFirst), []);
   const essayDoc = useMemo(() => (essayContent ? parseEssay(essayContent) : null), [essayContent]);
@@ -352,12 +333,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     ? orderedEssays[essayIndex + 1]
     : undefined;
 
-  const filteredPosts = useMemo(
-    () => rankedPosts.filter(post => (
-      !normalizedQuery || post.text.toLowerCase().includes(normalizedQuery)
-    )),
-    [rankedPosts, normalizedQuery]
-  );
+  const filteredPosts = rankedPosts;
 
   const openEssay = (post: EssaySummary) => {
     if (essaySlug === post.slug) return;
@@ -629,10 +605,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
   const renderContentHub = () => {
     const meta = CONTENT_TAB_META[contentTab];
-    const searchable = contentTab === 'essays'
-      || contentTab === 'posts'
-      || contentTab === 'podcasts'
-      || contentTab === 'lectures';
+    const searchable = contentTab === 'podcasts';
 
     const podcastItems: MediaItem[] = media ? [...media.valueStack, ...media.appearances] : [];
     const matchesYear = (item: { date?: string }) => yearFilter === 'all' || yearOf(item.date) === yearFilter;
@@ -641,18 +614,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
     const filteredAppearances: MediaItem[] = (media?.appearances ?? [])
       .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
-    const filteredLectures: MediaItem[] = (media?.lectures ?? [])
-      .filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
-    const filteredTutorials: MediaItem[] = (media?.tutorials ?? []).filter(item => matchesQuery(item.title, item.source));
-    const filteredReading: ReadingItem[] = (media?.reading ?? []).filter(item => matchesQuery(item.title, item.author));
+    const filteredLectures: MediaItem[] = [...(media?.lectures ?? [])].sort(newestFirst);
+    const filteredTutorials: MediaItem[] = media?.tutorials ?? [];
+    const filteredReading: ReadingItem[] = media?.reading ?? [];
 
-    // One year filter serves the two chronological lists; it stays out of the
-    // way when a list covers a single year.
-    const yearPool = contentTab === 'lectures'
-      ? media?.lectures ?? []
-      : contentTab === 'podcasts'
-        ? podcastItems
-        : [];
+    // The podcast year filter stays out of the way when the list covers a
+    // single year.
+    const yearPool = contentTab === 'podcasts' ? podcastItems : [];
     const yearRank = (year: string) => {
       const value = Number.parseInt(year, 10) || 0;
       return /BCE/i.test(year) ? -value : value;
@@ -661,12 +629,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       .filter(year => year !== 'Undated')
       .sort((a, b) => yearRank(b) - yearRank(a));
 
-    const featuredEpisode = filteredValueStack[0];
-    const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
-    const remainingEpisodes = filteredValueStack.length - 1 - hostRest.length;
+    const hostRows = filteredValueStack.slice(0, visibleMedia);
+    const remainingEpisodes = filteredValueStack.length - hostRows.length;
 
     const emptyFor = (tab: ContentTab): string => {
-      if (tab === 'lectures' && yearFilter !== 'all') return `No lectures for ${yearFilter} yet.`;
       if (tab === 'podcasts' && yearFilter !== 'all') return `No episodes for ${yearFilter} yet.`;
       if (normalizedQuery) return `No ${meta.noun} match “${query.trim()}”.`;
       if (tab === 'essays') return 'No essays are listed yet.';
@@ -700,7 +666,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 enterKeyHint="search"
                 className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-3 text-base font-light text-white placeholder:text-blue-200/75 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-56"
               />
-              {(contentTab === 'lectures' || contentTab === 'podcasts') && yearOptions.length > 1 && (
+              {contentTab === 'podcasts' && yearOptions.length > 1 && (
                 <>
                   <label htmlFor="content-year" className="sr-only">Filter {meta.noun} by year</label>
                   <select
@@ -770,10 +736,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                   </h3>
                   {filteredValueStack.length > 0 && (
                     <>
-                      {featuredEpisode && (
-                        <MediaFeature item={featuredEpisode} />
-                      )}
-                      {groupByYear(hostRest).map(group => (
+                      {groupByYear(hostRows).map(group => (
                         <div key={group.year} className="content-group">
                           {renderYearHeading(group.year)}
                           <div className="media-rows">
@@ -813,22 +776,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         {contentTab === 'lectures' && (
           mediaLoading || !media ? renderListSkeleton(4, 'media') : (
             filteredLectures.length === 0 ? renderEmptyState(emptyFor('lectures')) : (
-              <div className="content-sections content-sections--tight">
-                {groupByYear(filteredLectures).map(group => (
-                  <section key={group.year} className="content-group">
-                    {renderYearHeading(group.year)}
-                    {groupBySource(group.items).map(sourceGroup => (
-                      <div key={sourceGroup.source} className="content-venue">
-                        <p className="content-venue__head">
-                          <span>{sourceGroup.source}</span>
-                        </p>
-                        <div className="media-rows">
-                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} />)}
-                        </div>
-                      </div>
-                    ))}
-                  </section>
-                ))}
+              <div className="media-rows">
+                {filteredLectures.map(item => <MediaRow key={item.url} item={item} />)}
               </div>
             )
           )

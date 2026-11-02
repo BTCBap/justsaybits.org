@@ -72,7 +72,7 @@ const BookScreen: React.FC = () => {
             <a
               href={book.url}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="sponsored noopener noreferrer"
               className="book-cta"
               onFocus={() => interaction.interact('cursor', { id: 'book:get', source: 'focus' })}
               onClick={() => interaction.interact('confirm', { source: 'pointer' })}
@@ -82,8 +82,6 @@ const BookScreen: React.FC = () => {
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           )}
-
-          <p className="book-disclosure">Affiliate link</p>
         </div>
       </article>
     </div>

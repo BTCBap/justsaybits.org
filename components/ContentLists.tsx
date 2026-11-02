@@ -87,28 +87,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   );
 };
 
-interface MediaFeatureProps {
-  item: MediaItem;
-}
-
-export const MediaFeature: React.FC<MediaFeatureProps> = ({ item }) => (
-  <SystemCard
-    href={item.url}
-    external
-    feedbackId={`media:${item.url}`}
-    className="media-feature"
-    leading={(
-      <span className="media-play" aria-hidden="true">
-        <Play className="h-3.5 w-3.5" fill="currentColor" />
-      </span>
-    )}
-    title={item.title}
-    titleClassName="media-feature__title"
-    meta={item.date}
-    footer={item.source}
-  />
-);
-
 export const MediaRow: React.FC<{ item: MediaItem }> = ({ item }) => (
   <SystemCard
     href={item.url}
@@ -144,6 +122,11 @@ export const TutorialRow: React.FC<{ item: MediaItem }> = ({ item }) => (
     external
     feedbackId={`media:${item.url}`}
     className="tutorial-row"
+    leading={(
+      <span className="media-play" aria-hidden="true">
+        <Play className="h-3.5 w-3.5" fill="currentColor" />
+      </span>
+    )}
     title={item.title}
     titleClassName="tutorial-row__title"
     meta={item.date}
