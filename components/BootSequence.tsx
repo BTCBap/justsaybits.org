@@ -269,8 +269,6 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
     if (!leavingRef.current) skip();
   };
 
-  const hint = coarsePointer ? 'Tap anywhere to start' : 'Click or press any key';
-
   return (
     <div
       className={`boot ${reducedMotion ? 'boot--static' : ''} ${short ? 'boot--short' : ''} ${
@@ -286,19 +284,13 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
           role="dialog"
           aria-modal="true"
           aria-labelledby="boot-title"
-          aria-describedby="boot-hint"
         >
           <div className="boot__gate-inner">
             <Wordmark decorative />
             <h1 id="boot-title" className="sr-only">justsaybits.org</h1>
-            <p className="boot__status">
-              <span className="boot__status-dot" aria-hidden="true" />
-              System ready
-            </p>
             <button type="button" className="boot__power" autoFocus onClick={begin}>
               Power on
             </button>
-            <p id="boot-hint" className="boot__hint">{hint}</p>
           </div>
         </div>
       ) : (

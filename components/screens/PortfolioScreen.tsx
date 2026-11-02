@@ -178,7 +178,6 @@ const DesignLightbox: React.FC<DesignLightboxProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="lightbox-title"
-        aria-describedby="lightbox-alt"
         tabIndex={-1}
         className="lightbox__panel"
       >
@@ -204,7 +203,6 @@ const DesignLightbox: React.FC<DesignLightboxProps> = ({
         <div className="lightbox__caption">
           <h2 id="lightbox-title">{item.title}</h2>
           <p className="ps2-meta">{item.type}</p>
-          <p id="lightbox-alt" className="lightbox__alt">{item.alt}</p>
         </div>
 
         <div className="lightbox__nav">

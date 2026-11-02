@@ -595,16 +595,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     <ListSkeleton count={count} variant={variant} />
   );
 
-  const renderEmptyState = (
-    title: string,
-    message = 'Try a different search, or clear the filters to see everything.',
-    error = false,
-  ) => {
+  const renderEmptyState = (title: string, error = false) => {
     const filtered = !!query.trim() || yearFilter !== 'all';
     return (
       <EmptyState
         title={title}
-        message={filtered ? message : undefined}
         actionLabel={filtered ? 'Clear filters' : undefined}
         onAction={filtered ? () => { setQuery(''); setYearFilter('all'); } : undefined}
         error={error}
@@ -884,28 +879,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       default: return (
         <EmptyState
           title="That screen is not available"
-          message="Return to the main menu to choose another section."
           error
         />
       );
     }
   };
-
-  const helpActions = selectedEssay
-    ? [
-        { keys: ['Esc'], label: 'Back', touch: 'Tap Back for the list' },
-        { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-      ]
-    : section.id === 'content'
-      ? [
-          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
-          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-          { keys: ['1–6'], label: 'Tabs', touch: 'Tap a tab' },
-        ]
-      : [
-          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
-          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-        ];
 
   const helpDescription = selectedEssay
     ? 'Press Escape to return to the essay list. Up and down arrows scroll the essay.'
@@ -974,11 +952,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
-          <HelpBar
-            className="order-3 w-full md:order-2 md:w-auto"
-            actions={helpActions}
-            description={helpDescription}
-          />
+          <HelpBar description={helpDescription} />
           <SystemToggles />
         </div>
       </div>

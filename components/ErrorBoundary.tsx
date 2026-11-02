@@ -43,10 +43,6 @@ class ErrorBoundary extends Component<PropsWithChildren, ErrorBoundaryState> {
             System error
           </p>
           <h1 className="ps2-screen-title error-screen__title">The screen did not load</h1>
-          <p className="error-screen__copy">
-            Something interrupted this view. Your settings are safe; try the screen again, or
-            return to the main menu.
-          </p>
           <div className="error-screen__actions">
             <button type="button" className="error-screen__button" onClick={this.retry} autoFocus>
               <RotateCcw className="h-4 w-4" aria-hidden="true" />

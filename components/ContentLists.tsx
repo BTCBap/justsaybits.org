@@ -60,7 +60,7 @@ interface PostCardProps {
 
 export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const imageMeta = post.image ? POST_IMAGE_META[post.image] : undefined;
-  const text = post.text.trim() || 'View post';
+  const text = post.text.trim() || 'Post';
 
   return (
     <SystemCard

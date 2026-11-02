@@ -109,9 +109,7 @@ export const ReaderBar: React.FC<ReaderBarProps> = ({ essay, headings, bodyRef, 
     <div className="reader-bar shrink-0">
       <div className="flex items-center gap-3 px-4 py-2 md:px-6">
         <div className="min-w-0 flex-1">
-          <p className="reader-bar__meta">
-            Essay <span aria-hidden="true">·</span> {essay.date} <span aria-hidden="true">·</span> {essay.readTime} read
-          </p>
+          <p className="reader-bar__meta">{essay.date}</p>
           <p className="reader-bar__title">{essay.title}</p>
         </div>
         <button
@@ -140,11 +138,6 @@ export const ReaderBar: React.FC<ReaderBarProps> = ({ essay, headings, bodyRef, 
         >
           <summary>
             Contents
-            {headings.length > 0 && (
-              <span className="font-normal normal-case tracking-normal text-[var(--text-muted)]">
-                {headings.length} sections
-              </span>
-            )}
           </summary>
           {headings.length > 0 && (
             <nav aria-label="Essay contents">
@@ -243,8 +236,6 @@ export const EssayArticle: React.FC<EssayArticleProps> = ({
         </h1>
         <div className="essay-article__meta">
           <span>{essay.date}</span>
-          <span className="sep" aria-hidden="true">//</span>
-          <span>{essay.readTime} read</span>
           {essay.sourceUrl && (
             <>
               <span className="sep" aria-hidden="true">//</span>
@@ -302,7 +293,6 @@ export const EssayArticle: React.FC<EssayArticleProps> = ({
               <SystemCard
                 href={pathForEssay(newer.slug)}
                 feedbackId={`essay-next:${newer.slug}`}
-                eyebrow="Newer essay"
                 title={newer.title}
                 meta={newer.date}
                 onNavigate={(event) => goToEssay(event, newer.slug, onNavigateEssay)}
@@ -312,7 +302,6 @@ export const EssayArticle: React.FC<EssayArticleProps> = ({
               <SystemCard
                 href={pathForEssay(older.slug)}
                 feedbackId={`essay-prev:${older.slug}`}
-                eyebrow="Older essay"
                 title={older.title}
                 meta={older.date}
                 onNavigate={(event) => goToEssay(event, older.slug, onNavigateEssay)}

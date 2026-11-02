@@ -1,18 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { WORK_DATA } from '../../constants';
 import { interaction } from '../../utils/Interaction';
 
-const startYear = (): string => {
-  const years = WORK_DATA
-    .flatMap(job => [job.period, ...(job.subRoles?.map(role => role.period) ?? [])])
-    .flatMap(period => Array.from(period.matchAll(/\b(19|20)\d{2}\b/g), match => Number(match[0])));
-  return years.length > 0 ? String(Math.min(...years)) : 'Career';
-};
-
 const WorkScreen: React.FC = () => {
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set());
-  const firstYear = useMemo(startYear, []);
 
   const toggle = (index: number) => {
     setExpanded((current) => {
@@ -26,12 +18,6 @@ const WorkScreen: React.FC = () => {
 
   return (
     <div className="work-screen">
-      <p className="work-summary ps2-label">
-        {firstYear} <span aria-hidden="true">—</span> now
-        <span aria-hidden="true" className="work-summary__sep">·</span>
-        {WORK_DATA.length} positions
-      </p>
-
       <ol className="work-timeline">
         {WORK_DATA.map((job, index) => {
           const current = index === 0;
@@ -50,7 +36,7 @@ const WorkScreen: React.FC = () => {
                       {job.company}
                     </h2>
                     <p className="work-role">
-                      {job.role ?? (hasSubRoles ? `${subRoles.length} roles` : '')}
+                      {job.role ?? ''}
                     </p>
                   </div>
                   <p className="work-period ps2-meta">{job.period}</p>
@@ -68,7 +54,7 @@ const WorkScreen: React.FC = () => {
                       onClick={() => toggle(index)}
                       onFocus={() => interaction.interact('cursor', { id: `work:${index}`, source: 'focus' })}
                     >
-                      {open ? 'Hide roles' : `Show ${subRoles.length} roles`}
+                      Roles
                       <ChevronDown
                         className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
                         aria-hidden="true"

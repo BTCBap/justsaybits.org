@@ -97,7 +97,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
           type="button"
           aria-pressed={soundOn}
           aria-label="Sound"
-          title={soundAvailable ? `Sound: ${prefs.sound ? 'on' : 'off'} (M)` : 'Sound: unavailable'}
           onFocus={focusCursor('sound')}
           onClick={toggleSound}
           className={toggleClass(soundOn)}
@@ -110,7 +109,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
             type="button"
             aria-pressed={prefs.haptics}
             aria-label="Haptics"
-            title={`Haptics: ${prefs.haptics ? 'on' : 'off'}`}
             onFocus={focusCursor('haptics')}
             onClick={toggleHaptics}
             className={toggleClass(prefs.haptics)}

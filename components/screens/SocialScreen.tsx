@@ -41,7 +41,7 @@ const SocialScreen: React.FC = () => {
     <div className="social-screen">
       <section className="social-primary" aria-labelledby="social-email-heading">
         <p id="social-email-heading" className="ps2-label social-primary__label">
-          Email <span className="social-primary__hint">Fastest route</span>
+          Email
         </p>
 
         {email && (
@@ -70,10 +70,6 @@ const SocialScreen: React.FC = () => {
             </button>
           </div>
         )}
-
-        <p className="social-primary__note">
-          Open to podcasts, advising, and speaking. I usually reply within two business days.
-        </p>
       </section>
 
       <ul className="social-rows" aria-label="Other places to find Zach">
@@ -95,10 +91,6 @@ const SocialScreen: React.FC = () => {
           </li>
         ))}
       </ul>
-
-      <p className="social-footnote">
-        For book rights or press, use the email above and mention the publication in the subject.
-      </p>
     </div>
   );
 };
