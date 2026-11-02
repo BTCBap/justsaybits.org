@@ -23,6 +23,12 @@ CHROME = os.environ.get('CHROME') or '/usr/bin/google-chrome'
 IPHONE_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) '
              'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 '
              'Mobile/15E148 Safari/604.1')
+PIXEL_UA = ('Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36')
+DEVICES = {
+    'chromium': {'width': 412, 'height': 915, 'device_scale_factor': 2.625, 'user_agent': PIXEL_UA},
+    'webkit': {'width': 390, 'height': 844, 'device_scale_factor': 3, 'user_agent': IPHONE_UA},
+}
 
 failures = []
 engine = ''
@@ -165,13 +171,14 @@ async def tap_peeking_case(page, client, direction):
     await asyncio.sleep(0.12)
     target = await page.evaluate("""() => {
       const active = document.querySelector('.menu-option[aria-selected="true"]');
+      const width = window.innerWidth;
       for (const tile of document.querySelectorAll('[data-section-id]')) {
         if (tile === active) continue;
         const style = getComputedStyle(tile);
         const rect = tile.getBoundingClientRect();
         const centre = rect.x + rect.width / 2;
         if (style.visibility === 'visible' && rect.width > 20
-            && centre > 12 && centre < 378) {
+            && centre > 12 && centre < width - 12) {
           return { id: tile.dataset.sectionId, x: rect.x + rect.width / 2,
                    y: rect.y + rect.height * 0.42 };
         }
@@ -205,9 +212,30 @@ async def swipe_only_case(page, client, direction):
 
 async def haptic_focus_case(page, client):
     await open_menu(page)
-    # The first tick creates the hidden iOS switch.
     await swipe(page, client, 'left')
     await page.wait_for_timeout(80)
+    if engine == 'chromium':
+        state = await page.evaluate("""() => ({
+          vibrates: Array.isArray(window.__vibes) ? window.__vibes.length : -1,
+          activeTag: document.activeElement ? document.activeElement.tagName : null,
+          activeIsInput: document.activeElement ? document.activeElement.tagName === 'INPUT' : false,
+          switchExists: !!document.querySelector('label[data-haptic-switch]'),
+        })""")
+        check(state['vibrates'] >= 1, 'Android vibrate receives the swipe tick', str(state))
+        check(not state['activeIsInput'], 'Android haptic keeps focus off a hidden input', str(state))
+        check(not state['switchExists'], 'Android uses vibrate without the iOS switch', str(state))
+        before = await selected_id(page)
+        box = await tile_box(page, before)
+        if box:
+            await tap(page, client, box['x'] + box['width'] / 2, box['y'] + box['height'] * 0.42)
+        check(
+            await wait_for_section(page, before),
+            'vibrate does not consume the tile click',
+            f'expected {before}, at {page.url}',
+        )
+        return
+
+    # WebKit has no Vibration API: the first tick creates the hidden switch.
     state = await page.evaluate("""() => {
       const label = document.querySelector('label[data-haptic-switch]');
       const input = label ? label.querySelector('input') : null;
@@ -254,24 +282,197 @@ async def touch_affordance_case(page):
     check(state['touchAction'] == 'pan-y', 'menu keeps touch-action: pan-y', str(state))
 
 
+async def pen_tap_case(page):
+    """A pen tap opens the highlighted tile on pointerup."""
+    await open_menu(page)
+    target = await selected_id(page)
+    box = await tile_box(page, target)
+    if not box:
+        check(False, 'pen tap opens the tile on pointerup', 'no tile box')
+        return
+    x = box['x'] + box['width'] / 2
+    y = box['y'] + box['height'] * 0.42
+    await page.evaluate("""({x, y}) => {
+      const el = document.elementFromPoint(x, y);
+      const fire = (type) => el.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, composed: true,
+        pointerId: 41, pointerType: 'pen', isPrimary: true,
+        button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y,
+      }));
+      fire('pointerdown');
+      fire('pointerup');
+    }""", {'x': x, 'y': y})
+    check(
+        await wait_for_section(page, target),
+        'pen tap opens the tile on pointerup',
+        f'expected {target}, at {page.url}',
+    )
+
+
+async def pointer_cancel_case(page, client):
+    """A cancelled pointer (the browser started a scroll) is not a tap."""
+    await open_menu(page)
+    box = await page.locator('.menu-option[aria-selected="true"]').bounding_box()
+    if not box:
+        check(False, 'a cancelled pointer never opens a tile', 'no tile box')
+        return
+    x = box['x'] + box['width'] / 2
+    y = box['y'] + box['height'] * 0.42
+    if client:
+        await cdp_touch(client, 'touchStart', x, y)
+        await cdp_touch(client, 'touchMove', x + 3, y + 3)
+        await client.send('Input.dispatchTouchEvent', {'type': 'touchCancel', 'touchPoints': []})
+    else:
+        await page.evaluate("""({x, y}) => {
+          const el = document.elementFromPoint(x, y);
+          const fire = (type, buttons) => el.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, composed: true,
+            pointerId: 51, pointerType: 'touch', isPrimary: true,
+            button: 0, buttons, clientX: x, clientY: y,
+          }));
+          fire('pointerdown', 1);
+          fire('pointermove', 1);
+          fire('pointercancel', 0);
+        }""", {'x': x, 'y': y})
+    await page.wait_for_timeout(500)
+    check(
+        page.url.rstrip('/') == BASE,
+        'a cancelled pointer never opens a tile',
+        page.url,
+    )
+
+
+async def scroll_pane(page, client, selector, distance=140):
+    """Scroll the content body once, by touch where the engine exposes it."""
+    info = await page.evaluate("""(selector) => {
+      const row = document.querySelector(selector);
+      if (!row) return null;
+      let pane = row.parentElement;
+      while (pane) {
+        const style = getComputedStyle(pane);
+        if (/(auto|scroll)/.test(style.overflowY)) break;
+        pane = pane.parentElement;
+      }
+      if (!pane) return null;
+      if (pane.scrollHeight <= pane.clientHeight + 20) {
+        // Lectures is short on a tall phone. Give the pane a test-only tail so
+        // the tap still happens after a real scroll.
+        const spacer = document.createElement('div');
+        spacer.id = 'test-scroll-tail';
+        spacer.style.height = '620px';
+        pane.appendChild(spacer);
+      }
+      const rect = pane.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, left: rect.left, right: rect.right,
+               top: rect.top, bottom: rect.bottom };
+    }""", selector)
+    if not info:
+        return None
+    if client:
+        await cdp_swipe(
+            client,
+            info['x'], info['bottom'] - 120,
+            info['x'], info['bottom'] - 120 - distance,
+            steps=12,
+        )
+        await page.wait_for_timeout(700)
+    else:
+        await page.evaluate("""({selector, distance}) => {
+          const row = document.querySelector(selector);
+          let pane = row ? row.parentElement : null;
+          while (pane) {
+            const style = getComputedStyle(pane);
+            if (/(auto|scroll)/.test(style.overflowY) && pane.scrollHeight > pane.clientHeight + 20) break;
+            pane = pane.parentElement;
+          }
+          if (pane) pane.scrollTop = Math.min(distance, pane.scrollHeight - pane.clientHeight);
+        }""", {'selector': selector, 'distance': distance})
+        await page.wait_for_timeout(450)
+    return info
+
+
+async def visible_row(page, selector, bounds):
+    return await page.evaluate("""({selector, bounds}) => {
+      const rows = Array.from(document.querySelectorAll(selector));
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        if (rect.width < 40 || rect.height < 24) continue;
+        if (rect.top < bounds.top + 24 || rect.bottom > bounds.bottom - 20) continue;
+        if (rect.left < bounds.left || rect.right > bounds.right) continue;
+        return { x: rect.x + rect.width / 2, y: rect.top + Math.min(32, rect.height * 0.4) };
+      }
+      return null;
+    }""", {'selector': selector, 'bounds': bounds})
+
+
+async def content_row_case(page, client, label, path, selector, distance=140):
+    await page.goto(BASE + path, wait_until='networkidle')
+    if not await page.locator(selector).count():
+        await page.wait_for_timeout(700)
+    if not await page.locator(selector).count():
+        check(False, f'{label}: tap a row after a vertical scroll opens on one tap', 'no rows')
+        return
+    info = await scroll_pane(page, client, selector, distance)
+    target = await visible_row(page, selector, info) if info else None
+    if not info or not target:
+        check(False, f'{label}: tap a row after a vertical scroll opens on one tap', 'no visible row')
+        return
+    await page.evaluate('window.__sounds = []')
+    popup_task = None
+    if not path.startswith('/content/essays'):
+        popup_task = asyncio.create_task(page.wait_for_event('popup', timeout=2000))
+    await tap(page, client, target['x'], target['y'])
+    popup = None
+    if popup_task is not None:
+        try:
+            popup = await popup_task
+        except Exception:
+            popup_task.cancel()
+    await page.wait_for_timeout(650)
+    sounds = await page.evaluate('window.__sounds')
+    confirms = sounds.count('confirm') if isinstance(sounds, list) else 0
+    opened = confirms == 1
+    if path.startswith('/content/essays'):
+        opened = opened and '/content/essays/' in page.url
+    elif popup is not None:
+        opened = opened and not popup.is_closed()
+    if popup is not None:
+        await popup.close()
+    check(
+        opened,
+        f'{label}: tap a row after a vertical scroll opens on one tap',
+        f'confirms={confirms}, popup={bool(popup)}, at {page.url}',
+    )
+
+
 async def run_suite(browser, label):
     global engine
     engine = label
     is_webkit = label == 'webkit'
+    profile = DEVICES[label]
     context = await browser.new_context(
-        viewport={'width': 390, 'height': 844},
-        device_scale_factor=2,
+        viewport={'width': profile['width'], 'height': profile['height']},
+        device_scale_factor=profile['device_scale_factor'],
         is_mobile=True,
         has_touch=True,
-        user_agent=IPHONE_UA,
+        user_agent=profile['user_agent'],
     )
     await context.add_init_script("""
-        try {
-          Object.defineProperty(Navigator.prototype, 'vibrate', {
-            configurable: true, value: undefined,
-          });
-        } catch (error) {}
+        window.__sounds = [];
+        window.addEventListener('jsb:sound', (event) => {
+          window.__sounds.push(event.detail && event.detail.event);
+        });
     """)
+    if not is_webkit:
+        await context.add_init_script("""
+            window.__vibes = [];
+            try {
+              Object.defineProperty(Navigator.prototype, 'vibrate', {
+                configurable: true,
+                value: function (pattern) { window.__vibes.push(pattern); return true; },
+              });
+            } catch (error) {}
+        """)
     page = await context.new_page()
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
@@ -287,10 +488,22 @@ async def run_suite(browser, label):
     for direction in ('left', 'right'):
         await swipe_only_case(page, client, direction)
 
+    await pen_tap_case(page)
+    await pointer_cancel_case(page, client)
     await haptic_focus_case(page, client)
     await touch_affordance_case(page)
 
-    check(not errors, 'no page errors', '; '.join(errors[:3]))
+    for label, path, selector, distance in (
+        ('essays', '/content/essays', '.essay-row', 140),
+        ('podcasts', '/content/podcasts', '.media-row', 140),
+        ('lectures', '/content/lectures', '.media-row', 70),
+        ('tutorials', '/content/tutorials', '.tutorial-row', 140),
+    ):
+        await content_row_case(page, client, label, path, selector, distance)
+
+    ignored = 'Failed to start the audio device'
+    app_errors = [error for error in errors if ignored not in error]
+    check(not app_errors, 'no page errors', '; '.join(app_errors[:3]))
     await context.close()
 
 
