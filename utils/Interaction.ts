@@ -105,13 +105,18 @@ class InteractionBus {
   private emitSound(event: SoundEvent): void {
     if (!preferences.get().sound) return;
 
-    if (soundManager.isRunning()) {
+    // Schedule into an existing context even while it is resuming: the nodes
+    // queue and play when the gesture's resume settles. On a phone, resume can
+    // take longer than the tap that caused it, so waiting for `running` here
+    // was dropping the menu's sound.
+    if (soundManager.ready) {
       soundManager.play(event, prefersReducedMotionNow());
+      void this.unlock();
       return;
     }
 
-    // Keep only the newest event from the current gesture. Anything older is
-    // stale by the time a slow resume settles and would fire out of context.
+    // No context yet: keep only the newest event from this gesture. Anything
+    // older is stale by the time a slow resume settles.
     this.pending = { event, at: Date.now() };
     void this.unlock();
   }
