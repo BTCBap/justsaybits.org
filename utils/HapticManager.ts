@@ -65,17 +65,23 @@ class HapticManager {
     }
   }
 
-  /** `force` is for a call made inside the first live gesture, where the
-   * browser may not report activation yet. */
-  public play(kind: HapticKind, force = false): void {
+  /**
+   * `play` runs only from a control's own event handler. The browser must
+   * still report a live user gesture: that is what keeps a lifecycle event
+   * (load, pageshow, visibilitychange, focus, pagehide) from ever buzzing.
+   */
+  public play(kind: HapticKind): void {
     if (!this.available) return;
     if (!preferences.get().haptics) return;
+    // A hidden page never buzzes: a background pulse is felt as a click and
+    // is not the result of anything the visitor did on screen.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
 
     const vibrates = canVibrate();
     const activation = (navigator as Navigator & {
       userActivation?: { isActive: boolean };
     }).userActivation;
-    if (!force && vibrates && activation && !activation.isActive) return;
+    if (activation && !activation.isActive) return;
 
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     // One response per action: ignore a duplicate that follows immediately.
