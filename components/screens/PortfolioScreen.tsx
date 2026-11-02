@@ -33,6 +33,7 @@ export const ProjectsTab: React.FC = () => (
         leading={<span className="project-year ps2-meta">{item.year}</span>}
         title={item.title}
         meta={item.role}
+        description={item.description}
       />
     ))}
   </div>
