@@ -48,15 +48,22 @@ export const InvestmentsTab: React.FC = () => (
           onFocus={() => interaction.interact('cursor', { id: feedbackId, source: 'focus' })}
           onClick={() => interaction.interact('confirm', { source: 'pointer' })}
         >
-          <img
-            className="investment-card__logo"
-            src={investment.logo}
-            alt=""
-            width={96}
-            height={96}
-            loading="lazy"
-            decoding="async"
-          />
+          <div className="investment-card__top">
+            <img
+              className="investment-card__logo"
+              src={investment.logo}
+              alt=""
+              width={96}
+              height={96}
+              loading="lazy"
+              decoding="async"
+            />
+            <span
+              className={`status-pill status-pill--${investment.status.toLowerCase()}`}
+            >
+              {investment.status}
+            </span>
+          </div>
           <span className="investment-card__foot">
             <span className="investment-card__name">{investment.asset}</span>
             <span className="system-card__external">

@@ -28,10 +28,13 @@ export interface DesignItem {
   sizes?: string;
 }
 
+export type InvestmentStatus = 'Active' | 'Acquired';
+
 export interface InvestmentItem {
   asset: string;
   url: string;
   logo: string;
+  status: InvestmentStatus;
 }
 
 export interface BookItem {
@@ -100,6 +103,7 @@ export interface JobItem {
   role?: string; // Optional if using subRoles
   period: string;
   location: string;
+  logo: string;
   highlights: string[];
   subRoles?: { title: string; period: string }[];
 }

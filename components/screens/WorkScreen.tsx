@@ -20,16 +20,22 @@ const WorkScreen: React.FC = () => {
     <div className="work-screen">
       <ol className="work-timeline">
         {WORK_DATA.map((job, index) => {
-          const current = index === 0;
           const subRoles = job.subRoles ?? [];
           const hasSubRoles = subRoles.length > 0;
           const open = expanded.has(index);
           const subId = `work-subroles-${index}`;
 
           return (
-            <li key={`${job.company}-${index}`} className={`work-item ${current ? 'work-item--current' : ''}`}>
+            <li key={`${job.company}-${index}`} className="work-item">
               <span className="work-dot" aria-hidden="true" />
               <div className="work-card">
+                <img
+                  className="work-logo"
+                  src={job.logo}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
                 <div className="work-head">
                   <div className="work-title">
                     <h2 className="work-company">
