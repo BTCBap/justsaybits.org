@@ -1409,16 +1409,16 @@ html[data-motion="reduced"] .essay-prose a {
 
 .work-logo {
   display: block;
-  width: auto;
-  max-width: 100%;
+  width: 40px;
   height: 40px;
   margin: 0 0 0.7rem;
-  object-fit: contain;
-  object-position: left center;
+  border-radius: 10px;
+  object-fit: cover;
 }
 
 @media (min-width: 768px) {
   .work-logo {
+    width: 48px;
     height: 48px;
   }
 }

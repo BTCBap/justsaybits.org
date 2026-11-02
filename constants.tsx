@@ -117,17 +117,17 @@ export const BOOK_DATA: BookItem[] = [
 export const WORK_DATA: JobItem[] = [
   {
     company: "Swan Bitcoin",
-    logo: "/logos/swan.svg",
+    logo: "/logos/swan.webp",
     role: "Managing Director, Swan Private",
     period: "Sep 2026 - Present",
-    location: "New Orleans, Louisiana, United States",
+    location: "New Orleans, Louisiana",
     highlights: []
   },
   {
     company: "Casa Inc.",
-    logo: "/logos/casa.svg",
+    logo: "/logos/casa-work.webp",
     period: "5 yrs 3 mos",
-    location: "Denver, Colorado, United States",
+    location: "Denver, Colorado",
     highlights: [],
     subRoles: [
       { title: "Director of Sales", period: "Dec 2025 - Jul 2026" },
@@ -138,32 +138,27 @@ export const WORK_DATA: JobItem[] = [
   {
     company: "The Space Education Foundation",
     logo: "/logos/the-space.webp",
-    role: "President",
-    period: "Jan 2023 - Jan 2026",
-    location: "Denver, Colorado, United States",
-    highlights: []
-  },
-  {
-    company: "The Space",
-    logo: "/logos/the-space.webp",
-    role: "Co-Founder and Board Member",
-    period: "Apr 2024 - Jan 2026",
-    location: "Denver, Colorado, United States",
-    highlights: []
+    period: "3 yrs 1 mo",
+    location: "Denver, Colorado",
+    highlights: [],
+    subRoles: [
+      { title: "Co-Founder and Board Member", period: "Apr 2024 - Jan 2026" },
+      { title: "President", period: "Jan 2023 - Jan 2026" }
+    ]
   },
   {
     company: "iCIMS",
-    logo: "/logos/icims.svg",
+    logo: "/logos/icims.webp",
     role: "Account Executive",
     period: "Sep 2020 - Apr 2021",
-    location: "Denver, Colorado, United States",
+    location: "Denver, Colorado",
     highlights: []
   },
   {
     company: "Personal Capital",
     logo: "/logos/personal-capital.webp",
     period: "2 yrs 4 mos",
-    location: "Denver, Colorado, United States",
+    location: "Denver, Colorado",
     highlights: [],
     subRoles: [
       { title: "Senior Financial Advisor", period: "Jun 2019 - Mar 2020" },
@@ -172,10 +167,10 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "Merrill Lynch",
-    logo: "/logos/merrill.svg",
+    logo: "/logos/merrill.webp",
     role: "Financial Advisor",
     period: "Sep 2014 - Mar 2017",
-    location: "New Orleans, Louisiana, United States",
+    location: "New Orleans, Louisiana",
     highlights: []
   }
 ];
