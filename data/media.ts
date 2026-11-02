@@ -343,33 +343,15 @@ export const LECTURES: MediaItem[] = [
     "source": "The Space",
     "url": "https://youtu.be/xtMPbdeRGks"
   },
-  {
-    "title": "Robert Warren - Microeconomics of Bitcoin Mining",
-    "date": "Oct 10, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/IgecaWXo0Qc"
-  },
-  {
-    "title": "Making Bitcoin Quantum Resistant with Surmount Systems",
-    "date": "Sep 17, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/lFBq6PssP40"
-  },
-  {
-    "title": "Bitcoin Estate Planning with Matt McClintock",
-    "date": "Jul 16, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/JJCXL9EX3u4"
-  },
-  {
-    "title": "ASIC Heat Re-use with Tyler Stevens",
-    "date": "Jun 14, 2024",
-    "source": "Denver BitDevs",
-    "url": "https://youtu.be/WzHTVY5VvAw"
-  }
 ];
 
 export const TUTORIALS: MediaItem[] = [
+  {
+    "title": "Seed Phrase Workshop | Denver BitDevs 10/5/2023",
+    "date": "Oct 10, 2023",
+    "source": "Denver BitDevs",
+    "url": "https://youtu.be/oxDGgVt0lgk"
+  },
   {
     "title": "Liana Miniscript wallet",
     "date": "Aug 09, 2023",
