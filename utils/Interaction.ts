@@ -3,23 +3,22 @@
  *
  * Event policy:
  *   cursor  — one quiet tick when the highlighted item changes. No haptic on
- *             hover or focus; an explicit tick only for a deliberate gesture
- *             (swipe or a tab tap).
+ *             hover or focus; an explicit tick only for a tab tap.
  *   confirm — rising two-note chime plus one confirm haptic.
  *   back    — lower falling blip plus one tick haptic.
  *   error   — low double pulse plus the error pattern; fires only after the
  *             action has actually failed.
- *   start   — the boot pad plus a light tick, scheduled in the first gesture.
+ *   start   — the boot pad, scheduled in the first gesture. Sound only: a
+ *             haptic here buzzed every page load before the visitor had done
+ *             anything, which is an audible tick on Android.
  *
- * The first pointer, touch, click or key press primes the AudioContext in the
- * capture phase with a one-sample silent buffer (the iOS unlock), schedules
- * the boot pad into it and resumes inside that gesture. The site never writes
+ * The action handlers that emit a sound prime the AudioContext inside their
+ * own gesture and resume it there. The site never writes
  * `navigator.audioSession`, so it keeps the browser's mixing behaviour and
- * cannot interrupt or duck audio from other apps. Once the context is running
- * the priming listeners detach. Hiding the page fades the output and stops
- * every scheduled voice; it never suspends the context, so returning never
- * renegotiates the audio session. Only the next gesture inside the page can
- * start audio again.
+ * cannot interrupt or duck audio from other apps. A context exists only while
+ * a voice is playing or about to play; SoundManager closes it after 1.5 s of
+ * silence and on every hide. Nothing is created or resumed by a lifecycle
+ * event or by a gesture that plays no sound.
  */
 
 import { announce } from './liveRegion';
@@ -107,7 +106,9 @@ class InteractionBus {
     }
 
     const haptic = options.haptic ?? DEFAULT_HAPTIC[event];
-    if (haptic) hapticManager.play(haptic);
+    // A lifecycle or fetch result is not a control action and must stay
+    // silent.
+    if (haptic && options.source !== 'system') hapticManager.play(haptic);
     this.emitSound(event);
   }
 
@@ -169,7 +170,7 @@ class InteractionBus {
   /**
    * First-gesture boot: schedule the pad into the context synchronously, so
    * the same touch that unlocks audio also sounds it, then resume alongside.
-   * A light haptic fires in the same activation.
+   * No haptic: a control action is the only thing that may buzz.
    */
   public async start(): Promise<void> {
     // The short intro can finish before any gesture and cancel a pending
@@ -182,8 +183,6 @@ class InteractionBus {
     if (this.bootRequested || this.bootPlayed) return;
     this.bootRequested = true;
     this.startCancelled = false;
-
-    hapticManager.play('tick', true);
 
     if (!preferences.get().sound) {
       this.bootRequested = false;
@@ -244,9 +243,9 @@ class InteractionBus {
   }
 
   /**
-   * Prime audio inside the first pointer, touch, click or key gesture. These
-   * capture-phase listeners detach once the context runs; the visibility and
-   * page-show handlers stay for later interruptions.
+   * The very first gesture starts the boot pad and then detaches these
+   * listeners. It never primes audio on its own: a context is built only when
+   * a voice is actually about to play.
    */
   private armUnlock(): void {
     if (this.unlockCleanup || typeof window === 'undefined') return;
@@ -254,19 +253,13 @@ class InteractionBus {
     const onGesture = () => {
       this.lastPointerAt = now();
 
-      // The very first gesture gets the boot pad and a light haptic, even on
-      // the intro screen, before any second interaction is needed.
+      // The very first gesture gets the boot pad, even on the intro screen,
+      // before any second interaction is needed. It never buzzes.
       if (!this.arrivalHandled) {
         this.arrivalHandled = true;
         void this.start();
       }
-
-      if (!preferences.get().sound) return;
-
-      soundManager.primeFromGesture();
-      void this.unlock().then((ok) => {
-        if (ok) this.disarmUnlock();
-      });
+      this.disarmUnlock();
     };
 
     UNLOCK_EVENTS.forEach((type) => {
@@ -309,12 +302,14 @@ class InteractionBus {
           this.toggleSound();
         }
       }
-      void this.unlock();
+      // A keypress that plays nothing must not build or resume a context.
+      // Handlers that emit a sound call `unlock` themselves.
     };
 
-    // Only hiding silences audio. Focus, pageshow and a return to visible all
-    // fire around the first tap on some browsers; quenching there cut the
-    // boot tone at full gain and clicked. The next explicit gesture resumes.
+    // Hiding closes the output stream. Focus, pageshow and a return to
+    // visible must never resume or create one: Chrome renegotiates the shared
+    // audio device around those events, which clips other apps' music. Only a
+    // later explicit gesture can start audio again.
     const suspendAudio = () => {
       this.pending = null;
       soundManager.quiesce();
