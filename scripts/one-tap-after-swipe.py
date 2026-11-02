@@ -18,6 +18,8 @@ import time
 
 from playwright.async_api import async_playwright
 
+from sound_prefs import AUDIO_ON
+
 BASE = os.environ.get('BASE', 'http://localhost:4302').rstrip('/')
 CHROME = os.environ.get('CHROME') or '/usr/bin/google-chrome'
 IPHONE_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) '
@@ -457,6 +459,7 @@ async def run_suite(browser, label):
         has_touch=True,
         user_agent=profile['user_agent'],
     )
+    await context.add_init_script(AUDIO_ON)
     await context.add_init_script("""
         window.__sounds = [];
         window.addEventListener('jsb:sound', (event) => {

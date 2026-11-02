@@ -18,6 +18,8 @@ import sys
 
 from playwright.async_api import async_playwright
 
+from sound_prefs import AUDIO_ON
+
 BASE = os.environ.get('BASE', 'http://localhost:4302').rstrip('/')
 CHROME = os.environ.get('CHROME') or '/usr/bin/google-chrome'
 PIXEL_UA = ('Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 '
@@ -150,6 +152,7 @@ async def run_suite(browser, label):
         has_touch=True,
         is_mobile=True,
     )
+    await context.add_init_script(AUDIO_ON)
     page = await context.new_page()
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))

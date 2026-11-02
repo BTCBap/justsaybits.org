@@ -662,7 +662,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                       setVisibleMedia(20);
                       interaction.interact('cursor', { id: 'content:year', source: 'pointer', haptic: 'tick' });
                     }}
-                    className="min-h-[44px] w-full border border-blue-400/30 bg-black/40 px-2 text-base font-light text-blue-100 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-auto sm:text-sm"
+                    className="content-filter min-h-[44px] w-full border border-blue-400/30 bg-black/40 pl-2 text-base font-light text-blue-100 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300 sm:w-auto sm:text-sm"
                   >
                     <option value="all">All years</option>
                     {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}

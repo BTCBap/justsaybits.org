@@ -1009,6 +1009,30 @@ html[data-motion="reduced"] .boot__skip {
   overflow: hidden;
 }
 
+/* Year filter on the Content tabs. The native select arrow sits flush with
+   the control's edge; a drawn chevron 13 px in from it reads as a system-menu
+   control and leaves room for the widest year, so the text never runs under
+   the arrow. */
+.content-filter {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2.375rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239dc6ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 10px 6px;
+}
+
+/* Forced-colours drops background images, so keep the platform arrow there. */
+@media (forced-colors: active) {
+  .content-filter {
+    -webkit-appearance: auto;
+    appearance: auto;
+    padding-right: 1.75rem;
+    background-image: none;
+  }
+}
+
 html[data-motion="reduced"] .system-card,
 html[data-motion="reduced"] .menu-option {
   transition: none !important;

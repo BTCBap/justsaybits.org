@@ -189,8 +189,11 @@ async def phone_checks(browser):
     # manual override left in storage by an older build.
     check(await page.locator('button[aria-label="Reduce motion"]').count() == 0,
           'no motion toggle')
-    await page.evaluate("""() => localStorage.setItem('jsb.prefs.v1', JSON.stringify(
-      {sound: false, haptics: true, motion: 'on', soundHintDismissed: true}))""")
+    await page.evaluate("""() => {
+      localStorage.removeItem('jsb.prefs.v2');
+      localStorage.setItem('jsb.prefs.v1', JSON.stringify(
+        {sound: true, haptics: true, motion: 'on', soundHintDismissed: true}));
+    }""")
     await page.reload(wait_until='networkidle')
     await page.wait_for_timeout(700)
     await boot(page)
@@ -198,8 +201,10 @@ async def phone_checks(browser):
     await page.wait_for_timeout(400)
     check(await page.evaluate("document.documentElement.dataset.motion") == 'auto',
           'stored motion override falls back to auto')
-    prefs = await page.evaluate("JSON.parse(localStorage.getItem('jsb.prefs.v1'))")
+    prefs = await page.evaluate("JSON.parse(localStorage.getItem('jsb.prefs.v2'))")
     check('motion' not in prefs, 'stored motion override is cleared', str(prefs))
+    check(prefs.get('sound') is False,
+          'legacy sound:true migrates to off', str(prefs))
 
     # Reduced motion must not disable the gesture.
     await page.emulate_media(reduced_motion='reduce')

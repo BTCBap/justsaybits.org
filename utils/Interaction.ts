@@ -13,11 +13,13 @@
  *
  * The first pointer, touch, click or key press primes the AudioContext in the
  * capture phase with a one-sample silent buffer (the iOS unlock), schedules
- * the boot pad into it and asks the system for playback audio. `resume()`
- * settles inside that gesture; nothing is queued indefinitely. Once the
- * context is running the priming listeners detach. Hiding or restoring the
- * page stops every scheduled voice and re-arms the listeners, so only the
- * next gesture inside the page can start audio again.
+ * the boot pad into it and resumes inside that gesture. The site never writes
+ * `navigator.audioSession`, so it keeps the browser's mixing behaviour and
+ * cannot interrupt or duck audio from other apps. Once the context is running
+ * the priming listeners detach. Hiding the page fades the output and stops
+ * every scheduled voice; it never suspends the context, so returning never
+ * renegotiates the audio session. Only the next gesture inside the page can
+ * start audio again.
  */
 
 import { announce } from './liveRegion';
@@ -141,22 +143,9 @@ class InteractionBus {
     void this.unlock();
   }
 
-  /** Ask WebKit to keep audio audible with the iPhone silent switch on. */
-  private syncAudioSession(): void {
-    if (typeof navigator === 'undefined' || !('audioSession' in navigator)) return;
-    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-    if (!session) return;
-    try {
-      session.type = preferences.get().sound ? 'playback' : 'auto';
-    } catch {
-      // Older builds expose the property without allowing a write.
-    }
-  }
-
   /** Resume the context from a live user gesture and flush its one sound. */
   public async unlock(): Promise<boolean> {
     if (!preferences.get().sound) return false;
-    this.syncAudioSession();
     soundManager.primeFromGesture();
     if (!this.unlocking) {
       this.unlocking = soundManager.ensureRunning().then((ok) => {
@@ -201,7 +190,6 @@ class InteractionBus {
       return;
     }
 
-    this.syncAudioSession();
     soundManager.primeFromGesture();
 
     // A suspended context still queues nodes; resume() settles in this same
@@ -249,7 +237,6 @@ class InteractionBus {
     preferences.set({ sound: next });
     announce(next ? 'Sound on' : 'Sound off');
     if (next) {
-      this.syncAudioSession();
       this.armUnlock();
       if (!this.bootPlayed) void this.start();
       this.interact('confirm', { source: 'keyboard' });
@@ -276,7 +263,6 @@ class InteractionBus {
 
       if (!preferences.get().sound) return;
 
-      this.syncAudioSession();
       soundManager.primeFromGesture();
       void this.unlock().then((ok) => {
         if (ok) this.disarmUnlock();
@@ -326,23 +312,16 @@ class InteractionBus {
       void this.unlock();
     };
 
-    // A hidden or restored tab is silent. Stop anything already scheduled and
-    // wait for the next pointer or key gesture to resume the context, so a
-    // queued boot tone can never flush on visibilitychange, pageshow or focus.
+    // Only hiding silences audio. Focus, pageshow and a return to visible all
+    // fire around the first tap on some browsers; quenching there cut the
+    // boot tone at full gain and clicked. The next explicit gesture resumes.
     const suspendAudio = () => {
       this.pending = null;
       soundManager.quiesce();
     };
 
-    const onRestore = () => {
-      suspendAudio();
-      this.syncAudioSession();
-      this.armUnlock();
-    };
-
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') onRestore();
-      else suspendAudio();
+      if (document.visibilityState === 'hidden') suspendAudio();
     };
 
     const onPageHide = () => suspendAudio();
@@ -350,7 +329,6 @@ class InteractionBus {
     const unsubscribePreferences = preferences.subscribe(() => {
       const enabled = preferences.get().sound;
       soundManager.setMuted(!enabled);
-      this.syncAudioSession();
       if (enabled) this.armUnlock();
       if (!enabled) {
         this.pending = null;
@@ -359,24 +337,17 @@ class InteractionBus {
     });
 
     soundManager.setMuted(!preferences.get().sound);
-    this.syncAudioSession();
     this.armUnlock();
 
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('pageshow', onRestore);
     window.addEventListener('pagehide', onPageHide);
-    window.addEventListener('focus', onRestore);
-    window.addEventListener('blur', onPageHide);
     document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('pageshow', onRestore);
       window.removeEventListener('pagehide', onPageHide);
-      window.removeEventListener('focus', onRestore);
-      window.removeEventListener('blur', onPageHide);
       document.removeEventListener('visibilitychange', onVisibility);
       this.disarmUnlock();
       unsubscribePreferences();

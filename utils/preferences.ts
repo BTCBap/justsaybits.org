@@ -6,22 +6,53 @@ export interface Preferences {
   soundHintDismissed: boolean;
 }
 
-const STORAGE_KEY = 'jsb.prefs.v1';
+const STORAGE_KEY = 'jsb.prefs.v2';
+/** v1 shipped with sound on by default and stored that default as `true`. */
+const LEGACY_STORAGE_KEY = 'jsb.prefs.v1';
 
 const DEFAULTS: Preferences = {
-  sound: true,
+  sound: false,
   haptics: true,
   soundHintDismissed: false,
+};
+
+/**
+ * Read the v1 record once and write v2. A stored `true` there cannot be told
+ * apart from the old default, so every returning visitor starts muted; the
+ * sound toggle writes `true` to v2 from now on and keeps it.
+ */
+const migrateLegacy = (): Preferences => {
+  let haptics = DEFAULTS.haptics;
+  let soundHintDismissed = false;
+  try {
+    const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Preferences>;
+      if (typeof parsed.haptics === 'boolean') haptics = parsed.haptics;
+      soundHintDismissed = parsed.soundHintDismissed === true;
+    }
+  } catch {
+    // Unreadable legacy record: fall back to the defaults.
+  }
+
+  const stored: Preferences = { sound: false, haptics, soundHintDismissed };
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // Keep the migrated values in memory when storage is read-only.
+  }
+  return stored;
 };
 
 const read = (): Preferences => {
   if (typeof window === 'undefined') return { ...DEFAULTS };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return migrateLegacy();
     const parsed = JSON.parse(raw) as Partial<Preferences> & { motion?: unknown };
     const stored: Preferences = {
-      sound: typeof parsed.sound === 'boolean' ? parsed.sound : DEFAULTS.sound,
+      sound: parsed.sound === true,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULTS.haptics,
       soundHintDismissed: parsed.soundHintDismissed === true,
     };
