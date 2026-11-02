@@ -11,9 +11,12 @@
  *             action has actually failed.
  *   start   — the boot pad, played once after the first user gesture.
  *
- * No sound is scheduled before the AudioContext reports `running`. The first
- * gesture awaits `resume()`; if audio stays unavailable the event is dropped,
- * never queued for later.
+ * The first pointer, touch, click or key press primes the AudioContext in the
+ * capture phase with a one-sample silent buffer (the iOS unlock) and asks the
+ * system for playback audio. A sound from that same gesture waits for
+ * `resume()` to settle and then plays; nothing is queued indefinitely. Once
+ * the context is running the priming listeners detach, while visibility and
+ * page-restore handlers re-resume an interrupted context.
  */
 
 import { announce } from './liveRegion';
@@ -43,6 +46,8 @@ const DEFAULT_HAPTIC: Record<InteractionEvent, HapticKind | false> = {
 const CURSOR_THROTTLE_MS = 80;
 const CURSOR_DEDUPE_MS = 800;
 const FOCUS_AFTER_POINTER_MS = 600;
+const PENDING_MAX_AGE_MS = 1200;
+const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'] as const;
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -59,14 +64,18 @@ class InteractionBus {
   private pending: { event: SoundEvent; at: number } | null = null;
   private unlocking: Promise<boolean> | null = null;
   private cleanup: (() => void) | null = null;
+  private unlockCleanup: (() => void) | null = null;
   private startCancelled = false;
+  private bootRequested = false;
+  private bootPlayed = false;
 
   /** Whether this browser exposes the Web Audio API at all. */
   public get soundAvailable(): boolean {
     return soundManager.available;
   }
 
-  public interact(event: InteractionEvent, options: InteractOptions = {}): void {    if (event === 'start') {
+  public interact(event: InteractionEvent, options: InteractOptions = {}): void {
+    if (event === 'start') {
       void this.start();
       return;
     }
@@ -107,9 +116,23 @@ class InteractionBus {
     void this.unlock();
   }
 
-  /** Resume the context from a live user gesture. */
+  /** Ask WebKit to keep audio audible with the iPhone silent switch on. */
+  private syncAudioSession(): void {
+    if (typeof navigator === 'undefined' || !('audioSession' in navigator)) return;
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (!session) return;
+    try {
+      session.type = preferences.get().sound ? 'playback' : 'auto';
+    } catch {
+      // Older builds expose the property without allowing a write.
+    }
+  }
+
+  /** Resume the context from a live user gesture and flush its one sound. */
   public async unlock(): Promise<boolean> {
     if (!preferences.get().sound) return false;
+    this.syncAudioSession();
+    soundManager.primeFromGesture();
     if (!this.unlocking) {
       this.unlocking = soundManager.ensureRunning().then((ok) => {
         this.unlocking = null;
@@ -118,7 +141,7 @@ class InteractionBus {
         if (
           ok
           && pending
-          && Date.now() - pending.at < 300
+          && Date.now() - pending.at < PENDING_MAX_AGE_MS
           && preferences.get().sound
         ) {
           soundManager.play(pending.event, prefersReducedMotionNow());
@@ -131,11 +154,22 @@ class InteractionBus {
 
   /** Boot pad request; resolves silently when audio is unavailable. */
   public async start(): Promise<void> {
+    if (this.bootRequested || this.bootPlayed) return;
+    this.bootRequested = true;
     this.startCancelled = false;
-    if (!preferences.get().sound) return;
+    if (!preferences.get().sound) {
+      this.bootRequested = false;
+      return;
+    }
 
+    this.syncAudioSession();
+    soundManager.primeFromGesture();
     const ok = await soundManager.ensureRunning();
-    if (!ok || this.startCancelled || !preferences.get().sound) return;
+    if (!ok) {
+      this.bootRequested = false;
+      return;
+    }
+    if (this.startCancelled || !preferences.get().sound) return;
 
     // The context is running now. Build the pad graph on the next task so
     // constructing its nodes does not share a long task with the power-on
@@ -145,11 +179,15 @@ class InteractionBus {
     });
     if (this.startCancelled || !preferences.get().sound) return;
     soundManager.playBoot(prefersReducedMotionNow());
+    this.bootPlayed = true;
+    this.bootRequested = true;
   }
 
   /** Stop the boot pad on unmount and cancel a start that is still resuming. */
   public stopStart(): void {
     this.startCancelled = true;
+    this.bootPlayed = true;
+    this.bootRequested = true;
     soundManager.stopBoot();
   }
 
@@ -157,21 +195,52 @@ class InteractionBus {
     const next = !preferences.get().sound;
     preferences.set({ sound: next });
     announce(next ? 'Sound on' : 'Sound off');
-    if (next) this.interact('confirm', { source: 'keyboard' });
+    if (next) {
+      this.syncAudioSession();
+      this.armUnlock();
+      if (!this.bootPlayed) void this.start();
+      this.interact('confirm', { source: 'keyboard' });
+    }
   }
 
   /**
-   * Permanent recovery listeners. Resumption is attempted inside the gesture;
-   * the listeners are never removed after the first success so a backgrounded
-   * or interrupted context can come back.
+   * Prime audio inside the first pointer, touch, click or key gesture. These
+   * capture-phase listeners detach once the context runs; the visibility and
+   * page-show handlers stay for later interruptions.
    */
-  public install(): () => void {
-    if (this.cleanup) return this.cleanup;
+  private armUnlock(): void {
+    if (this.unlockCleanup || typeof window === 'undefined') return;
 
     const onGesture = () => {
       this.lastPointerAt = now();
-      void this.unlock();
+      if (!preferences.get().sound) return;
+
+      this.syncAudioSession();
+      soundManager.primeFromGesture();
+      if (!this.bootPlayed) void this.start();
+      void this.unlock().then((ok) => {
+        if (ok) this.disarmUnlock();
+      });
     };
+
+    UNLOCK_EVENTS.forEach((type) => {
+      window.addEventListener(type, onGesture, { capture: true, passive: true });
+    });
+
+    this.unlockCleanup = () => {
+      UNLOCK_EVENTS.forEach((type) => {
+        window.removeEventListener(type, onGesture, { capture: true });
+      });
+    };
+  }
+
+  private disarmUnlock(): void {
+    this.unlockCleanup?.();
+    this.unlockCleanup = null;
+  }
+
+  public install(): () => void {
+    if (this.cleanup) return this.cleanup;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'm' || event.key === 'M') {
@@ -189,17 +258,22 @@ class InteractionBus {
       void this.unlock();
     };
 
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void soundManager.resumeIfPossible();
+    const onRestore = () => {
+      this.syncAudioSession();
+      void soundManager.resumeIfPossible().then((ok) => {
+        if (!ok) this.armUnlock();
+      });
     };
 
-    const onPageShow = () => {
-      void soundManager.resumeIfPossible();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onRestore();
     };
 
     const unsubscribePreferences = preferences.subscribe(() => {
       const enabled = preferences.get().sound;
       soundManager.setMuted(!enabled);
+      this.syncAudioSession();
+      if (enabled) this.armUnlock();
       if (!enabled) {
         this.pending = null;
         soundManager.stopBoot();
@@ -207,19 +281,18 @@ class InteractionBus {
     });
 
     soundManager.setMuted(!preferences.get().sound);
+    this.syncAudioSession();
+    this.armUnlock();
 
-    window.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
-    window.addEventListener('touchend', onGesture, { capture: true, passive: true });
     window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('pageshow', onRestore);
     document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
-      window.removeEventListener('pointerdown', onGesture, { capture: true });
-      window.removeEventListener('touchend', onGesture, { capture: true });
       window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('pageshow', onRestore);
       document.removeEventListener('visibilitychange', onVisibility);
+      this.disarmUnlock();
       unsubscribePreferences();
       this.pending = null;
       this.unlocking = null;

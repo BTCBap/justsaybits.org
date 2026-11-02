@@ -93,11 +93,46 @@ class SoundManager {
   }
 
   /**
+   * Synchronous iOS unlock for a live user gesture: create or resume the
+   * context and play a one-sample silent buffer through the destination.
+   * The buffer queues while the context is still suspended and flushes on
+   * resume, which is what lifts the Safari gesture requirement.
+   */
+  public primeFromGesture(): boolean {
+    if (!this.available) return false;
+
+    if (this.ctx && (this.ctx.state as string) === 'closed') this.teardown();
+    if (!this.ctx && !this.create()) return false;
+
+    const ctx = this.ctx;
+    if (!ctx) return false;
+
+    if (ctx.state !== 'running') {
+      try {
+        void ctx.resume();
+      } catch {
+        // The next gesture retries.
+      }
+    }
+
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      source.connect(ctx.destination);
+      source.start(0);
+    } catch {
+      // The silent buffer is best-effort; resume still ran in the gesture.
+    }
+
+    this.notify();
+    return (ctx.state as string) === 'running';
+  }
+
+  /**
    * Create or resume the context. Call this synchronously inside a user
    * gesture: browsers only allow the resume while activation is live.
    */
-  public async ensureRunning(): Promise<boolean> {
-    if (!this.available) return false;
+  public async ensureRunning(): Promise<boolean> {    if (!this.available) return false;
 
     if (this.ctx && (this.ctx.state as string) === 'closed') this.teardown();
     if (!this.ctx && !this.create()) return false;
