@@ -47,6 +47,10 @@ const CURSOR_THROTTLE_MS = 80;
 const CURSOR_DEDUPE_MS = 800;
 const FOCUS_AFTER_POINTER_MS = 600;
 const PENDING_MAX_AGE_MS = 1200;
+/** One back gesture can reach the sound through the handler and the route. */
+const BACK_DEDUPE_MS = 650;
+/** Focus returns to the menu a frame or two after a back navigation. */
+const BACK_CURSOR_GUARD_MS = 300;
 const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'] as const;
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -61,6 +65,8 @@ class InteractionBus {
   private lastCursorId: string | null = null;
   private lastCursorAt = -Infinity;
   private lastPointerAt = -Infinity;
+  private lastBackAt = -Infinity;
+  private cursorGuardUntil = -Infinity;
   private pending: { event: SoundEvent; at: number } | null = null;
   private unlocking: Promise<boolean> | null = null;
   private cleanup: (() => void) | null = null;
@@ -87,6 +93,16 @@ class InteractionBus {
       return;
     }
 
+    if (event === 'back') {
+      const at = now();
+      // A close handler and the route change it causes are one gesture. The
+      // first one sounds; the second is the same back.
+      if (at - this.lastBackAt < BACK_DEDUPE_MS) return;
+      this.lastBackAt = at;
+      // Returning focus to a menu tile must not add a cursor tick to the back.
+      this.cursorGuardUntil = at + BACK_CURSOR_GUARD_MS;
+    }
+
     const haptic = options.haptic ?? DEFAULT_HAPTIC[event];
     if (haptic) hapticManager.play(haptic);
     this.emitSound(event);
@@ -94,6 +110,7 @@ class InteractionBus {
 
   private cursor(options: InteractOptions): void {
     const at = now();
+    if (at < this.cursorGuardUntil) return;
     if (options.source === 'focus' && at - this.lastPointerAt < FOCUS_AFTER_POINTER_MS) return;
     if (options.id && options.id === this.lastCursorId && at - this.lastCursorAt < CURSOR_DEDUPE_MS) return;
     if (at - this.lastCursorAt < CURSOR_THROTTLE_MS) return;
@@ -278,6 +295,14 @@ class InteractionBus {
   public install(): () => void {
     if (this.cleanup) return this.cleanup;
 
+    // Focus follows a pointerdown on a button. Keep the timestamp for the
+    // whole session: the one-shot unlock listeners detach after the first
+    // gesture, and a stale timestamp let a tap's focus event play a cursor
+    // tick alongside the action it started.
+    const onPointerDown = () => {
+      this.lastPointerAt = now();
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'm' || event.key === 'M') {
         if (
@@ -320,11 +345,13 @@ class InteractionBus {
     this.syncAudioSession();
     this.armUnlock();
 
+    window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('pageshow', onRestore);
     document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('pageshow', onRestore);
       document.removeEventListener('visibilitychange', onVisibility);

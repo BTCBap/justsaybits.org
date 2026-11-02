@@ -125,7 +125,9 @@ class SoundManager {
 
     if (ctx.state !== 'running') {
       try {
-        void ctx.resume();
+        // A context that cannot start still returns a rejected promise on
+        // WebKit; it must not surface as an unhandled page error.
+        void ctx.resume().catch(() => {});
       } catch {
         // The next gesture retries.
       }
@@ -339,6 +341,12 @@ class SoundManager {
       error: 420,
     };
     if (!this.acquire(durations[event])) return;
+
+    // A tiny observation hook for the browser checks. It carries the logical
+    // event, never audio data, and has no effect on synthesis.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('jsb:sound', { detail: { event } }));
+    }
 
     try {
       if (event === 'cursor') this.cursor();

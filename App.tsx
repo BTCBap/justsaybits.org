@@ -18,7 +18,7 @@ import { closeTo, navigate, pathForSection, useRouter, type NavOrigin } from './
 const ContentScreen = lazy(() => import('./components/ContentScreen'));
 
 const App: React.FC = () => {
-  const { route, previous } = useRouter();
+  const { route, previous, direction } = useRouter();
   const activeSection = route.section
     ? SECTIONS.find(section => section.id === route.section) ?? null
     : null;
@@ -44,6 +44,15 @@ const App: React.FC = () => {
 
   // The interaction bus owns audio resumption, recovery, and the M shortcut.
   useEffect(() => interaction.install(), []);
+
+  // Browser Back and the Android back gesture never reach a screen handler.
+  // The route change itself confirms them; the close handlers call the same
+  // back event first, and the bus dedupes the pair into one sound.
+  useEffect(() => {
+    if (direction !== 'back' || !previous) return;
+    if (!previous.section && !previous.notFound) return;
+    interaction.interact('back', { source: 'system' });
+  }, [direction, previous, route.path]);
 
   // Keep the hidden menu's selected card in step with a deep link.
   useEffect(() => {
