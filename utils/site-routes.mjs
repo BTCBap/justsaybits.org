@@ -27,7 +27,7 @@ export const SECTION_TITLES = {
 export const SECTION_DESCRIPTIONS = {
   about: 'Mission, core beliefs and current objectives of Zach Wischler, author of The Bitcoin Tao.',
   social: 'Connect with Zach Wischler on X and LinkedIn, or send an email.',
-  work: 'Career history across Swan Bitcoin, Casa, The Space, Personal Capital and Merrill Lynch.',
+  work: 'Career history across Swan Bitcoin, Casa, The Space Education Foundation, Personal Capital and Merrill Lynch.',
   portfolio: 'Projects, investments and design work by Zach Wischler.',
   book: 'The Bitcoin Tao: The Book of the Bitcoin Way and Its Virtue by Zach Wischler.',
   content: 'Essays, posts, podcasts, lectures, tutorials and reading from Zach Wischler.',
