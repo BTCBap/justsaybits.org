@@ -8,9 +8,6 @@
  *   back    — lower falling blip plus one tick haptic.
  *   error   — low double pulse plus the error pattern; fires only after the
  *             action has actually failed.
- *   start   — the boot pad, scheduled in the first gesture. Sound only: a
- *             haptic here buzzed every page load before the visitor had done
- *             anything, which is an audible tick on Android.
  *
  * The action handlers that emit a sound prime the AudioContext inside their
  * own gesture and resume it there. The site never writes
@@ -26,7 +23,7 @@ import { hapticManager, type HapticKind } from './HapticManager';
 import { preferences, prefersReducedMotionNow } from './preferences';
 import { soundManager, type SoundEvent } from './SoundManager';
 
-export type InteractionEvent = 'cursor' | 'confirm' | 'back' | 'error' | 'start';
+export type InteractionEvent = 'cursor' | 'confirm' | 'back' | 'error';
 export type InteractionSource = 'hover' | 'focus' | 'keyboard' | 'pointer' | 'gesture' | 'system';
 
 export interface InteractOptions {
@@ -42,7 +39,6 @@ const DEFAULT_HAPTIC: Record<InteractionEvent, HapticKind | false> = {
   confirm: 'confirm',
   back: 'tick',
   error: 'error',
-  start: false,
 };
 
 const CURSOR_THROTTLE_MS = 80;
@@ -53,7 +49,6 @@ const PENDING_MAX_AGE_MS = 1200;
 const BACK_DEDUPE_MS = 650;
 /** Focus returns to the menu a frame or two after a back navigation. */
 const BACK_CURSOR_GUARD_MS = 300;
-const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'] as const;
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -72,12 +67,6 @@ class InteractionBus {
   private pending: { event: SoundEvent; at: number } | null = null;
   private unlocking: Promise<boolean> | null = null;
   private cleanup: (() => void) | null = null;
-  private unlockCleanup: (() => void) | null = null;
-  private startCancelled = false;
-  private bootRequested = false;
-  private bootPlayed = false;
-  private bootSounded = false;
-  private arrivalHandled = false;
 
   /** Whether this browser exposes the Web Audio API at all. */
   public get soundAvailable(): boolean {
@@ -85,11 +74,6 @@ class InteractionBus {
   }
 
   public interact(event: InteractionEvent, options: InteractOptions = {}): void {
-    if (event === 'start') {
-      void this.start();
-      return;
-    }
-
     if (event === 'cursor') {
       this.cursor(options);
       return;
@@ -155,6 +139,8 @@ class InteractionBus {
   /** Resume the context from a live user gesture and flush its one sound. */
   public async unlock(): Promise<boolean> {
     if (!preferences.get().sound) return false;
+    // Only a voice that is about to play may build a context.
+    if (!this.pending && !soundManager.ready) return false;
     soundManager.primeFromGesture();
     if (!this.unlocking) {
       this.unlocking = soundManager.ensureRunning().then((ok) => {
@@ -175,124 +161,22 @@ class InteractionBus {
     return this.unlocking;
   }
 
-  /**
-   * First-gesture boot: schedule the pad into the context synchronously, so
-   * the same touch that unlocks audio also sounds it, then resume alongside.
-   * No haptic: a control action is the only thing that may buzz.
-   */
-  public async start(): Promise<void> {
-    // The short intro can finish before any gesture and cancel a pending
-    // start. If it never actually sounded, the first arrival still gets it.
-    if (!this.bootSounded) {
-      this.bootPlayed = false;
-      this.bootRequested = false;
-      this.startCancelled = false;
-    }
-    if (this.bootRequested || this.bootPlayed) return;
-    this.bootRequested = true;
-    this.startCancelled = false;
-
-    if (!preferences.get().sound) {
-      this.bootRequested = false;
-      return;
-    }
-
-    soundManager.primeFromGesture();
-
-    // A suspended context still queues nodes; resume() settles in this same
-    // gesture and the pad begins from its first sample.
-    if (soundManager.ready) {
-      soundManager.playBoot(prefersReducedMotionNow());
-      this.bootPlayed = true;
-      this.bootSounded = true;
-    }
-
-    const ok = await soundManager.ensureRunning();
-    if (!ok) {
-      if (this.bootPlayed) {
-        soundManager.stopBoot();
-        this.bootPlayed = false;
-        this.bootSounded = false;
-      }
-      this.bootRequested = false;
-      return;
-    }
-    if (this.startCancelled || !preferences.get().sound) return;
-    // A gesture that began before the tab was backgrounded must not sound
-    // after the resume settles.
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      this.bootRequested = false;
-      return;
-    }
-    if (!this.bootPlayed) {
-      soundManager.playBoot(prefersReducedMotionNow());
-      this.bootPlayed = true;
-      this.bootSounded = true;
-    }
-  }
-
-  /** Stop the boot pad on unmount and cancel a start that is still resuming. */
-  public stopStart(): void {
-    this.startCancelled = true;
-    this.bootPlayed = true;
-    this.bootRequested = true;
-    soundManager.stopBoot();
-  }
-
   private toggleSound(): void {
     const next = !preferences.get().sound;
     preferences.set({ sound: next });
     announce(next ? 'Sound on' : 'Sound off');
     if (next) {
-      this.armUnlock();
-      if (!this.bootPlayed) void this.start();
+      // Turning sound on is itself the gesture that may start a voice.
       this.interact('confirm', { source: 'keyboard' });
     }
-  }
-
-  /**
-   * The very first gesture starts the boot pad and then detaches these
-   * listeners. It never primes audio on its own: a context is built only when
-   * a voice is actually about to play.
-   */
-  private armUnlock(): void {
-    if (this.unlockCleanup || typeof window === 'undefined') return;
-
-    const onGesture = () => {
-      this.lastPointerAt = now();
-
-      // The very first gesture gets the boot pad, even on the intro screen,
-      // before any second interaction is needed. It never buzzes.
-      if (!this.arrivalHandled) {
-        this.arrivalHandled = true;
-        void this.start();
-      }
-      this.disarmUnlock();
-    };
-
-    UNLOCK_EVENTS.forEach((type) => {
-      window.addEventListener(type, onGesture, { capture: true, passive: true });
-    });
-
-    this.unlockCleanup = () => {
-      UNLOCK_EVENTS.forEach((type) => {
-        window.removeEventListener(type, onGesture, { capture: true });
-      });
-    };
-  }
-
-  private disarmUnlock(): void {
-    this.unlockCleanup?.();
-    this.unlockCleanup = null;
   }
 
   public install(): () => void {
     if (this.cleanup) return this.cleanup;
 
     // Focus follows a pointerdown on a button. Keep the timestamp for the
-    // whole session: the one-shot unlock listeners detach after the first
-    // gesture, and a stale timestamp let a tap's focus event play a cursor
-    // tick alongside the action it started.
+    // whole session so a tap's focus event does not add a cursor tick
+    // alongside the action it started.
     const onPointerDown = () => {
       this.lastPointerAt = now();
     };
@@ -332,15 +216,10 @@ class InteractionBus {
     const unsubscribePreferences = preferences.subscribe(() => {
       const enabled = preferences.get().sound;
       soundManager.setMuted(!enabled);
-      if (enabled) this.armUnlock();
-      if (!enabled) {
-        this.pending = null;
-        soundManager.stopBoot();
-      }
+      if (!enabled) this.pending = null;
     });
 
     soundManager.setMuted(!preferences.get().sound);
-    this.armUnlock();
 
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKeyDown, true);
@@ -352,7 +231,6 @@ class InteractionBus {
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('pagehide', onPageHide);
       document.removeEventListener('visibilitychange', onVisibility);
-      this.disarmUnlock();
       unsubscribePreferences();
       this.pending = null;
       this.unlocking = null;

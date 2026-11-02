@@ -2,8 +2,8 @@
  * Synthesized PS2-style system voices. No samples or trademarked audio.
  *
  * The graph is: voice -> master gain -> low-pass -> compressor -> destination.
- * UI voices use short soft envelopes; the boot pad has a long swell and tail.
- * A hard three-voice cap keeps rapid navigation from stacking nodes.
+ * UI voices use short soft envelopes. A hard three-voice cap keeps rapid
+ * navigation from stacking nodes.
  *
  * The context is lazy and short-lived. It is only built while sound is on and
  * a voice is about to play, and it is closed again after 1.5 s of silence, as
@@ -22,9 +22,6 @@ const MASTER = 0.18;
 const MAX_VOICES = 3;
 // One gentle low-pass across the whole system keeps the high harmonics soft.
 const TONE_CUTOFF = 1500;
-/** ~40% longer than the old 3.85 s pad, so the tone carries the boot out. */
-const BOOT_LONG_SECONDS = 5.4;
-const BOOT_SHORT_SECONDS = 1.75;
 /** How long an idle context may stay open after its last voice ends. */
 export const IDLE_CLOSE_MS = 1500;
 /** Fade before closing or hiding: long enough to reach true zero. */
@@ -50,11 +47,10 @@ class SoundManager {
   private closeTimer: number | null = null;
   /** Wall-clock time (ms) at which the last scheduled voice will end. */
   private lastVoiceEndsAt = 0;
-  private muted = false;
+  /** Muted until the preference store is wired: no audio before that. */
+  private muted = true;
   private voices = 0;
   private activeSources = new Set<AudioScheduledSourceNode>();
-  private bootOut: GainNode | null = null;
-  private bootOscillators: OscillatorNode[] = [];
   private listeners = new Set<() => void>();
 
   public get available(): boolean {
@@ -130,7 +126,6 @@ class SoundManager {
   }
 
   private teardown(): void {
-    this.stopBoot();
     this.clearIdleTimer();
     this.clearCloseTimer();
     this.lastVoiceEndsAt = 0;
@@ -175,7 +170,6 @@ class SoundManager {
   private shutDown(fadeMs: number): void {
     this.clearIdleTimer();
     this.clearCloseTimer();
-    this.stopBoot();
     const ctx = this.ctx;
     const output = this.output;
     if (!ctx) return;
@@ -477,88 +471,6 @@ class SoundManager {
     } catch {
       // Synthesis is decorative; a failed voice must never break navigation.
     }
-  }
-
-  /**
-   * Warm boot pad: 200/300/450 Hz through a slowly opening low-pass. No bell
-   * or ding rides on top. `short` is used under reduced motion.
-   */
-  public playBoot(short = false): void {
-    if (!this.ready || !this.isAudible()) return;
-    this.stopBoot();
-    if (!this.acquire(short ? 1750 : 5400)) return;
-    this.lastVoiceEndsAt = Math.max(
-      this.lastVoiceEndsAt,
-      performance.now() + (short ? BOOT_SHORT_SECONDS : BOOT_LONG_SECONDS) * 1000,
-    );
-    this.armIdleClose();
-
-    const ctx = this.ctx;
-    const master = this.master;
-    if (!ctx || !master) return;
-    const t = ctx.currentTime + 0.02;
-    const length = short ? BOOT_SHORT_SECONDS : BOOT_LONG_SECONDS;
-
-    const out = ctx.createGain();
-    out.gain.value = 0.8;
-    out.connect(master);
-    this.wakeOutput();
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.Q.value = 0.7;
-    filter.frequency.setValueAtTime(short ? 600 : 300, t);
-    filter.frequency.linearRampToValueAtTime(short ? 1100 : 1200, t + length * 0.42);
-
-    const pad = ctx.createGain();
-    const peak = short ? 0.1 : 0.12;
-    pad.gain.setValueAtTime(0, t);
-    // A slow one-second swell and a long release to true zero keep it gentle.
-    pad.gain.linearRampToValueAtTime(peak, t + (short ? 0.3 : 1));
-    pad.gain.setValueAtTime(peak, t + length * 0.58);
-    pad.gain.linearRampToValueAtTime(0, t + length);
-    filter.connect(pad);
-    pad.connect(out);
-
-    [200, 300, 450].forEach((frequency, index) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = index === 2 ? 'triangle' : 'sine';
-      osc.frequency.value = frequency;
-      osc.detune.value = index === 2 ? 0 : index === 0 ? -4 : 3;
-      const level = index === 2 ? 0.1 : 0.22;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(level, t + 0.015);
-      osc.connect(gain);
-      gain.connect(filter);
-      osc.start(t);
-      osc.stop(t + length + 0.05);
-      this.bootOscillators.push(osc);
-      this.track(osc);
-    });
-
-    this.bootOut = out;
-  }
-
-  /** Fade and stop the boot pad so it never runs underneath the menu. */
-  public stopBoot(): void {
-    if (this.ctx && this.bootOut) {
-      const now = this.ctx.currentTime;
-      const gain = this.bootOut.gain;
-      gain.cancelScheduledValues(now);
-      gain.setValueAtTime(gain.value, now);
-      // A short fade to true zero: stopping mid-waveform is what clicked.
-      gain.linearRampToValueAtTime(0, now + 0.06);
-    }
-    this.bootOscillators.forEach(osc => {
-      try {
-        osc.stop((this.ctx?.currentTime ?? 0) + 0.12);
-      } catch {
-        // Already stopped.
-      }
-    });
-    this.bootOscillators = [];
-    this.bootOut = null;
   }
 
   /**

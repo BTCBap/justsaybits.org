@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 
 interface PS2BackgroundProps {
-  /** True while an opaque screen or the boot overlay covers the background. */
+  /** True while an opaque screen covers the background. */
   paused?: boolean;
   /** The visitor's reduced-motion setting, in addition to the OS preference. */
   reducedMotion?: boolean;

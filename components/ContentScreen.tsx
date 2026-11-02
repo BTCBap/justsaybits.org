@@ -52,8 +52,6 @@ import {
 interface ContentScreenProps {
   section: Section;
   onBack: () => void;
-  /** False while the boot gate owns the screen, so focus is not stolen behind it. */
-  focusEnabled?: boolean;
 }
 
 const CLOSE_MS = 190;
@@ -131,7 +129,7 @@ interface MediaData {
 
 type PortfolioTab = 'projects' | 'investments' | 'design';
 
-const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEnabled = true }) => {
+const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack }) => {
   const { route, previous, origin } = useRouter();
 
   const contentTab: ContentTab = section.id === 'content'
@@ -185,14 +183,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     panel.style.transformOrigin = `${origin.x - rect.left}px ${origin.y - rect.top}px`;
   }, [origin, section.id]);
 
-  // Move focus into the dialog once the boot gate has handed over the screen.
+  // Move focus into the dialog once the screen is mounted.
   useEffect(() => {
-    if (!focusEnabled || headingFocusDone.current) return;
+    if (headingFocusDone.current) return;
     headingFocusDone.current = true;
     if (essaySlug) return;
     const frame = requestAnimationFrame(() => headingRef.current?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(frame);
-  }, [focusEnabled, essaySlug]);
+  }, [essaySlug]);
 
   // Essay reader: start at the top (including when moving between essays),
   // focus the title, and put the reader back where they were on return.
@@ -204,7 +202,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         lastEssaySlug.current = essaySlug;
         body?.scrollTo({ top: 0 });
       }
-      if (!focusEnabled) return;
       const frame = requestAnimationFrame(() => essayTitleRef.current?.focus({ preventScroll: true }));
       return () => cancelAnimationFrame(frame);
     }
@@ -225,7 +222,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       announce('Returned to Essays');
     });
     return () => cancelAnimationFrame(frame);
-  }, [essaySlug, focusEnabled, contentTab]);
+  }, [essaySlug, contentTab]);
 
   // A new tab or section starts at the top; returning from an essay is handled
   // by the effect above so the list keeps its place.

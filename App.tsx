@@ -3,7 +3,6 @@ import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion';
 
 import PS2Background from './components/PS2Background';
 import MainMenu from './components/MainMenu';
-import BootSequence from './components/BootSequence';
 import LiveStatus from './components/LiveStatus';
 import NotFoundScreen from './components/NotFoundScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,7 +10,6 @@ import OfflineNotice from './components/OfflineNotice';
 import { ScreenSkeleton } from './components/Skeleton';
 import { SECTIONS } from './constants';
 import { interaction } from './utils/Interaction';
-import { hasBootedThisSession, markBootedThisSession } from './utils/bootSession';
 import { usePrefersReducedMotion } from './utils/preferences';
 import { closeTo, navigate, pathForSection, useRouter, type NavOrigin } from './utils/router';
 
@@ -25,11 +23,7 @@ const App: React.FC = () => {
   const activeSectionId = activeSection?.id ?? null;
   const screenOpen = !!activeSection || route.notFound;
 
-  // The menu is composited from the first frame, behind the boot, so there is
-  // no layout shift when the overlay clears and no second entrance animation.
-  const [bootVisible, setBootVisible] = useState(true);
-  const [bootComplete, setBootComplete] = useState(false);
-  const [returningVisitor] = useState(() => hasBootedThisSession());
+  // The menu is composited on the first frame: no boot overlay, no inert gate.
   const [activeMenuIndex, setActiveMenuIndex] = useState(() => {
     const aboutIndex = SECTIONS.findIndex(s => s.id === 'about');
     return aboutIndex >= 0 ? aboutIndex : 0;
@@ -79,14 +73,13 @@ const App: React.FC = () => {
   }, [route.path, screenOpen, previous]);
 
   // Warm the content chunk once the menu is idle so a first selection does not
-  // wait on the network. Nothing is fetched while the boot is running.
+  // wait on the network.
   useEffect(() => {
-    if (!bootComplete) return;
     const timer = window.setTimeout(() => {
       void import('./components/ContentScreen');
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [bootComplete]);
+  }, []);
 
   const openSection = (id: string, origin?: NavOrigin) => {
     navigate(pathForSection(id), { origin });
@@ -99,17 +92,13 @@ const App: React.FC = () => {
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
       <LazyMotion features={domAnimation} strict>
-        <div className="relative w-full h-full overflow-hidden bg-[var(--bg)] text-white font-sans">
+        <div className="app-shell relative w-full overflow-hidden bg-[var(--bg)] text-white font-sans">
           
           {/* Background Layer */}
-          <PS2Background paused={!bootComplete || screenOpen} reducedMotion={reducedMotion} />
+          <PS2Background paused={screenOpen} reducedMotion={reducedMotion} />
 
           {/* Main Content Layer */}
-          <div
-            className="relative z-10 w-full h-full"
-            aria-hidden={!bootComplete ? true : undefined}
-            inert={!bootComplete || undefined}
-          >
+          <div className="relative z-10 w-full h-full">
             <div
               ref={menuRef}
               className="w-full h-full"
@@ -121,7 +110,7 @@ const App: React.FC = () => {
                 onSelect={openSection}
                 activeIndex={activeMenuIndex}
                 onActiveIndexChange={setActiveMenuIndex}
-                keyboardEnabled={bootComplete && !screenOpen}
+                keyboardEnabled={!screenOpen}
               />
             </div>
 
@@ -131,11 +120,10 @@ const App: React.FC = () => {
                 <ContentScreen
                   key={activeSection.id}
                   section={activeSection}
-                  focusEnabled={bootComplete}
                   onBack={closeSection}
                 />
               ) : route.notFound ? (
-                <NotFoundScreen path={route.path} onHome={closeSection} focusEnabled={bootComplete} />
+                <NotFoundScreen path={route.path} onHome={closeSection} />
               ) : null}
               </Suspense>
             </ErrorBoundary>
@@ -143,18 +131,6 @@ const App: React.FC = () => {
 
           {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
           <div className="crt-overlay pointer-events-none fixed inset-0 z-[5]" />
-
-          {bootVisible && (
-            <BootSequence
-              short={returningVisitor}
-              onReveal={() => setBootComplete(true)}
-              onComplete={() => {
-                markBootedThisSession();
-                setBootComplete(true);
-                setBootVisible(false);
-              }}
-            />
-          )}
 
           <LiveStatus />
           <OfflineNotice />
