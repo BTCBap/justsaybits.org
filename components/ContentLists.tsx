@@ -16,25 +16,6 @@ interface EssayProps {
   onNavigate?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
-export const FeaturedEssay: React.FC<EssayProps> = ({
-  essay,
-  href,
-  feedbackId,
-  innerRef,
-  onNavigate,
-}) => (
-  <SystemCard
-    href={href}
-    feedbackId={feedbackId}
-    innerRef={innerRef}
-    className="essay-featured"
-    title={essay.title}
-    titleClassName="essay-featured__title"
-    meta={essay.date}
-    onNavigate={onNavigate}
-  />
-);
-
 export const EssayRow: React.FC<EssayProps> = ({
   essay,
   href,
@@ -46,7 +27,7 @@ export const EssayRow: React.FC<EssayProps> = ({
     href={href}
     feedbackId={feedbackId}
     innerRef={innerRef}
-    className="essay-row"
+    className="essay-row content-card"
     title={essay.title}
     titleClassName="essay-row__title"
     meta={essay.date}
@@ -92,7 +73,7 @@ export const MediaRow: React.FC<{ item: MediaItem }> = ({ item }) => (
     href={item.url}
     external
     feedbackId={`media:${item.url}`}
-    className="media-row"
+    className="media-row content-card"
     leading={(
       <span className="media-play" aria-hidden="true">
         <Play className="h-3.5 w-3.5" fill="currentColor" />
@@ -109,7 +90,7 @@ export const ReadingRow: React.FC<{ item: ReadingItem }> = ({ item }) => (
     href={item.url}
     external
     feedbackId={`reading:${item.url}`}
-    className="reading-row"
+    className="reading-row content-card"
     title={item.title}
     titleClassName="reading-row__title"
     meta={<span>{item.author} <span aria-hidden="true">·</span> {item.date}</span>}
@@ -121,7 +102,7 @@ export const TutorialRow: React.FC<{ item: MediaItem }> = ({ item }) => (
     href={item.url}
     external
     feedbackId={`media:${item.url}`}
-    className="tutorial-row"
+    className="tutorial-row content-card"
     leading={(
       <span className="media-play" aria-hidden="true">
         <Play className="h-3.5 w-3.5" fill="currentColor" />
