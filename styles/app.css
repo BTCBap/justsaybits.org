@@ -2500,13 +2500,6 @@ html[data-motion="reduced"] .essay-prose a {
   outline-offset: 2px;
 }
 
-.book-disclosure {
-  margin: 0.7rem 0 0;
-  color: var(--text-muted);
-  font-size: var(--type-12);
-  line-height: 1.5;
-}
-
 /* ---------------------------------------------------------------------------
    Content tab shapes
 --------------------------------------------------------------------------- */
