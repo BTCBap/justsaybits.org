@@ -9,7 +9,8 @@ Run against a built preview:
 
 After the boot gesture, the check clears its counters, toggles visibility,
 pageshow (bfcache) and focus, and resumes every AudioContext directly. None of
-those paths may schedule a voice. A real click afterwards must still play.
+those paths may schedule a voice or suspend the context, so other apps' audio
+is never interrupted. A real click afterwards must still play.
 """
 import asyncio
 import os
@@ -96,6 +97,11 @@ async def main():
         page.on('pageerror', lambda error: errors.append(str(error)))
 
         await page.goto(BASE + '/', wait_until='networkidle')
+        # Sound now starts off; opt in through storage so the boot gesture
+        # exercises the audible path.
+        await page.evaluate("""() => localStorage.setItem('jsb.prefs.v2', JSON.stringify(
+          {sound: true, haptics: true, soundHintDismissed: true}))""")
+        await page.reload(wait_until='networkidle')
         await page.wait_for_timeout(300)
         before = await counts(page)
         check(before['contexts'] == 0, 'no AudioContext before a gesture', str(before))
@@ -112,6 +118,9 @@ async def main():
           document.dispatchEvent(new Event('visibilitychange'));
         """)
         await page.wait_for_timeout(150)
+        hidden = await counts(page)
+        check('suspended' not in hidden['states'], 'hide never suspends the context',
+              str(hidden['states']))
         await page.evaluate("""
           Object.defineProperty(document, 'visibilityState', {
             configurable: true,

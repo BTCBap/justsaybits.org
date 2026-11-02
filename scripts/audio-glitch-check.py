@@ -19,6 +19,8 @@ import sys
 
 from playwright.async_api import async_playwright
 
+from sound_prefs import AUDIO_ON
+
 BASE = os.environ.get('BASE', 'http://localhost:4302').rstrip('/')
 CHROME = os.environ.get('CHROME') or '/usr/bin/google-chrome'
 DISCONTINUITY = 0.01
@@ -165,6 +167,7 @@ async def main():
             args=['--no-sandbox', '--autoplay-policy=no-user-gesture-required'],
         )
         context = await browser.new_context(viewport={'width': 1280, 'height': 800})
+        await context.add_init_script(AUDIO_ON)
         await context.add_init_script(PROBE)
         page = await context.new_page()
         errors = []
