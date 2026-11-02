@@ -1,4 +1,5 @@
 import React from 'react';
+import { hapticManager } from '../utils/HapticManager';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
 import { preferences, useHapticsAvailable, usePreferences } from '../utils/preferences';
@@ -8,7 +9,7 @@ interface SystemTogglesProps {
 }
 
 const toggleClass = (active: boolean): string =>
-  `inline-flex h-11 w-11 items-center justify-center border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+  `inline-flex h-11 w-11 touch-manipulation items-center justify-center border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
     active
       ? 'border-blue-300/40 bg-blue-400/10 text-white'
       : 'border-transparent text-blue-200/55 hover:border-blue-400/25 hover:text-white'
@@ -81,7 +82,9 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
     const next = !prefs.haptics;
     preferences.set({ haptics: next });
     announce(next ? 'Haptics on' : 'Haptics off');
-    if (next) interaction.interact('cursor', { id: 'settings:haptics', haptic: 'tick' });
+    // This tap is the control action: give it its own tick, not a cursor
+    // event that the focus handler's throttle would drop.
+    if (next) hapticManager.play('tick');
   };
 
   const focusCursor = (id: string) => () => {
@@ -91,7 +94,11 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
   const soundOn = prefs.sound && soundAvailable;
 
   return (
-    <div className={`flex flex-col items-center gap-1 ${className}`}>
+    <div
+      className={`flex flex-col items-center gap-1 ${className}`}
+      data-menu-control
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <div role="group" aria-label="System preferences" className="flex items-center gap-1">
         <button
           type="button"
