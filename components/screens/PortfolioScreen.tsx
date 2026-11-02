@@ -260,6 +260,7 @@ export const DesignTab: React.FC = () => {
                 sizes={item.sizes}
                 alt={item.alt}
                 className="design-tile__image"
+                frameAspect="1 / 1"
                 imageClassName="design-tile__img"
               />
               <span className="design-tile__caption">
