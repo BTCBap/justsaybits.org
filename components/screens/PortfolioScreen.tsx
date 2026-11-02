@@ -274,8 +274,6 @@ export const DesignTab: React.FC = () => {
                 srcSet={item.srcSet}
                 sizes={item.sizes}
                 alt={item.alt}
-                width={item.width}
-                height={item.height}
                 className="design-tile__image"
                 imageClassName="design-tile__img"
               />
