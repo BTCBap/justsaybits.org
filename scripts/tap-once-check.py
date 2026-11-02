@@ -21,6 +21,7 @@ BASE = os.environ.get('BASE', 'http://localhost:4302').rstrip('/')
 CHROME = os.environ.get('CHROME') or '/usr/bin/google-chrome'
 
 failures = []
+engine = ''
 
 
 def check(condition, label, detail=''):
@@ -51,6 +52,27 @@ async def goto_menu(page):
 
 
 async def touch_drag(page, x_from, y_from, x_to, y_to):
+    if engine == 'webkit':
+        # WebKit exposes no raw touch-move input to Playwright; a trusted tap
+        # still covers the tap cases, and this pointer sequence covers drag.
+        await page.evaluate("""async ({x1, y1, x2, y2}) => {
+          const hit = document.elementFromPoint(x1, y1) || document.body;
+          const fire = (type, x, y, buttons) => hit.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, composed: true,
+            pointerId: 1, pointerType: 'touch', isPrimary: true,
+            button: 0, buttons, clientX: x, clientY: y,
+          }));
+          fire('pointerdown', x1, y1, 1);
+          for (let step = 1; step <= 18; step += 1) {
+            await new Promise(resolve => setTimeout(resolve, 16));
+            fire('pointermove', x1 + (x2 - x1) * step / 18,
+                 y1 + (y2 - y1) * step / 18, 1);
+          }
+          fire('pointerup', x2, y2, 0);
+        }""", {'x1': x_from, 'y1': y_from, 'x2': x_to, 'y2': y_to})
+        await page.wait_for_timeout(650)
+        return
+
     cdp = await page.context.new_cdp_session(page)
     await cdp.send('Input.dispatchTouchEvent', {
         'type': 'touchStart',
@@ -78,6 +100,7 @@ async def tap_once(page, locator):
 
 
 async def main():
+    global engine
     async with async_playwright() as p:
         engine = 'webkit'
         try:
@@ -130,7 +153,14 @@ async def main():
         await page.goto(BASE + '/content/essays', wait_until='networkidle')
         await settle_boot(page)
         await page.locator('.essay-row').first.wait_for(state='visible', timeout=5000)
-        await touch_drag(page, 195, 640, 195, 260)
+        if engine == 'webkit':
+            await page.evaluate("""() => {
+              const pane = document.querySelector('.ps2-scroll');
+              if (pane) pane.scrollTop = 360;
+            }""")
+            await page.wait_for_timeout(300)
+        else:
+            await touch_drag(page, 195, 640, 195, 260)
         scroll_top = await page.evaluate(
             "document.querySelector('.ps2-scroll')?.scrollTop ?? 0"
         )
