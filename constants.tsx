@@ -28,7 +28,7 @@ export const PORTFOLIO_DATA: PortfolioItem[] = [
     url: "https://github.com/BTCBap/hax"
   },
   {
-    title: "The Space",
+    title: "The Space Education Foundation",
     role: "Co-Founder",
     year: "2024",
     description: "A thriving member-operated bitcoin community and nonprofit organization building the premier place for collaboration, education, and freedom technology in the Rocky Mountain Region.",
