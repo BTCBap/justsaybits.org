@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Eye,
   ExternalLink,
-  Maximize2,
   ShieldCheck,
   X,
 } from 'lucide-react';
@@ -34,17 +33,7 @@ export const ProjectsTab: React.FC = () => (
         leading={<span className="project-year ps2-meta">{item.year}</span>}
         title={item.title}
         meta={item.role}
-        description={item.description}
-        footer={(
-          <span className="project-tags">
-            {item.tech.map(tech => (
-              <span key={tech} className="project-tag">{tech}</span>
-            ))}
-          </span>
-        )}
-      >
-        <span className="project-more" aria-hidden="true">More</span>
-      </SystemCard>
+      />
     ))}
   </div>
 );
@@ -194,9 +183,6 @@ const DesignLightbox: React.FC<DesignLightboxProps> = ({
         className="lightbox__panel"
       >
         <div className="lightbox__bar">
-          <p className="lightbox__count ps2-meta">
-            {index + 1} / {total}
-          </p>
           <button ref={closeRef} type="button" className="lightbox__button" onClick={onClose}>
             <X className="h-4 w-4" aria-hidden="true" />
             <span className="sr-only">Close image viewer</span>
@@ -280,10 +266,6 @@ export const DesignTab: React.FC = () => {
               <span className="design-tile__caption">
                 <span className="design-tile__title">{item.title}</span>
                 <span className="design-tile__type ps2-meta">{item.type}</span>
-              </span>
-              <span className="design-tile__zoom" aria-hidden="true">
-                <Maximize2 className="h-3.5 w-3.5" />
-                View
               </span>
             </button>
           </figure>

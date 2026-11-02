@@ -1966,47 +1966,12 @@ html[data-motion="reduced"] .essay-prose a {
   -webkit-line-clamp: unset;
 }
 
-.project-more {
-  display: inline-block;
-  margin-top: 0.25rem;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.project-card:hover .project-more,
-.project-card:focus-visible .project-more {
-  display: none;
-}
-
 @media (pointer: coarse) {
   .project-card .system-card__desc {
     display: block;
     overflow: visible;
     -webkit-line-clamp: unset;
   }
-
-  .project-more {
-    display: none;
-  }
-}
-
-.project-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.project-tag {
-  border: 1px solid rgba(110, 168, 255, 0.35);
-  background: rgba(110, 168, 255, 0.1);
-  padding: 0.1rem 0.4rem;
-  color: var(--text);
-  font-size: var(--type-12);
-  letter-spacing: 0.02em;
-  text-transform: none;
 }
 
 /* Investments: real table semantics, list layout on phones. */
@@ -2230,18 +2195,6 @@ html[data-motion="reduced"] .essay-prose a {
   flex: none;
 }
 
-.design-tile__zoom {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin: 0 0.7rem 0.55rem;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 /* Lightbox: dialog, arrow keys, focus trap, and focus return. */
 .lightbox {
   position: fixed;
@@ -2272,10 +2225,6 @@ html[data-motion="reduced"] .essay-prose a {
   justify-content: space-between;
   border-bottom: 1px solid rgba(90, 140, 235, 0.22);
   padding: 0.35rem 0.4rem 0.35rem 1rem;
-}
-
-.lightbox__count {
-  margin: 0;
 }
 
 .lightbox__button {
@@ -2613,10 +2562,6 @@ html[data-motion="reduced"] .essay-prose a {
    Content tab shapes
 --------------------------------------------------------------------------- */
 
-.content-count {
-  color: var(--text-secondary);
-}
-
 .essay-index {
   display: flex;
   flex-direction: column;
@@ -2726,22 +2671,6 @@ html[data-motion="reduced"] .essay-prose a {
   object-fit: contain;
 }
 
-.post-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.2rem 0.4rem;
-  color: var(--text-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--type-12);
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-.post-metrics__sep {
-  color: var(--accent-soft);
-}
-
 .content-sections {
   display: flex;
   flex-direction: column;
@@ -2769,19 +2698,6 @@ html[data-motion="reduced"] .essay-prose a {
   color: var(--text-secondary);
 }
 
-.content-section__count {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.1em;
-}
-
-.content-section__empty {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--type-14);
-}
-
 .content-group {
   display: flex;
   flex-direction: column;
@@ -2806,10 +2722,6 @@ html[data-motion="reduced"] .essay-prose a {
   font-size: var(--type-12);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-.content-venue__count {
-  color: var(--text-muted);
 }
 
 .media-rows,
@@ -2867,18 +2779,6 @@ html[data-motion="reduced"] .essay-prose a {
 
 .tutorial-row__title {
   font-size: var(--type-16);
-}
-
-.tutorial-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 1px solid rgba(110, 168, 255, 0.4);
-  background: rgba(110, 168, 255, 0.1);
-  padding: 0.1rem 0.4rem;
-  color: var(--text);
-  font-size: var(--type-12);
-  letter-spacing: 0.08em;
 }
 
 .reading-row {
