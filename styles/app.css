@@ -2173,8 +2173,9 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 /* One square frame for every mark, wide logos included. The image is
-   contained and sits on the frame's bottom padding line, so every mark shares
-   the same baseline and every caption starts at the same height. */
+   contained and centred in the frame. The caption is pushed to the tile's
+   bottom edge, so every label shares one bottom offset whatever the title
+   length or wrapping. */
 .design-tile__image {
   width: 100%;
   aspect-ratio: 1;
@@ -2185,13 +2186,14 @@ html[data-motion="reduced"] .essay-prose a {
 .design-tile__img {
   padding: 0.5rem;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center;
 }
 
 .design-tile__caption {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 0.15rem;
+  margin-top: auto;
   padding: 0.55rem 0.7rem;
 }
 
