@@ -91,11 +91,11 @@ export const DESIGN_DATA: DesignItem[] = [
 ];
 
 export const INVESTMENT_DATA: InvestmentItem[] = [
-  { asset: "Maple AI", url: "https://maple.ai", logo: "/logos/maple.svg" },
-  { asset: "Strike Inc.", url: "https://strike.me", logo: "/logos/strike.webp" },
-  { asset: "Foundation Devices, Inc.", url: "https://foundation.xyz", logo: "/logos/foundation.svg" },
-  { asset: "Casa Inc.", url: "https://casa.io", logo: "/logos/casa.svg" },
-  { asset: "Personal Capital Corporation", url: "https://personalcapital.com", logo: "/logos/personal-capital.webp" },
+  { asset: "Maple AI", url: "https://maple.ai", logo: "/logos/maple.svg", status: "Active" },
+  { asset: "Strike", url: "https://strike.me", logo: "/logos/strike.webp", status: "Active" },
+  { asset: "Foundation Devices", url: "https://foundation.xyz", logo: "/logos/foundation.svg", status: "Active" },
+  { asset: "Casa", url: "https://casa.io", logo: "/logos/casa.svg", status: "Active" },
+  { asset: "Personal Capital", url: "https://personalcapital.com", logo: "/logos/personal-capital.webp", status: "Acquired" },
 ];
 
 export const BOOK_DATA: BookItem[] = [
@@ -117,6 +117,7 @@ export const BOOK_DATA: BookItem[] = [
 export const WORK_DATA: JobItem[] = [
   {
     company: "Swan Bitcoin",
+    logo: "/logos/swan.svg",
     role: "Managing Director, Swan Private",
     period: "Sep 2026 - Present",
     location: "New Orleans, Louisiana, United States",
@@ -124,6 +125,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "Casa Inc.",
+    logo: "/logos/casa.svg",
     period: "5 yrs 3 mos",
     location: "Denver, Colorado, United States",
     highlights: [],
@@ -135,6 +137,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "The Space Education Foundation",
+    logo: "/logos/the-space.webp",
     role: "President",
     period: "Jan 2023 - Jan 2026",
     location: "Denver, Colorado, United States",
@@ -142,6 +145,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "The Space",
+    logo: "/logos/the-space.webp",
     role: "Co-Founder and Board Member",
     period: "Apr 2024 - Jan 2026",
     location: "Denver, Colorado, United States",
@@ -149,6 +153,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "iCIMS",
+    logo: "/logos/icims.svg",
     role: "Account Executive",
     period: "Sep 2020 - Apr 2021",
     location: "Denver, Colorado, United States",
@@ -156,6 +161,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "Personal Capital",
+    logo: "/logos/personal-capital.webp",
     period: "2 yrs 4 mos",
     location: "Denver, Colorado, United States",
     highlights: [],
@@ -166,6 +172,7 @@ export const WORK_DATA: JobItem[] = [
   },
   {
     company: "Merrill Lynch",
+    logo: "/logos/merrill.svg",
     role: "Financial Advisor",
     period: "Sep 2014 - Mar 2017",
     location: "New Orleans, Louisiana, United States",

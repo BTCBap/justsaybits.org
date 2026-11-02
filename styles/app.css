@@ -1417,6 +1417,22 @@ html[data-motion="reduced"] .essay-prose a {
   background: linear-gradient(100deg, rgba(30, 70, 140, 0.34), rgba(9, 24, 50, 0.42));
 }
 
+.work-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 40px;
+  margin: 0 0 0.7rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
+@media (min-width: 768px) {
+  .work-logo {
+    height: 48px;
+  }
+}
+
 .work-head {
   display: flex;
   flex-direction: column;
@@ -1584,19 +1600,67 @@ html[data-motion="reduced"] .essay-prose a {
   padding: 0.95rem 1rem;
 }
 
+.investment-card__top {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
 .investment-card__logo {
   display: block;
-  align-self: flex-start;
+  flex: 0 1 auto;
+  min-width: 0;
   width: auto;
   max-width: 100%;
-  height: 24px;
+  height: 40px;
   object-fit: contain;
   object-position: left center;
 }
 
 @media (min-width: 768px) {
   .investment-card__logo {
-    height: 28px;
+    height: 48px;
+  }
+}
+
+/* Restored from the pre-table investment list: a compact mono chip. */
+.status-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border: 1px solid;
+  padding: 0.15rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-12);
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-pill--active {
+  border-color: rgba(143, 224, 184, 0.5);
+  background: rgba(143, 224, 184, 0.1);
+  color: var(--success);
+}
+
+.status-pill--acquired {
+  border-color: rgba(110, 168, 255, 0.45);
+  background: rgba(110, 168, 255, 0.1);
+  color: var(--accent);
+}
+
+@media (max-width: 479px) {
+  .investment-card {
+    padding: 0.85rem;
+  }
+
+  .investment-card .status-pill {
+    padding: 0.1rem 0.35rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
   }
 }
 

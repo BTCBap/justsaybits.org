@@ -30,6 +30,13 @@ const WorkScreen: React.FC = () => {
             <li key={`${job.company}-${index}`} className={`work-item ${current ? 'work-item--current' : ''}`}>
               <span className="work-dot" aria-hidden="true" />
               <div className="work-card">
+                <img
+                  className="work-logo"
+                  src={job.logo}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
                 <div className="work-head">
                   <div className="work-title">
                     <h2 className="work-company">
