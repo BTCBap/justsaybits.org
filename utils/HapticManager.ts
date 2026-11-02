@@ -1,4 +1,4 @@
-import { canUseIOSHapticFallback, canVibrate, isCoarsePointer, preferences } from './preferences';
+import { canUseIOSHapticFallback, canVibrate, isCoarsePointer } from './preferences';
 
 export type HapticKind = 'tick' | 'confirm' | 'success' | 'error';
 
@@ -72,7 +72,6 @@ class HapticManager {
    */
   public play(kind: HapticKind): void {
     if (!this.available) return;
-    if (!preferences.get().haptics) return;
     // A hidden page never buzzes: a background pulse is felt as a click and
     // is not the result of anything the visitor did on screen.
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;

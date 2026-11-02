@@ -3,7 +3,6 @@ import { ArrowLeft } from 'lucide-react';
 import { interaction } from '../utils/Interaction';
 import { trapTabKey } from '../utils/focus';
 import HelpBar from './HelpBar';
-import SystemToggles from './SystemToggles';
 
 interface NotFoundScreenProps {
   path: string;
@@ -85,7 +84,6 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome }) => {
             <span className="uppercase tracking-[0.14em] font-mono text-xs">Back to Home</span>
           </button>
           <HelpBar description="Press Escape to return to the main menu." />
-          <SystemToggles />
         </div>
       </div>
     </div>

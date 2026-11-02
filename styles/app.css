@@ -310,8 +310,8 @@ html[data-motion="reduced"] .panel-shift {
 
 /* ---------------------------------------------------------------------------
    Main menu: PS2 system browser
-   A centred row of large system icons carries the menu, with the quiet system
-   toggles and the page indicator in the bottom slot. Layout follows the viewport
+   A centred row of large system icons carries the menu, with the page
+   indicator in the bottom slot. Layout follows the viewport
    so menu type is never scaled below its real size.
 --------------------------------------------------------------------------- */
 
@@ -370,13 +370,6 @@ html[data-motion="reduced"] .panel-shift {
   :root {
     --menu-edge-gutter: 4rem;
   }
-}
-
-/* The three quiet glyphs sit right under the icons, on the active tile's axis. */
-.menu-toggles {
-  display: flex;
-  justify-content: center;
-  padding-top: 0.25rem;
 }
 
 /* The page indicator takes the bottom slot, clear of the home indicator. */

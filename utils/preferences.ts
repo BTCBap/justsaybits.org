@@ -1,105 +1,23 @@
 import { useSyncExternalStore } from 'react';
 
-export interface Preferences {
-  sound: boolean;
-  haptics: boolean;
-  soundHintDismissed: boolean;
-}
-
-const STORAGE_KEY = 'jsb.prefs.v3';
 /**
- * Earlier builds stored a sound flag that may be a default rather than a
- * choice. Only the non-audio preferences migrate; sound starts off again.
+ * The site keeps no interface preferences. Earlier builds stored sound,
+ * haptics and hint flags under these keys; clear them once so a returning
+ * visitor's browser carries no stale state.
  */
-const LEGACY_STORAGE_KEYS = ['jsb.prefs.v2', 'jsb.prefs.v1'] as const;
+const RETIRED_STORAGE_KEYS = ['jsb.prefs.v1', 'jsb.prefs.v2', 'jsb.prefs.v3'] as const;
 
-const DEFAULTS: Preferences = {
-  sound: false,
-  haptics: true,
-  soundHintDismissed: false,
-};
-
-/**
- * Read the newest legacy record once, keep haptics and the hint, and write v3
- * muted. Sound is off for everyone after migration, including visitors who
- * turned it on before.
- */
-const migrateLegacy = (): Preferences => {
-  let haptics = DEFAULTS.haptics;
-  let soundHintDismissed = false;
+const clearRetiredStorage = (): void => {
+  if (typeof window === 'undefined') return;
   try {
-    for (const key of LEGACY_STORAGE_KEYS) {
-      const raw = window.localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as Partial<Preferences>;
-      if (typeof parsed.haptics === 'boolean') haptics = parsed.haptics;
-      soundHintDismissed = parsed.soundHintDismissed === true;
-      break;
-    }
+    RETIRED_STORAGE_KEYS.forEach(key => window.localStorage.removeItem(key));
   } catch {
-    // Unreadable legacy record: fall back to the defaults.
-  }
-
-  const stored: Preferences = { sound: false, haptics, soundHintDismissed };
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    LEGACY_STORAGE_KEYS.forEach(key => window.localStorage.removeItem(key));
-  } catch {
-    // Keep the migrated values in memory when storage is read-only.
-  }
-  return stored;
-};
-
-const read = (): Preferences => {
-  if (typeof window === 'undefined') return { ...DEFAULTS };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return migrateLegacy();
-    const parsed = JSON.parse(raw) as Partial<Preferences>;
-    return {
-      sound: parsed.sound === true,
-      haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULTS.haptics,
-      soundHintDismissed: parsed.soundHintDismissed === true,
-    };
-  } catch {
-    return { ...DEFAULTS };
+    // Storage can be unavailable (private mode, quota); there is nothing to
+    // clear then.
   }
 };
 
-let current: Preferences = read();
-const listeners = new Set<() => void>();
-
-const write = (value: Preferences) => {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // Storage can be unavailable (private mode, quota); the in-memory value
-    // still applies for this visit.
-  }
-};
-
-export const preferences = {
-  get: (): Preferences => current,
-  set: (patch: Partial<Preferences>) => {
-    const next = { ...current, ...patch };
-    if (
-      next.sound === current.sound &&
-      next.haptics === current.haptics &&
-      next.soundHintDismissed === current.soundHintDismissed
-    ) {
-      return;
-    }
-    current = next;
-    write(next);
-    listeners.forEach(listener => listener());
-  },
-  subscribe: (listener: () => void) => {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  },
-};
+clearRetiredStorage();
 
 export const isCoarsePointer = (): boolean => {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -113,10 +31,6 @@ export const prefersReducedMotionNow = (): boolean => {
 
 export const canVibrate = (): boolean =>
   typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
-
-export function usePreferences(): Preferences {
-  return useSyncExternalStore(preferences.subscribe, preferences.get, preferences.get);
-}
 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
