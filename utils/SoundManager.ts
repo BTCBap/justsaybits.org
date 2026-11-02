@@ -225,23 +225,6 @@ class SoundManager {
     return (ctx.state as string) === 'running';
   }
 
-  /**
-   * Best-effort recovery after backgrounding. Never creates a context: that
-   * still requires a gesture on iOS and Safari.
-   */
-  public async resumeIfPossible(): Promise<boolean> {
-    if (!this.ctx || (this.ctx.state as string) === 'closed') return false;
-    if (this.ctx.state === 'running' || this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted') {
-      try {
-        await this.ctx.resume();
-      } catch {
-        // Leave it suspended; the next pointer or key gesture retries.
-      }
-    }
-    this.notify();
-    return this.isRunning();
-  }
-
   public setMuted(muted: boolean): void {
     this.muted = muted;
     if (!this.ctx || !this.master) return;
@@ -461,8 +444,9 @@ class SoundManager {
   }
 
   /**
-   * Stop everything scheduled and park the context. Called when the page is
-   * hidden or restored: a resumed tab must not flush an old tone.
+   * Silence the site when the page is hidden. The context keeps running: an
+   * explicit `suspend()` renegotiates the device audio session and is what
+   * interrupted other apps' music (and popped when the page came back).
    */
   public quiesce(): void {
     this.stopBoot();
@@ -471,13 +455,13 @@ class SoundManager {
     const now = ctx.currentTime;
     const output = this.output;
 
-    // Fade the whole output to true silence first (~40 ms), then stop the
-    // sources once they are inaudible and park the context. Hard-stopping a
-    // running source, or suspending mid-waveform, is what produced the pop.
+    // Fade the whole output to true silence (~40 ms), then stop the sources
+    // once they are inaudible. The context itself is never suspended,
+    // resumed or closed from a lifecycle event.
     if (output) {
       output.gain.cancelScheduledValues(now);
       output.gain.setValueAtTime(output.gain.value, now);
-      output.gain.linearRampToValueAtTime(0, now + 0.045);
+      output.gain.linearRampToValueAtTime(0, now + 0.04);
     }
 
     this.clearSuspendTimer();
@@ -497,15 +481,8 @@ class SoundManager {
       });
       this.activeSources.clear();
       this.voices = 0;
-      if ((ctx.state as string) === 'running') {
-        try {
-          void ctx.suspend().catch(() => {});
-        } catch {
-          // The next gesture retries.
-        }
-      }
       this.notify();
-    }, 80);
+    }, 70);
   }
 }
 
