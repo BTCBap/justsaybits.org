@@ -797,12 +797,20 @@ html[data-motion="reduced"] .boot__skip {
 }
 
 /* The arrows ride the icon circles, never the labels: the orb's centre sits
-   12.5 px above the stage's midpoint because its label adds a line beneath. */
+   12.5 px above the stage's midpoint because its label adds a line beneath.
+   Touch screens swipe instead, so the controls belong to fine pointers only. */
 .menu-edge {
   position: absolute;
   top: calc(50% - 0.78rem);
   transform: translateY(-50%);
   z-index: 30;
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .menu-edge {
+    display: flex;
+  }
 }
 
 /* Tuck the controls into the gap either side of the highlighted icon, so a
@@ -826,7 +834,7 @@ html[data-motion="reduced"] .boot__skip {
   }
 }
 
-/* The three quiet glyphs sit right under the icons. */
+/* The three quiet glyphs sit right under the icons, on the active tile's axis. */
 .menu-toggles {
   display: flex;
   justify-content: center;
@@ -2196,6 +2204,9 @@ html[data-motion="reduced"] .essay-prose a {
   outline-offset: 2px;
 }
 
+/* One square frame for every mark, wide logos included. The image keeps its
+   0.5rem padding and is contained, so a 720 x 280 logo gets the same inset as
+   the square icons. */
 .design-tile__image {
   width: 100%;
   aspect-ratio: 1;

@@ -2,7 +2,6 @@ import React from 'react';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
 import {
-  isIOS,
   preferences,
   useHapticsAvailable,
   usePreferences,
@@ -10,8 +9,6 @@ import {
 } from '../utils/preferences';
 
 interface SystemTogglesProps {
-  /** Show the one-time iOS silent-switch note above the toggles. */
-  showHint?: boolean;
   className?: string;
 }
 
@@ -80,12 +77,11 @@ const MotionIcon: React.FC<{ reduced: boolean }> = ({ reduced }) => (
  * The system controls as three quiet glyphs in the footer. A toggle is only
  * shown when the device can honour it, so haptics never reads "N/A".
  */
-const SystemToggles: React.FC<SystemTogglesProps> = ({ showHint = false, className = '' }) => {
+const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
   const prefs = usePreferences();
   const reducedMotion = usePrefersReducedMotion();
   const hapticsAvailable = useHapticsAvailable();
   const soundAvailable = interaction.soundAvailable;
-  const ios = React.useMemo(() => isIOS(), []);
 
   const toggleSound = () => {
     if (!soundAvailable) {
@@ -116,37 +112,10 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ showHint = false, classNa
     interaction.interact('cursor', { id: `settings:${id}`, source: 'focus' });
   };
 
-  const showSoundHint = showHint
-    && !prefs.soundHintDismissed
-    && (prefs.sound || !soundAvailable)
-    && (!soundAvailable || ios);
-
-  const dismissHint = () => {
-    preferences.set({ soundHintDismissed: true });
-    announce('Sound hint dismissed');
-  };
-
   const soundOn = prefs.sound && soundAvailable;
 
   return (
     <div className={`flex flex-col items-center gap-1 ${className}`}>
-      {showSoundHint && (
-        <div className="flex items-center justify-center gap-3 border border-blue-500/25 bg-black/50 px-3 text-[12px] text-blue-200/80">
-          <span>
-            {soundAvailable
-              ? 'iPhone: the Ring/Silent switch mutes site audio.'
-              : 'Sound is unavailable in this browser.'}
-          </span>
-          <button
-            type="button"
-            onClick={dismissHint}
-            className="min-h-[44px] px-1 font-mono uppercase tracking-[0.14em] text-blue-300 underline underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <div role="group" aria-label="System preferences" className="flex items-center gap-1">
         <button
           type="button"
