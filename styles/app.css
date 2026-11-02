@@ -2174,8 +2174,9 @@ html[data-motion="reduced"] .essay-prose a {
 
 /* One square frame for every mark, wide logos included. The image is
    contained and centred in the frame. The caption is pushed to the tile's
-   bottom edge, so every label shares one bottom offset whatever the title
-   length or wrapping. */
+   bottom edge, and the title reserves two lines, so the title, the type
+   kicker and the label block share one offset from the bottom in every
+   tile whatever the title's wrapping. */
 .design-tile__image {
   width: 100%;
   aspect-ratio: 1;
@@ -2207,6 +2208,7 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 .design-tile__title {
+  min-height: 2.6em;
   color: #fff;
   font-size: var(--type-16);
   line-height: 1.3;
