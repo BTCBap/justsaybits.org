@@ -8,9 +8,11 @@
 
 export type SoundEvent = 'cursor' | 'confirm' | 'back' | 'error';
 
-const MASTER = 0.9;
+const MASTER = 0.45;
 const MAX_VOICES = 3;
 const NOISE_SECONDS = 0.02;
+// One gentle low-pass across the whole system keeps the high harmonics soft.
+const TONE_CUTOFF = 2400;
 
 type AudioContextCtor = new () => AudioContext;
 
@@ -24,6 +26,7 @@ const getContextCtor = (): AudioContextCtor | null => {
 class SoundManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private toneFilter: BiquadFilterNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
   private noise: AudioBuffer | null = null;
   private muted = false;
@@ -68,18 +71,24 @@ class SoundManager {
     try {
       const ctx = new Ctor();
       const master = ctx.createGain();
+      const toneFilter = ctx.createBiquadFilter();
       const compressor = ctx.createDynamicsCompressor();
       master.gain.value = this.muted ? 0.0001 : MASTER;
-      compressor.threshold.value = -10;
-      compressor.knee.value = 12;
-      compressor.ratio.value = 3;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      master.connect(compressor);
+      toneFilter.type = 'lowpass';
+      toneFilter.frequency.value = TONE_CUTOFF;
+      toneFilter.Q.value = 0.4;
+      compressor.threshold.value = -12;
+      compressor.knee.value = 14;
+      compressor.ratio.value = 2.5;
+      compressor.attack.value = 0.008;
+      compressor.release.value = 0.32;
+      master.connect(toneFilter);
+      toneFilter.connect(compressor);
       compressor.connect(ctx.destination);
       ctx.onstatechange = () => this.notify();
       this.ctx = ctx;
       this.master = master;
+      this.toneFilter = toneFilter;
       this.compressor = compressor;
       this.notify();
       return true;
@@ -92,6 +101,7 @@ class SoundManager {
     this.stopBoot();
     this.ctx = null;
     this.master = null;
+    this.toneFilter = null;
     this.compressor = null;
     this.noise = null;
     this.voices = 0;
@@ -237,7 +247,7 @@ class SoundManager {
       osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFrequency), start + duration);
     }
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(level, start + 0.006);
+    gain.gain.linearRampToValueAtTime(level, start + 0.014);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     osc.connect(gain);
     gain.connect(destination);
@@ -245,14 +255,13 @@ class SoundManager {
     osc.stop(start + duration + 0.03);
   }
 
-  /** A soft glassy bell: fundamental plus two quiet inharmonic partials. */
+  /** A soft bell: fundamental plus one quiet octave partial. */
   private bell(destination: AudioNode, frequency: number, start: number, duration: number, level: number): void {
     this.tone(destination, 'sine', frequency, start, duration, level);
-    this.tone(destination, 'sine', frequency * 2.01, start, duration * 0.7, level * 0.22);
-    this.tone(destination, 'sine', frequency * 2.99, start, duration * 0.45, level * 0.1);
+    this.tone(destination, 'sine', frequency * 2, start, duration * 0.7, level * 0.14);
   }
 
-  /** Bright glassy cursor tick with a tiny noise transient. */
+  /** Soft glassy cursor tick with a barely-there noise transient. */
   private cursor(): void {
     const ctx = this.ctx;
     const master = this.master;
@@ -262,29 +271,29 @@ class SoundManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1380, t);
-    osc.frequency.exponentialRampToValueAtTime(1120, t + 0.028);
+    osc.frequency.setValueAtTime(1120, t);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.04);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.36, t + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+    gain.gain.linearRampToValueAtTime(0.26, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.075);
     osc.connect(gain);
     gain.connect(master);
     osc.start(t);
-    osc.stop(t + 0.06);
+    osc.stop(t + 0.08);
 
     const source = ctx.createBufferSource();
     const highpass = ctx.createBiquadFilter();
     const noiseGain = ctx.createGain();
     source.buffer = this.noiseBuffer(ctx);
     highpass.type = 'highpass';
-    highpass.frequency.value = 2600;
-    noiseGain.gain.setValueAtTime(0.08, t);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.014);
+    highpass.frequency.value = 1800;
+    noiseGain.gain.setValueAtTime(0.035, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
     source.connect(highpass);
     highpass.connect(noiseGain);
     noiseGain.connect(master);
     source.start(t);
-    source.stop(t + 0.016);
+    source.stop(t + 0.014);
   }
 
   /** Two notes rising, with a brief bell tail. */
@@ -293,8 +302,8 @@ class SoundManager {
     const master = this.master;
     if (!ctx || !master) return;
     const t = ctx.currentTime + 0.005;
-    this.bell(master, 659.25, t, 0.14, 0.26);
-    this.bell(master, 987.77, t + 0.075, short ? 0.26 : 0.46, 0.3);
+    this.bell(master, 659.25, t, 0.16, 0.2);
+    this.bell(master, 987.77, t + 0.085, short ? 0.3 : 0.52, 0.23);
   }
 
   /** One lower note falling, with a longer decay than a cursor tick. */
@@ -303,8 +312,8 @@ class SoundManager {
     const master = this.master;
     if (!ctx || !master) return;
     const t = ctx.currentTime + 0.005;
-    this.tone(master, 'sine', 440, t, short ? 0.2 : 0.36, 0.3, 220);
-    this.tone(master, 'triangle', 220, t, short ? 0.16 : 0.26, 0.09, 110);
+    this.tone(master, 'sine', 440, t, short ? 0.24 : 0.42, 0.22, 220);
+    this.tone(master, 'triangle', 220, t, short ? 0.2 : 0.3, 0.06, 110);
   }
 
   /** Two low, muted pulses for a failed action. */
@@ -313,8 +322,8 @@ class SoundManager {
     const master = this.master;
     if (!ctx || !master) return;
     const t = ctx.currentTime + 0.005;
-    this.tone(master, 'triangle', 196, t, 0.1, 0.26, 160);
-    this.tone(master, 'triangle', 147, t + 0.11, 0.16, 0.28, 120);
+    this.tone(master, 'triangle', 196, t, 0.12, 0.2, 160);
+    this.tone(master, 'triangle', 147, t + 0.12, 0.18, 0.21, 120);
   }
 
   public play(event: SoundEvent, short = false): void {
@@ -357,7 +366,7 @@ class SoundManager {
     const length = short ? 1.25 : 3.85;
 
     const out = ctx.createGain();
-    out.gain.value = 1;
+    out.gain.value = 0.85;
     out.connect(master);
 
     const filter = ctx.createBiquadFilter();
@@ -368,8 +377,8 @@ class SoundManager {
 
     const pad = ctx.createGain();
     pad.gain.setValueAtTime(0.0001, t);
-    pad.gain.linearRampToValueAtTime(short ? 0.14 : 0.18, t + (short ? 0.22 : 0.85));
-    pad.gain.setValueAtTime(short ? 0.14 : 0.18, t + length * 0.6);
+    pad.gain.linearRampToValueAtTime(short ? 0.11 : 0.14, t + (short ? 0.22 : 0.85));
+    pad.gain.setValueAtTime(short ? 0.11 : 0.14, t + length * 0.6);
     pad.gain.exponentialRampToValueAtTime(0.0001, t + length);
     filter.connect(pad);
     pad.connect(out);
@@ -380,7 +389,7 @@ class SoundManager {
       osc.type = index === 2 ? 'triangle' : 'sine';
       osc.frequency.value = frequency;
       osc.detune.value = index === 2 ? 0 : index === 0 ? -4 : 3;
-      gain.gain.value = index === 2 ? 0.16 : 0.3;
+      gain.gain.value = index === 2 ? 0.12 : 0.24;
       osc.connect(gain);
       gain.connect(filter);
       osc.start(t);
@@ -388,8 +397,8 @@ class SoundManager {
       this.bootOscillators.push(osc);
     });
 
-    this.bell(out, 520, t + (short ? 0.16 : 0.34), short ? 0.5 : 1.9, 0.1);
-    this.bell(out, 780, t + (short ? 0.16 : 0.34), short ? 0.4 : 1.55, 0.06);
+    this.bell(out, 520, t + (short ? 0.16 : 0.34), short ? 0.5 : 1.9, 0.07);
+    this.bell(out, 780, t + (short ? 0.16 : 0.34), short ? 0.4 : 1.55, 0.04);
 
     this.bootOut = out;
   }
