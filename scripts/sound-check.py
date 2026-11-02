@@ -24,14 +24,23 @@ CHROME = os.environ.get('CHROME') or shutil.which('google-chrome') \
     or shutil.which('chromium') or shutil.which('chromium-browser')
 
 INSTRUMENT = """
-window.__audio = { contexts: [], oscillators: 0, buffers: 0, states: [] };
+window.__audio = { contexts: [], oscillators: 0, buffers: 0, states: [], voices: [], stops: [] };
 const Original = window.AudioContext || window.webkitAudioContext;
 if (Original) {
   const createOscillator = Original.prototype.createOscillator;
   Original.prototype.createOscillator = function () {
     const osc = createOscillator.call(this);
     const start = osc.start.bind(osc);
-    osc.start = function (...args) { window.__audio.oscillators += 1; start(...args); };
+    const stop = osc.stop.bind(osc);
+    osc.start = function (...args) {
+      window.__audio.oscillators += 1;
+      window.__audio.voices.push({ type: osc.type, start: args[0] });
+      start(...args);
+    };
+    osc.stop = function (when) {
+      window.__audio.stops.push(when);
+      stop(when);
+    };
     return osc;
   };
   const createBufferSource = Original.prototype.createBufferSource;
@@ -68,6 +77,8 @@ async def snapshot(page):
       oscillators: window.__audio.oscillators,
       buffers: window.__audio.buffers,
       states: window.__audio.states.slice(),
+      voices: window.__audio.voices.slice(),
+      stops: window.__audio.stops.slice(),
       running: window.__audio.contexts.filter(c => c.state === 'running').length,
       contexts: window.__audio.contexts.length,
       muted: window.__audio.contexts.map(c => c.state === 'suspended'),
@@ -100,6 +111,11 @@ async def main():
               str(after_power))
         check(after_power['oscillators'] >= 1 or after_power['buffers'] >= 1,
               'a voice starts from the first click', str(after_power))
+        check(after_power['oscillators'] == 3, 'boot pad has three voices and no ding',
+              str(after_power['voices']))
+        boot_span = (max(after_power['stops']) - min(voice['start'] for voice in after_power['voices'])) \
+            if after_power['stops'] else 0
+        check(boot_span >= 5.3, 'boot tone is ~40% longer than 3.85 s', f'{boot_span:.2f} s')
 
         await page.locator('.boot').wait_for(state='detached', timeout=8000)
         await page.wait_for_timeout(300)
