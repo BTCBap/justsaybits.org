@@ -87,10 +87,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
     if (next) hapticManager.play('tick');
   };
 
-  const focusCursor = (id: string) => () => {
-    interaction.interact('cursor', { id: `settings:${id}`, source: 'focus' });
-  };
-
   const soundOn = prefs.sound && soundAvailable;
 
   return (
@@ -104,7 +100,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
           type="button"
           aria-pressed={soundOn}
           aria-label="Sound"
-          onFocus={focusCursor('sound')}
           onClick={toggleSound}
           className={toggleClass(soundOn)}
         >
@@ -116,7 +111,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
             type="button"
             aria-pressed={prefs.haptics}
             aria-label="Haptics"
-            onFocus={focusCursor('haptics')}
             onClick={toggleHaptics}
             className={toggleClass(prefs.haptics)}
           >

@@ -13,15 +13,13 @@ interface MainMenuProps {
   onSelect: (sectionId: string, origin?: NavOrigin) => void;
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
-  /** False while the boot overlay owns the keyboard. */
+  /** False while an open screen owns the keyboard. */
   keyboardEnabled?: boolean;
 }
 
 const DRAG_THRESHOLD = 8;
 const MIN_SNAP_DISTANCE = 48;
 const MIN_SNAP_VELOCITY = 0.35;
-/** A click this soon after a swipe ended is that swipe's tail, not a tap. */
-const SWIPE_CLICK_GUARD_MS = 350;
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 /** Footer controls and page indicators never start a menu drag. */
 const isMenuControl = (target: EventTarget | null): boolean =>
@@ -44,6 +42,8 @@ interface DragState {
   decided: boolean;
   active: boolean;
   moved: boolean;
+  /** Where the finger landed: the tap resolves the tile from this target. */
+  target: EventTarget | null;
 }
 
 const shortestOffset = (index: number, activeIndex: number, length: number): number => {
@@ -80,6 +80,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const stageRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef(new Map<string, HTMLDivElement>());
   const drag = useRef<DragState | null>(null);
+  /** Pointer type of the gesture that produced the pending click. */
+  const lastPointerType = useRef('mouse');
+  /** A touch/pen tap already opened a tile and its synthetic click must die. */
+  const touchTapActivated = useRef(false);
   /** Wall clock of the swipe that just ended: its tail click is not a tap. */
   const swipeEndedAt = useRef(-Infinity);
 
@@ -247,7 +251,21 @@ const MainMenu: React.FC<MainMenuProps> = ({
     if (!state || state.pointerId !== event.pointerId) return;
     drag.current = null;
 
-    if (!state.active) return;
+    if (!state.active) {
+      // Touch and pen open on pointerup, in the same gesture. Waiting for the
+      // compatibility click lost the first tap on Android.
+      const isTouch = state.pointerType === 'touch' || state.pointerType === 'pen';
+      if (!cancelled && isTouch) {
+        const tile = tileAt(state.target, event.clientX, event.clientY);
+        const sectionId = tile?.dataset.sectionId;
+        const index = sectionId ? sections.findIndex(section => section.id === sectionId) : -1;
+        if (index >= 0) {
+          touchTapActivated.current = true;
+          activateTile(index);
+        }
+      }
+      return;
+    }
 
     const delta = event.clientX - state.startX;
     const shouldCommit = !cancelled
@@ -274,10 +292,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
    * actually touched, and the tail click of a swipe is ignored.
    */
   const handleMenuClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    // The footer controls own their clicks.
+    if (isMenuControl(event.target)) return;
     // A programmatic click (detail 0, no pointer gesture) is never a tap:
     // the iOS haptic switch and the card links dispatch their own.
     if (event.detail === 0) return;
-    if (now() - swipeEndedAt.current < SWIPE_CLICK_GUARD_MS) return;
+    // Touch and pen taps already resolved in `endDrag`; only a mouse opens
+    // here.
+    if (lastPointerType.current !== 'mouse') return;
+    // A new gesture resets the mark on pointerdown, so a set mark means this
+    // click arrived without one: it is the tail of the swipe that just ended.
+    if (swipeEndedAt.current !== -Infinity) return;
     const tile = tileAt(event.target, event.clientX, event.clientY);
     const sectionId = tile?.dataset.sectionId;
     if (!sectionId) return;
@@ -286,6 +311,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    lastPointerType.current = event.pointerType;
+    // A fresh gesture owns its own click; the previous touch tap is over.
+    touchTapActivated.current = false;
+
     // The footer controls keep their own click path: no drag, no hit testing,
     // no state of their own to settle before they act.
     if (isMenuControl(event.target)) return;
@@ -310,6 +339,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
       decided: false,
       active: false,
       moved: false,
+      target: event.target,
     };
   };
 
@@ -352,6 +382,21 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const orbitScale = typeof window === 'undefined'
     ? 1
     : (window.visualViewport?.width ?? window.innerWidth) / 1440;
+
+  // A touch tap opens on pointerup, before the browser's compatibility click.
+  // Cancelling that click at touchend keeps it from landing on the screen that
+  // just opened underneath the finger. The listener must be non-passive.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onTouchEnd = (event: TouchEvent) => {
+      if (!touchTapActivated.current) return;
+      touchTapActivated.current = false;
+      if (event.cancelable) event.preventDefault();
+    };
+    root.addEventListener('touchend', onTouchEnd, { passive: false });
+    return () => root.removeEventListener('touchend', onTouchEnd);
+  }, []);
 
   return (
     <div
