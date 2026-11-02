@@ -4,7 +4,15 @@
  * The graph is: voice -> master gain -> low-pass -> compressor -> destination.
  * UI voices use short soft envelopes; the boot pad has a long swell and tail.
  * A hard three-voice cap keeps rapid navigation from stacking nodes.
+ *
+ * The context is lazy and short-lived. It is only built while sound is on and
+ * a voice is about to play, and it is closed again after 1.5 s of silence, as
+ * soon as sound is turned off, and on every hide. An open output stream made
+ * Chrome renegotiate the shared audio device around the tab, which clipped and
+ * ducked other apps' music; a closed context cannot.
  */
+
+import { isIOS } from './preferences';
 
 export type SoundEvent = 'cursor' | 'confirm' | 'back' | 'error';
 
@@ -17,8 +25,12 @@ const TONE_CUTOFF = 1500;
 /** ~40% longer than the old 3.85 s pad, so the tone carries the boot out. */
 const BOOT_LONG_SECONDS = 5.4;
 const BOOT_SHORT_SECONDS = 1.75;
+/** How long an idle context may stay open after its last voice ends. */
+export const IDLE_CLOSE_MS = 1500;
+/** Fade before closing or hiding: long enough to reach true zero. */
+export const CLOSE_FADE_MS = 40;
 
-type AudioContextCtor = new () => AudioContext;
+type AudioContextCtor = new (options?: AudioContextOptions) => AudioContext;
 
 const getContextCtor = (): AudioContextCtor | null => {
   if (typeof window === 'undefined') return null;
@@ -32,9 +44,12 @@ class SoundManager {
   private master: GainNode | null = null;
   private toneFilter: BiquadFilterNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
-  /** Output fader: the only node that is ramped to silence on suspend. */
+  /** Output fader: the only node that is ramped to silence before a close. */
   private output: GainNode | null = null;
-  private suspendTimer: number | null = null;
+  private idleTimer: number | null = null;
+  private closeTimer: number | null = null;
+  /** Wall-clock time (ms) at which the last scheduled voice will end. */
+  private lastVoiceEndsAt = 0;
   private muted = false;
   private voices = 0;
   private activeSources = new Set<AudioScheduledSourceNode>();
@@ -74,14 +89,20 @@ class SoundManager {
   private create(): boolean {
     const Ctor = getContextCtor();
     if (!Ctor) return false;
+    // A muted page must never hold an output stream open, and a hidden page
+    // must never open one at all.
+    if (this.muted) return false;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
 
     try {
-      const ctx = new Ctor();
+      // Default sample rate: forcing one made Chrome resample the output
+      // device, which was part of the pop on other apps' music.
+      const ctx = new Ctor({ latencyHint: 'interactive' });
       const master = ctx.createGain();
       const toneFilter = ctx.createBiquadFilter();
       const compressor = ctx.createDynamicsCompressor();
       const output = ctx.createGain();
-      master.gain.value = this.muted ? 0.0001 : MASTER;
+      master.gain.value = MASTER;
       output.gain.value = 1;
       toneFilter.type = 'lowpass';
       toneFilter.frequency.value = TONE_CUTOFF;
@@ -110,7 +131,9 @@ class SoundManager {
 
   private teardown(): void {
     this.stopBoot();
-    this.clearSuspendTimer();
+    this.clearIdleTimer();
+    this.clearCloseTimer();
+    this.lastVoiceEndsAt = 0;
     this.ctx = null;
     this.master = null;
     this.toneFilter = null;
@@ -121,19 +144,90 @@ class SoundManager {
     this.notify();
   }
 
-  private clearSuspendTimer(): void {
-    if (this.suspendTimer !== null) {
-      window.clearTimeout(this.suspendTimer);
-      this.suspendTimer = null;
+  private clearIdleTimer(): void {
+    if (this.idleTimer !== null) {
+      window.clearTimeout(this.idleTimer);
+      this.idleTimer = null;
     }
+  }
+
+  private clearCloseTimer(): void {
+    if (this.closeTimer !== null) {
+      window.clearTimeout(this.closeTimer);
+      this.closeTimer = null;
+    }
+  }
+
+  /** Close the context that many ms after its last voice ends. */
+  private armIdleClose(): void {
+    this.clearIdleTimer();
+    const delay = Math.max(0, this.lastVoiceEndsAt - performance.now()) + IDLE_CLOSE_MS;
+    this.idleTimer = window.setTimeout(() => {
+      this.idleTimer = null;
+      this.shutDown(CLOSE_FADE_MS);
+    }, delay);
+  }
+
+  /**
+   * Fade the fader to true zero, stop every source, then close the context.
+   * Closing (not suspending or muting) is what releases the device stream.
+   */
+  private shutDown(fadeMs: number): void {
+    this.clearIdleTimer();
+    this.clearCloseTimer();
+    this.stopBoot();
+    const ctx = this.ctx;
+    const output = this.output;
+    if (!ctx) return;
+    if ((ctx.state as string) === 'closed') {
+      this.teardown();
+      return;
+    }
+
+    const now = ctx.currentTime;
+    if (output) {
+      output.gain.cancelScheduledValues(now);
+      output.gain.setValueAtTime(output.gain.value, now);
+      output.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+    }
+
+    const sources = Array.from(this.activeSources);
+    this.closeTimer = window.setTimeout(() => {
+      this.closeTimer = null;
+      if (this.ctx !== ctx) return;
+      sources.forEach(source => {
+        try {
+          source.stop();
+        } catch {
+          // Already stopped.
+        }
+        try {
+          source.disconnect();
+        } catch {
+          // Already disconnected.
+        }
+      });
+      this.activeSources.clear();
+      try {
+        void ctx.close().catch(() => {});
+      } catch {
+        // A context WebKit already tore down needs no close.
+      }
+      this.teardown();
+    }, Math.round(fadeMs) + 20);
   }
 
   /**
    * Bring the output fader back after a silent park. The ramp is short but
    * starts at the fader's current value, so resuming never steps the signal.
+   * A close that was already fading is cancelled and the context stays open
+   * for the voice that is about to play.
    */
   private wakeOutput(): void {
-    this.clearSuspendTimer();
+    this.clearIdleTimer();
+    // A fade-to-close already in flight is cancelled: this voice keeps the
+    // context open and the fader returns to full level.
+    this.clearCloseTimer();
     const ctx = this.ctx;
     const output = this.output;
     if (!ctx || !output) return;
@@ -147,10 +241,11 @@ class SoundManager {
    * Synchronous iOS unlock for a live user gesture: create or resume the
    * context and play a one-sample silent buffer through the destination.
    * The buffer queues while the context is still suspended and flushes on
-   * resume, which is what lifts the Safari gesture requirement.
+   * resume, which is what lifts the Safari gesture requirement. Desktop and
+   * Android skip the buffer: an empty source is not needed there.
    */
   public primeFromGesture(): boolean {
-    if (!this.available) return false;
+    if (!this.available || this.muted) return false;
 
     if (this.ctx && (this.ctx.state as string) === 'closed') this.teardown();
     if (!this.ctx && !this.create()) return false;
@@ -170,15 +265,19 @@ class SoundManager {
 
     this.wakeOutput();
 
-    try {
-      const source = ctx.createBufferSource();
-      source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-      source.connect(ctx.destination);
-      source.start(0);
-    } catch {
-      // The silent buffer is best-effort; resume still ran in the gesture.
+    if (isIOS()) {
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+        source.connect(ctx.destination);
+        source.start(0);
+      } catch {
+        // The silent buffer is best-effort; resume still ran in the gesture.
+      }
     }
 
+    // A gesture that plays no voice must not leave the stream open.
+    this.armIdleClose();
     this.notify();
     return (ctx.state as string) === 'running';
   }
@@ -187,14 +286,18 @@ class SoundManager {
    * Create or resume the context. Call this synchronously inside a user
    * gesture: browsers only allow the resume while activation is live.
    */
-  public async ensureRunning(): Promise<boolean> {    if (!this.available) return false;
+  public async ensureRunning(): Promise<boolean> {
+    if (!this.available || this.muted) return false;
 
     if (this.ctx && (this.ctx.state as string) === 'closed') this.teardown();
     if (!this.ctx && !this.create()) return false;
 
     const ctx = this.ctx;
     if (!ctx) return false;
-    if (ctx.state === 'running') return true;
+    if (ctx.state === 'running') {
+      this.armIdleClose();
+      return true;
+    }
 
     try {
       await ctx.resume();
@@ -221,16 +324,18 @@ class SoundManager {
     }
 
     if ((ctx.state as string) === 'running') this.wakeOutput();
+    this.armIdleClose();
     this.notify();
     return (ctx.state as string) === 'running';
   }
 
+  /**
+   * Sound off closes the output stream at once. Sound on never creates one on
+   * its own: the next gesture that plays a voice does.
+   */
   public setMuted(muted: boolean): void {
     this.muted = muted;
-    if (!this.ctx || !this.master) return;
-    const now = this.ctx.currentTime;
-    this.master.gain.cancelScheduledValues(now);
-    this.master.gain.setTargetAtTime(muted ? 0.0001 : MASTER, now, 0.012);
+    if (muted && this.ctx) this.shutDown(CLOSE_FADE_MS);
   }
 
   private acquire(durationMs: number): boolean {
@@ -329,11 +434,17 @@ class SoundManager {
     this.tone(master, 'sine', 147, t + 0.14, 0.2, 0.14, 100);
   }
 
+  private isAudible(): boolean {
+    if (this.muted) return false;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+    return true;
+  }
+
   public play(event: SoundEvent, short = false): void {
     // A suspended context still accepts nodes: schedule now so the gesture's
     // sound is already queued when resume() settles. Only a missing or closed
     // context drops the event.
-    if (!this.ready || this.muted) return;
+    if (!this.ready || !this.isAudible()) return;
     this.wakeOutput();
 
     const durations: Record<SoundEvent, number> = {
@@ -343,6 +454,8 @@ class SoundManager {
       error: 400,
     };
     if (!this.acquire(durations[event])) return;
+    this.lastVoiceEndsAt = Math.max(this.lastVoiceEndsAt, performance.now() + durations[event]);
+    this.armIdleClose();
 
     // A tiny observation hook for the browser checks. It carries the logical
     // event and voice name, never audio data, and has no effect on synthesis.
@@ -371,9 +484,14 @@ class SoundManager {
    * or ding rides on top. `short` is used under reduced motion.
    */
   public playBoot(short = false): void {
-    if (!this.ready || this.muted) return;
+    if (!this.ready || !this.isAudible()) return;
     this.stopBoot();
     if (!this.acquire(short ? 1750 : 5400)) return;
+    this.lastVoiceEndsAt = Math.max(
+      this.lastVoiceEndsAt,
+      performance.now() + (short ? BOOT_SHORT_SECONDS : BOOT_LONG_SECONDS) * 1000,
+    );
+    this.armIdleClose();
 
     const ctx = this.ctx;
     const master = this.master;
@@ -444,45 +562,12 @@ class SoundManager {
   }
 
   /**
-   * Silence the site when the page is hidden. The context keeps running: an
-   * explicit `suspend()` renegotiates the device audio session and is what
-   * interrupted other apps' music (and popped when the page came back).
+   * Close the output at once when the page is hidden or a gesture is over.
+   * A suspended or muted context still holds the device stream, which is what
+   * clipped and ducked other apps' music; a closed one releases it.
    */
   public quiesce(): void {
-    this.stopBoot();
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const output = this.output;
-
-    // Fade the whole output to true silence (~40 ms), then stop the sources
-    // once they are inaudible. The context itself is never suspended,
-    // resumed or closed from a lifecycle event.
-    if (output) {
-      output.gain.cancelScheduledValues(now);
-      output.gain.setValueAtTime(output.gain.value, now);
-      output.gain.linearRampToValueAtTime(0, now + 0.04);
-    }
-
-    this.clearSuspendTimer();
-    this.suspendTimer = window.setTimeout(() => {
-      this.suspendTimer = null;
-      this.activeSources.forEach(source => {
-        try {
-          source.stop(ctx.currentTime);
-        } catch {
-          // Already stopped.
-        }
-        try {
-          source.disconnect();
-        } catch {
-          // Already disconnected.
-        }
-      });
-      this.activeSources.clear();
-      this.voices = 0;
-      this.notify();
-    }, 70);
+    if (this.ctx) this.shutDown(CLOSE_FADE_MS);
   }
 }
 

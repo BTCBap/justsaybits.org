@@ -138,8 +138,16 @@ class InteractionBus {
       return;
     }
 
-    // No context yet: keep only the newest event from this gesture. Anything
-    // older is stale by the time a slow resume settles.
+    // No context yet. Only a live gesture may build one: a route or system
+    // event has no activation, and a suspended context built there would
+    // renegotiate the audio device for a sound that can never start.
+    const activation = (navigator as Navigator & {
+      userActivation?: { isActive: boolean };
+    }).userActivation;
+    if (activation && !activation.isActive) return;
+
+    // Keep only the newest event from this gesture. Anything older is stale
+    // by the time a slow resume settles.
     this.pending = { event, at: Date.now() };
     void this.unlock();
   }
