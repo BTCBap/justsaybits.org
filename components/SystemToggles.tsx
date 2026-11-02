@@ -1,12 +1,7 @@
 import React from 'react';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
-import {
-  preferences,
-  useHapticsAvailable,
-  usePreferences,
-  usePrefersReducedMotion,
-} from '../utils/preferences';
+import { preferences, useHapticsAvailable, usePreferences } from '../utils/preferences';
 
 interface SystemTogglesProps {
   className?: string;
@@ -62,24 +57,12 @@ const HapticsIcon: React.FC<{ on: boolean }> = ({ on }) => (
   </Glyph>
 );
 
-const MotionIcon: React.FC<{ reduced: boolean }> = ({ reduced }) => (
-  <Glyph>
-    <path d="M2.6 5.6h4.2M2.6 9h5.8M2.6 12.4h4.2" />
-    {reduced ? (
-      <path d="M10.9 6.1v5.8M13.5 6.1v5.8" />
-    ) : (
-      <path d="M10.8 5.9 13.4 9l-2.6 3.1" />
-    )}
-  </Glyph>
-);
-
 /**
- * The system controls as three quiet glyphs in the footer. A toggle is only
+ * The system controls as two quiet glyphs in the footer. A toggle is only
  * shown when the device can honour it, so haptics never reads "N/A".
  */
 const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
   const prefs = usePreferences();
-  const reducedMotion = usePrefersReducedMotion();
   const hapticsAvailable = useHapticsAvailable();
   const soundAvailable = interaction.soundAvailable;
 
@@ -99,13 +82,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
     preferences.set({ haptics: next });
     announce(next ? 'Haptics on' : 'Haptics off');
     if (next) interaction.interact('cursor', { id: 'settings:haptics', haptic: 'tick' });
-  };
-
-  const toggleMotion = () => {
-    const next = reducedMotion ? 'off' : 'on';
-    preferences.set({ motion: next });
-    announce(next === 'on' ? 'Reduced motion on' : 'Full motion on');
-    interaction.interact('cursor', { id: 'settings:motion', haptic: 'tick' });
   };
 
   const focusCursor = (id: string) => () => {
@@ -142,18 +118,6 @@ const SystemToggles: React.FC<SystemTogglesProps> = ({ className = '' }) => {
             <HapticsIcon on={prefs.haptics} />
           </button>
         )}
-
-        <button
-          type="button"
-          aria-pressed={reducedMotion}
-          aria-label="Reduce motion"
-          title={`Reduced motion: ${reducedMotion ? 'on' : 'off'}`}
-          onFocus={focusCursor('motion')}
-          onClick={toggleMotion}
-          className={toggleClass(reducedMotion)}
-        >
-          <MotionIcon reduced={reducedMotion} />
-        </button>
       </div>
     </div>
   );
