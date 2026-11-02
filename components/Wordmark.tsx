@@ -7,9 +7,9 @@ interface WordmarkProps {
 }
 
 /**
- * Original justsaybits identity: three ascending "bits" inside a thin frame,
- * with a Bitcoin mark. The same lockup is used on the power-on gate and the
- * boot payoff so the two screens read as one system.
+ * Original justsaybits identity: one clean Bitcoin sign, then the wordmark.
+ * The same mark is used on the power-on gate, the boot payoff and the favicon
+ * so the three screens read as one system.
  */
 const Wordmark: React.FC<WordmarkProps> = ({ decorative = false, className = '' }) => (
   <span
@@ -24,22 +24,18 @@ const Wordmark: React.FC<WordmarkProps> = ({ decorative = false, className = '' 
       aria-label={decorative ? undefined : 'justsaybits monogram'}
       focusable="false"
     >
-      <rect x="7.5" y="7.5" width="49" height="49" rx="5" stroke="currentColor" strokeOpacity="0.5" />
-      <rect x="16" y="36" width="6" height="14" fill="currentColor" fillOpacity="0.55" />
-      <rect x="28" y="26" width="6" height="24" fill="currentColor" fillOpacity="0.78" />
-      <rect x="40" y="15" width="6" height="35" fill="currentColor" />
-      {/* Bitcoin sign drawn on the same 64 grid: a squared B with open
-          counters and the two short strokes above and below, at 16.6 units
-          tall so it still reads at favicon size. */}
+      {/* A squared ₿ on the 64 grid: open counters, two ticks above and two
+          below, 50 units tall so it stays legible down to 16 px. */}
       <g
-        stroke="#cfeaff"
-        strokeWidth="1.8"
+        stroke="currentColor"
+        strokeWidth="3.2"
         strokeLinecap="square"
         strokeLinejoin="miter"
       >
-        <path d="M49.7 8.6V10.6M52.5 8.6V10.6M49.7 22.6V24.6M52.5 22.6V24.6" />
-        <path d="M48.7 10.6V22.6" />
-        <path d="M48.7 10.6H52.6L54.7 12.3V14.9L52.9 16.6L54.7 18.3V20.9L52.6 22.6H48.7" />
+        <path d="M24 7V13M31 7V13M24 51V57M31 51V57" />
+        <path d="M20 13V51" />
+        <path d="M20 13H32.5A8.5 8.5 0 0 1 32.5 30H20" />
+        <path d="M20 30H34A10.5 10.5 0 0 1 34 51H20" />
       </g>
     </svg>
     <span className="boot-wordmark__text" aria-hidden="true">
