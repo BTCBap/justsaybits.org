@@ -114,13 +114,22 @@ export function usePrefersReducedMotion(): boolean {
   return systemReduced;
 }
 
-export function useHapticsAvailable(): boolean {
-  const coarse = useMediaQuery('(pointer: coarse)');
-  return coarse && canVibrate();
-}
-
 export const isIOS = (): boolean => {
   if (typeof navigator === 'undefined') return false;
   return /iP(hone|ad|od)/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
+
+/**
+ * iOS Safari has no Vibration API, but a hidden switch checkbox toggled from
+ * a user gesture plays the system haptic on iOS 18+. iPadOS reports itself as
+ * a Mac, so `isIOS` covers both.
+ */
+export const canUseIOSHapticFallback = (): boolean =>
+  isIOS() && typeof document !== 'undefined'
+  && typeof navigator !== 'undefined' && /AppleWebKit/i.test(navigator.userAgent);
+
+export function useHapticsAvailable(): boolean {
+  const coarse = useMediaQuery('(pointer: coarse)');
+  return canUseIOSHapticFallback() || (coarse && canVibrate());
+}
