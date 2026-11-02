@@ -44,7 +44,6 @@ import { ListSkeleton } from './Skeleton';
 import {
   EssayRow,
   FeaturedEssay,
-  MediaFeature,
   MediaRow,
   PostCard,
   ReadingRow,
@@ -630,9 +629,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       .filter(year => year !== 'Undated')
       .sort((a, b) => yearRank(b) - yearRank(a));
 
-    const featuredEpisode = filteredValueStack[0];
-    const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
-    const remainingEpisodes = filteredValueStack.length - 1 - hostRest.length;
+    const hostRows = filteredValueStack.slice(0, visibleMedia);
+    const remainingEpisodes = filteredValueStack.length - hostRows.length;
 
     const emptyFor = (tab: ContentTab): string => {
       if (tab === 'podcasts' && yearFilter !== 'all') return `No episodes for ${yearFilter} yet.`;
@@ -738,10 +736,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                   </h3>
                   {filteredValueStack.length > 0 && (
                     <>
-                      {featuredEpisode && (
-                        <MediaFeature item={featuredEpisode} />
-                      )}
-                      {groupByYear(hostRest).map(group => (
+                      {groupByYear(hostRows).map(group => (
                         <div key={group.year} className="content-group">
                           {renderYearHeading(group.year)}
                           <div className="media-rows">
