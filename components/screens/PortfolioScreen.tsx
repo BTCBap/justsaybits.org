@@ -2,10 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  Eye,
   ExternalLink,
-  ShieldCheck,
   X,
 } from 'lucide-react';
 import { DESIGN_DATA, INVESTMENT_DATA, PORTFOLIO_DATA } from '../../constants';
@@ -13,13 +10,6 @@ import { interaction } from '../../utils/Interaction';
 import { getFocusable } from '../../utils/focus';
 import SafeImage from '../SafeImage';
 import SystemCard from '../SystemCard';
-
-const StatusMark: React.FC<{ status: string }> = ({ status }) => {
-  if (status === 'Active') return <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />;
-  if (status === 'Acquired') return <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />;
-  if (status === 'Watching') return <Eye className="h-3.5 w-3.5" aria-hidden="true" />;
-  return <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />;
-};
 
 export const ProjectsTab: React.FC = () => (
   <div className="project-grid">
@@ -40,56 +30,43 @@ export const ProjectsTab: React.FC = () => (
 );
 
 export const InvestmentsTab: React.FC = () => (
-  <div className="investment-wrap">
-    <table className="investment-table">
-      <caption className="sr-only">
-        Investments by stage and current status. Status is shown with a mark and text.
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">Asset</th>
-          <th scope="col">Stage / Type</th>
-          <th scope="col" className="investment-status-head">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {INVESTMENT_DATA.map((investment) => (
-          <tr key={investment.asset}>
-            <td data-label="Asset">
-              {investment.url ? (
-                <a
-                  className="investment-asset investment-asset-link"
-                  href={investment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {investment.asset}
-                  <ExternalLink className="investment-asset__cue h-3 w-3" aria-hidden="true" />
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              ) : (
-                <span className="investment-asset">{investment.asset}</span>
-              )}
-              {investment.ticker && (
-                <span className="investment-ticker ps2-meta">{investment.ticker}</span>
-              )}
-            </td>
-            <td data-label="Stage / Type" className="investment-type">{investment.type}</td>
-            <td data-label="Status" className="investment-status">
-              <span className={`status-pill ${
-                investment.status === 'Active' ? 'status-pill--active' :
-                investment.status === 'Acquired' ? 'status-pill--acquired' :
-                investment.status === 'Exited' ? 'status-pill--exited' :
-                'status-pill--watching'
-              }`}>
-                <StatusMark status={investment.status} />
-                {investment.status}
-              </span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+  <div className="investment-grid">
+    {INVESTMENT_DATA.map((investment) => {
+      const feedbackId = `investment:${investment.asset}`;
+      return (
+        <a
+          key={investment.asset}
+          className="investment-card system-card"
+          href={investment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'mouse') {
+              interaction.interact('cursor', { id: feedbackId, source: 'hover' });
+            }
+          }}
+          onFocus={() => interaction.interact('cursor', { id: feedbackId, source: 'focus' })}
+          onClick={() => interaction.interact('confirm', { source: 'pointer' })}
+        >
+          <img
+            className="investment-card__logo"
+            src={investment.logo}
+            alt=""
+            width={96}
+            height={96}
+            loading="lazy"
+            decoding="async"
+          />
+          <span className="investment-card__foot">
+            <span className="investment-card__name">{investment.asset}</span>
+            <span className="system-card__external">
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
+            </span>
+          </span>
+        </a>
+      );
+    })}
   </div>
 );
 
