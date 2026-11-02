@@ -274,6 +274,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
    * actually touched, and the tail click of a swipe is ignored.
    */
   const handleMenuClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    // A programmatic click (detail 0, no pointer gesture) is never a tap:
+    // the iOS haptic switch and the card links dispatch their own.
+    if (event.detail === 0) return;
     if (now() - swipeEndedAt.current < SWIPE_CLICK_GUARD_MS) return;
     const tile = tileAt(event.target, event.clientX, event.clientY);
     const sectionId = tile?.dataset.sectionId;
