@@ -319,14 +319,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
         style={{ opacity: Math.min(1, Math.max(0.35, orbitScale)) }}
       />
 
-      {/* System bar */}
-      <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6">
-        <div className="flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-blue-200/80">
-          <span aria-hidden="true" className="block h-1.5 w-1.5 bg-cyan-200 shadow-[0_0_8px_rgba(140,220,255,0.9)]" />
-          <span>System</span>
-          <span aria-hidden="true" className="text-[var(--accent-soft)]">//</span>
-          <span className="hidden sm:inline">Main menu</span>
-        </div>
+      {/* Clock only: the menu itself is the label. */}
+      <header className="relative z-10 flex shrink-0 items-center justify-end gap-4 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6">
         <div className={`text-right font-mono leading-tight ${hideClock ? 'invisible' : ''}`}>
           <Clock compact={short} />
         </div>
