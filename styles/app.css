@@ -748,25 +748,10 @@ html[data-motion="reduced"] .boot__skip {
 
 /* ---------------------------------------------------------------------------
    Main menu: PS2 system browser
-   One selected-item panel, a row of system icons, the quiet system toggles and
-   the page counter. Layout follows the viewport so menu type is never scaled
-   below its real size.
+   A centred row of large system icons carries the menu, with the quiet system
+   toggles and the page counter in the bottom slot. Layout follows the viewport
+   so menu type is never scaled below its real size.
 --------------------------------------------------------------------------- */
-
-.menu-panel {
-  position: relative;
-  border: 1px solid rgba(120, 170, 255, 0.3);
-  background:
-    linear-gradient(155deg, rgba(20, 48, 92, 0.5) 0%, rgba(6, 15, 31, 0.78) 72%),
-    rgba(4, 10, 20, 0.6);
-  box-shadow:
-    inset 0 1px 0 rgba(220, 240, 255, 0.14),
-    0 18px 44px rgba(0, 16, 48, 0.45);
-}
-
-.menu-panel__orb {
-  background-image: linear-gradient(140deg, rgba(120, 180, 255, 0.18), transparent 70%);
-}
 
 .menu-stage {
   overflow: hidden;
@@ -797,11 +782,11 @@ html[data-motion="reduced"] .boot__skip {
 }
 
 /* The arrows ride the icon circles, never the labels: the orb's centre sits
-   12.5 px above the stage's midpoint because its label adds a line beneath.
+   just above the stage's midpoint because its label adds a line beneath.
    Touch screens swipe instead, so the controls belong to fine pointers only. */
 .menu-edge {
   position: absolute;
-  top: calc(50% - 0.78rem);
+  top: calc(50% - 0.9rem);
   transform: translateY(-50%);
   z-index: 30;
   display: none;
@@ -816,21 +801,21 @@ html[data-motion="reduced"] .boot__skip {
 /* Tuck the controls into the gap either side of the highlighted icon, so a
    peeking neighbour can never slide under an arrow at any width. */
 .menu-edge--prev {
-  left: calc(50% - 5.4375rem);
+  left: calc(50% - 6.0625rem);
 }
 
 .menu-edge--next {
-  right: calc(50% - 5.4375rem);
+  right: calc(50% - 6.0625rem);
 }
 
-/* The desktop orb is 12 px wider, so the control steps out with it. */
+/* The desktop orb is 22 px wider, so the control steps out with it. */
 @media (min-width: 768px) {
   .menu-edge--prev {
-    left: calc(50% - 5.8125rem);
+    left: calc(50% - 7rem);
   }
 
   .menu-edge--next {
-    right: calc(50% - 5.8125rem);
+    right: calc(50% - 7rem);
   }
 }
 

@@ -4,7 +4,6 @@ import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
 import { hapticManager } from '../utils/HapticManager';
 import { isInteractiveTarget } from '../utils/focus';
-import { announce } from '../utils/liveRegion';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
 import SystemToggles from './SystemToggles';
@@ -43,8 +42,8 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
 };
 
 /**
- * The main menu as a PS2 system browser: one calm selected-item panel, a row
- * of system icons below it, the quiet system toggles, and a page counter in the
+ * The main menu as a PS2 system browser: a centred row of large system icons
+ * is the whole menu, with the quiet system toggles and the page counter in the
  * bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
  * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
  * moves one section and a tap opens immediately; pointer hover previews.
@@ -71,7 +70,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const suppressTimer = useRef<number | null>(null);
 
   const activeSection = sections[activeIndex] ?? sections[0];
-  const ActiveIcon = activeSection?.icon;
 
   // Layout follows the viewport instead of scaling a whole subtree, so menu
   // labels stay at their real type size on a phone.
@@ -79,7 +77,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const measure = () => {
       const width = window.visualViewport?.width ?? window.innerWidth;
       const height = window.visualViewport?.height ?? window.innerHeight;
-      setSpacing(width < 480 ? 132 : width < 768 ? 150 : width < 1100 ? 170 : 190);
+      setSpacing(width < 480 ? 148 : width < 768 ? 172 : width < 1100 ? 200 : 228);
       setShort(height < 560);
       setHideClock(height < 500);
     };
@@ -109,9 +107,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
       id: `menu:${section.id}`,
       source,
     });
-    if (source !== 'hover' && source !== 'focus') {
-      announce(section.title);
-    }
   }, [sections, onActiveIndexChange]);
 
   const originOf = useCallback((index: number): NavOrigin | undefined => {
@@ -297,15 +292,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
     if (index !== activeIndex) {
       onActiveIndexChange(index);
       hapticManager.play('tick');
-      announce(sections[index].title);
     }
     openAt(index, 'pointer');
-  };
-
-  const handlePanelClick = (event: React.MouseEvent<HTMLElement>) => {
-    if (suppressClick.current) return;
-    if ((event.target as HTMLElement).closest('button')) return;
-    openAt(activeIndex, 'pointer');
   };
 
   const orbitScale = typeof window === 'undefined'
@@ -346,68 +334,30 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
       <div aria-hidden="true" className="mx-5 mt-3 h-px shrink-0 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent md:mx-10" />
 
-      {/* Selected-item panel */}
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-4 py-3 md:px-10 md:py-5">
-        {activeSection && (
-          <section
-            aria-label="Selected section"
-            className="menu-panel w-full max-w-3xl"
-            onClick={handlePanelClick}
-          >
-            <div className="flex items-start gap-4 px-4 py-4 md:gap-6 md:px-7 md:py-6">
-              <span
-                aria-hidden="true"
-                className="menu-panel__orb flex h-12 w-12 shrink-0 items-center justify-center border border-white/50 bg-blue-500/10 text-white shadow-[0_0_26px_rgba(70,130,255,0.35)] md:h-16 md:w-16"
-              >
-                {ActiveIcon && <ActiveIcon className="h-6 w-6 md:h-8 md:w-8" />}
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-blue-200/75">
-                  Section {String(activeIndex + 1).padStart(2, '0')} / {String(sections.length).padStart(2, '0')}
-                </p>
-                <h2 className="mt-1 text-[28px] font-light uppercase leading-tight tracking-[0.16em] text-white md:text-[36px]">
-                  {activeSection.title}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => openAt(activeIndex, 'pointer')}
-                  onFocus={() => interaction.interact('cursor', { id: 'menu:open', source: 'focus' })}
-                  className="mt-3 inline-flex min-h-[44px] items-center gap-2 border border-blue-300/50 bg-blue-500/10 px-4 font-mono text-[12px] uppercase tracking-[0.18em] text-blue-50 transition-colors hover:border-white hover:bg-blue-500/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                >
-                  Open
-                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
-      </div>
-
-      {/* System icon row, then the quiet system toggles and the page counter
-          in the bottom slot the touch hint used to hold. */}
-      <div className="relative z-10 shrink-0">
-        <p className="sr-only">
-          Main menu. Left and right arrows browse sections, Home and End jump to the first or last,
-          Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe to
-          browse and tap a section to open it.
+      {/* The icon row is the menu: centred between the header and the bottom
+          controls, with a quiet live announcement for keyboard and swipe. */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center py-4 md:py-6">
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {activeSection
+            ? `Section ${String(activeIndex + 1).padStart(2, '0')} of ${String(sections.length).padStart(2, '0')}: ${activeSection.title}`
+            : ''}
         </p>
 
-        <div className="menu-stage-wrap">
+        <div className="menu-stage-wrap w-full">
           <div
             ref={stageRef}
             role="listbox"
             aria-label="Main menu sections"
             aria-orientation="horizontal"
-            className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[116px]' : 'h-[148px] md:h-[172px]'}`}
-            style={{ perspective: '1000px' }}
+            className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[150px]' : 'h-[190px] md:h-[248px]'}`}
+            style={{ perspective: '1100px' }}
           >
             {sections.map((section, index) => {
               const offset = shortestOffset(index, activeIndex, sections.length);
               const distance = Math.abs(offset);
               const active = offset === 0;
               const Icon = section.icon;
-              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, 0, ${-Math.min(distance, 3) * 52}px) rotateY(${Math.max(-12, Math.min(12, offset * -6))}deg) scale(${active ? 1 : 0.84})`;
+              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, 0, ${-Math.min(distance, 3) * 64}px) rotateY(${Math.max(-12, Math.min(12, offset * -6))}deg) scale(${active ? 1 : 0.82})`;
               return (
                 <div
                   key={section.id}
@@ -429,12 +379,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
                     if (event.pointerType !== 'mouse' || active || drag.current) return;
                     select(index, 'hover');
                   }}
-                  className={`menu-option absolute left-1/2 top-1/2 flex w-[112px] cursor-pointer flex-col items-center md:w-[132px] ${
+                  className={`menu-option absolute left-1/2 top-1/2 flex w-[136px] cursor-pointer flex-col items-center md:w-[176px] ${
                     active ? 'menu-option--active' : ''
                   }`}
                   style={{
                     transform,
-                    opacity: active ? 1 : Math.max(0.6, 0.8 - (distance - 1) * 0.09),
+                    opacity: active ? 1 : Math.max(0.55, 0.78 - (distance - 1) * 0.1),
                     zIndex: 20 - distance,
                     transition: reducedMotion || dragging
                       ? 'none'
@@ -442,17 +392,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   }}
                 >
                   <span
-                    className={`flex h-[62px] w-[62px] items-center justify-center rounded-full border transition-colors duration-200 md:h-[74px] md:w-[74px] ${
+                    className={`flex h-[82px] w-[82px] items-center justify-center rounded-full border transition-colors duration-200 md:h-[104px] md:w-[104px] ${
                       active
-                        ? 'border-white bg-blue-500/20 text-white shadow-[0_0_30px_rgba(70,140,255,0.55)]'
+                        ? 'border-white bg-blue-500/20 text-white shadow-[0_0_38px_rgba(70,140,255,0.65)]'
                         : 'border-blue-300/30 bg-blue-900/20 text-blue-200/70'
                     }`}
                   >
-                    <Icon className="h-8 w-8 md:h-9 md:w-9" aria-hidden="true" />
+                    <Icon className="h-9 w-9 md:h-11 md:w-11" aria-hidden="true" />
                   </span>
                   <span
-                    className={`mt-2.5 text-center text-[12px] uppercase leading-tight tracking-[0.16em] ${
-                      active ? 'text-white' : 'text-[var(--text-secondary)]'
+                    className={`mt-3 text-center text-[13px] uppercase leading-tight tracking-[0.18em] md:text-[14px] ${
+                      active ? 'font-light text-white' : 'text-[var(--text-secondary)]'
                     }`}
                   >
                     {section.title}
@@ -482,6 +432,15 @@ const MainMenu: React.FC<MainMenuProps> = ({
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+      </div>
+
+      {/* Quiet system controls and the page counter take the bottom slot. */}
+      <div className="relative z-10 shrink-0">
+        <p className="sr-only">
+          Main menu. Left and right arrows browse sections, Home and End jump to the first or last,
+          Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe to
+          browse and tap a section to open it.
+        </p>
 
         <div className="menu-toggles">
           <SystemToggles />

@@ -50,7 +50,7 @@ async def open_menu(page):
     await page.goto(BASE + '/', wait_until='networkidle')
     await page.wait_for_timeout(700)
     await boot(page)
-    await page.locator('.menu-panel').wait_for(state='visible', timeout=5000)
+    await page.locator('.menu-stage').wait_for(state='visible', timeout=5000)
     await page.wait_for_timeout(450)
 
 
@@ -133,15 +133,15 @@ async def phone_checks(browser):
     check(14 in vibes, 'tap fires the tick haptic', str(vibes))
     check(22 in vibes, 'open fires the confirm haptic', str(vibes))
 
-    # Swipe on the selected panel, then on the empty header, then vertically.
+    # Swipe on the slider, then on the empty header, then vertically.
     await open_menu(page)
     await page.evaluate('window.__vibes = []')
-    panel = await page.locator('.menu-panel').bounding_box()
-    await swipe(client, panel['x'] + panel['width'] - 40,
-                panel['y'] + panel['height'] / 2,
-                panel['x'] + 40, panel['y'] + panel['height'] / 2)
-    check(await counter(page) == '02 / 06', 'panel swipe moves to 02 / 06', await counter(page))
-    check(page.url.rstrip('/') == BASE, 'panel swipe does not open a section', page.url)
+    slider = await page.locator('.menu-stage-wrap').bounding_box()
+    await swipe(client, slider['x'] + slider['width'] - 40,
+                slider['y'] + slider['height'] / 2,
+                slider['x'] + 40, slider['y'] + slider['height'] / 2)
+    check(await counter(page) == '02 / 06', 'slider swipe moves to 02 / 06', await counter(page))
+    check(page.url.rstrip('/') == BASE, 'slider swipe does not open a section', page.url)
     swipe_vibes = await page.evaluate('window.__vibes')
     check(14 in swipe_vibes, 'swipe fires the tick haptic', str(swipe_vibes))
 
@@ -155,47 +155,58 @@ async def phone_checks(browser):
     check(page.url.rstrip('/') == BASE, 'vertical swipe does not open a section', page.url)
 
     # A tap on a toggle after a swipe still works.
-    motion = page.locator('button[aria-label="Reduce motion"]')
-    before_pressed = await motion.get_attribute('aria-pressed')
-    await motion.tap()
+    haptics = page.locator('button[aria-label="Haptics"]')
+    before_pressed = await haptics.get_attribute('aria-pressed')
+    await haptics.tap()
     await page.wait_for_timeout(150)
-    after_pressed = await motion.get_attribute('aria-pressed')
+    after_pressed = await haptics.get_attribute('aria-pressed')
     check(before_pressed != after_pressed, 'toggle tap after a swipe is not swallowed')
 
-    # Reduced motion must not disable the gesture.
+    # No motion toggle: the device setting always wins, including over a
+    # manual override left in storage by an older build.
+    check(await page.locator('button[aria-label="Reduce motion"]').count() == 0,
+          'no motion toggle')
     await page.evaluate("""() => localStorage.setItem('jsb.prefs.v1', JSON.stringify(
       {sound: false, haptics: true, motion: 'on', soundHintDismissed: true}))""")
     await page.reload(wait_until='networkidle')
     await page.wait_for_timeout(700)
     await boot(page)
-    await page.locator('.menu-panel').wait_for(state='visible', timeout=5000)
+    await page.locator('.menu-stage').wait_for(state='visible', timeout=5000)
+    await page.wait_for_timeout(400)
+    check(await page.evaluate("document.documentElement.dataset.motion") == 'auto',
+          'stored motion override falls back to auto')
+    prefs = await page.evaluate("JSON.parse(localStorage.getItem('jsb.prefs.v1'))")
+    check('motion' not in prefs, 'stored motion override is cleared', str(prefs))
+
+    # Reduced motion must not disable the gesture.
+    await page.emulate_media(reduced_motion='reduce')
+    await page.reload(wait_until='networkidle')
+    await page.wait_for_timeout(700)
+    await boot(page)
+    await page.locator('.menu-stage').wait_for(state='visible', timeout=5000)
     await page.wait_for_timeout(400)
     check(await page.evaluate("document.documentElement.dataset.motion") == 'reduced',
           'reduced motion is active')
-    panel = await page.locator('.menu-panel').bounding_box()
-    await swipe(client, panel['x'] + panel['width'] - 40,
-                panel['y'] + panel['height'] / 2,
-                panel['x'] + 40, panel['y'] + panel['height'] / 2)
+    slider = await page.locator('.menu-stage-wrap').bounding_box()
+    await swipe(client, slider['x'] + slider['width'] - 40,
+                slider['y'] + slider['height'] / 2,
+                slider['x'] + 40, slider['y'] + slider['height'] / 2)
     check(await counter(page) == '02 / 06', 'swipe works with reduced motion',
           await counter(page))
     check(page.url.rstrip('/') == BASE, 'reduced-motion swipe does not open a section')
 
-    # Tapping the selected panel itself opens, as does its OPEN button.
+    # The slider alone is the menu: the selected tile opens, and the active
+    # section is still announced.
     await open_menu(page)
-    await page.tap('.menu-panel', position={'x': 22, 'y': 22})
+    live = await page.locator('.menu-stage-wrap').evaluate(
+        "e => e.parentElement.querySelector('[role=status]').textContent.trim()")
+    check('About' in live, 'live region names the active section', live)
+    await page.tap('[data-section-id="about"]')
     try:
         await page.wait_for_url('**/about', timeout=3000)
-        check(True, 'tapping the panel opens the selected section')
+        check(True, 'tapping the active tile opens the selected section')
     except Exception:
-        check(False, 'tapping the panel opens the selected section', page.url)
-
-    await open_menu(page)
-    await page.locator('.menu-panel button', has_text='Open').tap()
-    try:
-        await page.wait_for_url('**/about', timeout=3000)
-        check(True, 'tapping OPEN opens the selected section')
-    except Exception:
-        check(False, 'tapping OPEN opens the selected section', page.url)
+        check(False, 'tapping the active tile opens the selected section', page.url)
     await ctx.close()
 
 
@@ -264,7 +275,7 @@ async def desktop_checks(browser):
 
     await page.locator('[data-section-id="book"]').hover()
     await page.wait_for_timeout(250)
-    title = await page.locator('.menu-panel h2').inner_text()
+    title = await page.locator('[role="option"][aria-selected="true"] > span:last-child').inner_text()
     check(title.strip().upper() == 'BOOK', 'hover previews Book', title)
     await page.locator('[data-section-id="book"]').click()
     try:
