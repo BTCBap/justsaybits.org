@@ -6,7 +6,6 @@ import { hapticManager } from '../utils/HapticManager';
 import { isInteractiveTarget } from '../utils/focus';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
-import SystemToggles from './SystemToggles';
 
 interface MainMenuProps {
   sections: Section[];
@@ -55,8 +54,7 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
 
 /**
  * The main menu as a PS2 system browser: a centred row of large system icons
- * is the whole menu, with the quiet system toggles and the page indicator in the
- * bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
+ * is the whole menu, with the page indicator in the bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
  * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
  * moves one section and a tap opens immediately; pointer hover previews.
  */
@@ -168,8 +166,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const total = sections.length;
     if (!total) return;
     const next = ((index % total) + total) % total;
-    // Only a tap on a control buzzes. A swipe moves the row silently.
-    select(next, source, source === 'pointer');
+    // A tap and a swipe both land on a new tile, so each one ticks once.
+    select(next, source, source === 'pointer' || source === 'gesture');
     if (source === 'keyboard') {
       optionRefs.current.get(sections[next].id)?.focus({ preventScroll: true });
     }
@@ -537,18 +535,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </div>
 
-      {/* Quiet system controls and the page indicator take the bottom slot.
-          They are outside the swipe surface: their taps act immediately. */}
+      {/* The page indicator takes the bottom slot, outside the swipe surface. */}
       <div className="relative z-10 shrink-0" data-menu-control>
         <p className="sr-only">
           Main menu. Left and right arrows browse sections, Home and End jump to the first or last,
-          Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe to
-          browse and tap a section to open it.
+          Enter opens the highlighted section. On a touch screen, swipe to browse and tap a
+          section to open it.
         </p>
-
-        <div className="menu-toggles">
-          <SystemToggles />
-        </div>
 
         <div className="menu-counter">
           <span aria-hidden="true" className="flex items-center gap-1.5">

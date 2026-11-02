@@ -36,12 +36,12 @@ const App: React.FC = () => {
     document.documentElement.dataset.motion = reducedMotion ? 'reduced' : 'auto';
   }, [reducedMotion]);
 
-  // The interaction bus owns audio resumption, recovery, and the M shortcut.
+  // The interaction bus owns the back/confirm haptics.
   useEffect(() => interaction.install(), []);
 
   // Browser Back and the Android back gesture never reach a screen handler.
   // The route change itself confirms them; the close handlers call the same
-  // back event first, and the bus dedupes the pair into one sound.
+  // back event first, and the bus dedupes the pair into one tick.
   useEffect(() => {
     if (direction !== 'back' || !previous) return;
     if (!previous.section && !previous.notFound) return;

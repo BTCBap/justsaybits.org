@@ -1,27 +1,17 @@
 /**
- * One interaction bus for sound and haptics.
+ * One interaction bus for haptics.
  *
  * Event policy:
- *   cursor  — one quiet tick when the highlighted item changes. No haptic on
- *             hover or focus; an explicit tick only for a tab tap.
- *   confirm — rising two-note chime plus one confirm haptic.
- *   back    — lower falling blip plus one tick haptic.
- *   error   — low double pulse plus the error pattern; fires only after the
- *             action has actually failed.
+ *   cursor  — no haptic by default; an explicit tick only for a direct tap.
+ *   confirm — one confirm haptic.
+ *   back    — one tick haptic.
+ *   error   — the error pattern; fires only after the action has failed.
  *
- * The action handlers that emit a sound prime the AudioContext inside their
- * own gesture and resume it there. The site never writes
- * `navigator.audioSession`, so it keeps the browser's mixing behaviour and
- * cannot interrupt or duck audio from other apps. A context exists only while
- * a voice is playing or about to play; SoundManager closes it after 1.5 s of
- * silence and on every hide. Nothing is created or resumed by a lifecycle
- * event or by a gesture that plays no sound.
+ * The site has no interface sounds. Media playback (podcast players, embeds,
+ * <audio> and <video>) is owned by its own elements and never routed here.
  */
 
-import { announce } from './liveRegion';
 import { hapticManager, type HapticKind } from './HapticManager';
-import { preferences, prefersReducedMotionNow } from './preferences';
-import { soundManager, type SoundEvent } from './SoundManager';
 
 export type InteractionEvent = 'cursor' | 'confirm' | 'back' | 'error';
 export type InteractionSource = 'hover' | 'focus' | 'keyboard' | 'pointer' | 'gesture' | 'system';
@@ -44,17 +34,10 @@ const DEFAULT_HAPTIC: Record<InteractionEvent, HapticKind | false> = {
 const CURSOR_THROTTLE_MS = 80;
 const CURSOR_DEDUPE_MS = 800;
 const FOCUS_AFTER_POINTER_MS = 600;
-const PENDING_MAX_AGE_MS = 1200;
-/** One back gesture can reach the sound through the handler and the route. */
+/** One back gesture can reach the bus through the handler and the route. */
 const BACK_DEDUPE_MS = 650;
 /** Focus returns to the menu a frame or two after a back navigation. */
 const BACK_CURSOR_GUARD_MS = 300;
-
-const isEditableTarget = (target: EventTarget | null): boolean => {
-  const element = target as HTMLElement | null;
-  if (!element || typeof element.closest !== 'function') return false;
-  return !!element.closest('input, textarea, select, [contenteditable="true"]');
-};
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -64,14 +47,7 @@ class InteractionBus {
   private lastPointerAt = -Infinity;
   private lastBackAt = -Infinity;
   private cursorGuardUntil = -Infinity;
-  private pending: { event: SoundEvent; at: number } | null = null;
-  private unlocking: Promise<boolean> | null = null;
   private cleanup: (() => void) | null = null;
-
-  /** Whether this browser exposes the Web Audio API at all. */
-  public get soundAvailable(): boolean {
-    return soundManager.available;
-  }
 
   public interact(event: InteractionEvent, options: InteractOptions = {}): void {
     if (event === 'cursor') {
@@ -82,7 +58,7 @@ class InteractionBus {
     if (event === 'back') {
       const at = now();
       // A close handler and the route change it causes are one gesture. The
-      // first one sounds; the second is the same back.
+      // first one buzzes; the second is the same back.
       if (at - this.lastBackAt < BACK_DEDUPE_MS) return;
       this.lastBackAt = at;
       // Returning focus to a menu tile must not add a cursor tick to the back.
@@ -93,7 +69,6 @@ class InteractionBus {
     // A lifecycle or fetch result is not a control action and must stay
     // silent.
     if (haptic && options.source !== 'system') hapticManager.play(haptic);
-    this.emitSound(event);
   }
 
   private cursor(options: InteractOptions): void {
@@ -106,69 +81,6 @@ class InteractionBus {
     this.lastCursorId = options.id ?? null;
     this.lastCursorAt = at;
     if (options.haptic) hapticManager.play(options.haptic);
-    this.emitSound('cursor');
-  }
-
-  private emitSound(event: SoundEvent): void {
-    if (!preferences.get().sound) return;
-
-    // Schedule into an existing context even while it is resuming: the nodes
-    // queue and play when the gesture's resume settles. On a phone, resume can
-    // take longer than the tap that caused it, so waiting for `running` here
-    // was dropping the menu's sound.
-    if (soundManager.ready) {
-      soundManager.play(event, prefersReducedMotionNow());
-      void this.unlock();
-      return;
-    }
-
-    // No context yet. Only a live gesture may build one: a route or system
-    // event has no activation, and a suspended context built there would
-    // renegotiate the audio device for a sound that can never start.
-    const activation = (navigator as Navigator & {
-      userActivation?: { isActive: boolean };
-    }).userActivation;
-    if (activation && !activation.isActive) return;
-
-    // Keep only the newest event from this gesture. Anything older is stale
-    // by the time a slow resume settles.
-    this.pending = { event, at: Date.now() };
-    void this.unlock();
-  }
-
-  /** Resume the context from a live user gesture and flush its one sound. */
-  public async unlock(): Promise<boolean> {
-    if (!preferences.get().sound) return false;
-    // Only a voice that is about to play may build a context.
-    if (!this.pending && !soundManager.ready) return false;
-    soundManager.primeFromGesture();
-    if (!this.unlocking) {
-      this.unlocking = soundManager.ensureRunning().then((ok) => {
-        this.unlocking = null;
-        const pending = this.pending;
-        this.pending = null;
-        if (
-          ok
-          && pending
-          && Date.now() - pending.at < PENDING_MAX_AGE_MS
-          && preferences.get().sound
-        ) {
-          soundManager.play(pending.event, prefersReducedMotionNow());
-        }
-        return ok;
-      });
-    }
-    return this.unlocking;
-  }
-
-  private toggleSound(): void {
-    const next = !preferences.get().sound;
-    preferences.set({ sound: next });
-    announce(next ? 'Sound on' : 'Sound off');
-    if (next) {
-      // Turning sound on is itself the gesture that may start a voice.
-      this.interact('confirm', { source: 'keyboard' });
-    }
   }
 
   public install(): () => void {
@@ -181,59 +93,10 @@ class InteractionBus {
       this.lastPointerAt = now();
     };
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'm' || event.key === 'M') {
-        if (
-          !event.repeat
-          && !event.metaKey
-          && !event.ctrlKey
-          && !event.altKey
-          && !isEditableTarget(event.target)
-        ) {
-          event.preventDefault();
-          this.toggleSound();
-        }
-      }
-      // A keypress that plays nothing must not build or resume a context.
-      // Handlers that emit a sound call `unlock` themselves.
-    };
-
-    // Hiding closes the output stream. Focus, pageshow and a return to
-    // visible must never resume or create one: Chrome renegotiates the shared
-    // audio device around those events, which clips other apps' music. Only a
-    // later explicit gesture can start audio again.
-    const suspendAudio = () => {
-      this.pending = null;
-      soundManager.quiesce();
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') suspendAudio();
-    };
-
-    const onPageHide = () => suspendAudio();
-
-    const unsubscribePreferences = preferences.subscribe(() => {
-      const enabled = preferences.get().sound;
-      soundManager.setMuted(!enabled);
-      if (!enabled) this.pending = null;
-    });
-
-    soundManager.setMuted(!preferences.get().sound);
-
     window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('pagehide', onPageHide);
-    document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('pagehide', onPageHide);
-      document.removeEventListener('visibilitychange', onVisibility);
-      unsubscribePreferences();
-      this.pending = null;
-      this.unlocking = null;
       this.cleanup = null;
     };
 
