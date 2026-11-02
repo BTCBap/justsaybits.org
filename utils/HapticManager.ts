@@ -35,17 +35,34 @@ class HapticManager {
     if (!this.iosSwitch || !this.iosSwitch.isConnected) {
       const label = document.createElement('label');
       label.setAttribute('aria-hidden', 'true');
+      label.dataset.hapticSwitch = 'true';
       label.style.cssText = 'display:block;position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;';
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.setAttribute('switch', '');
       input.tabIndex = -1;
       input.setAttribute('aria-hidden', 'true');
+      input.style.pointerEvents = 'none';
+      // The switch exists only to trigger the system haptic. It must never
+      // keep focus, reach the menu's click guard, or act as a real control.
+      label.addEventListener('click', (event) => event.stopPropagation());
+      input.addEventListener('click', (event) => event.stopPropagation());
+      input.addEventListener('focus', () => {
+        input.blur();
+      });
       label.appendChild(input);
       document.body.appendChild(label);
       this.iosSwitch = label;
     }
+    const input = this.iosSwitch.querySelector('input');
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     this.iosSwitch.click();
+    if (input && document.activeElement === input) {
+      if (previousFocus && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+      else input.blur();
+    }
   }
 
   /** `force` is for a call made inside the first live gesture, where the
