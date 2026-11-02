@@ -112,23 +112,24 @@ const SystemCard: React.FC<SystemCardProps> = ({
 
         <div className="system-card__head">
           <h3 className={`system-card__title ${titleClassName}`}>{title}</h3>
-          {meta && <span className="system-card__meta">{meta}</span>}
+          {external && (
+            <span className="system-card__external">
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
+            </span>
+          )}
         </div>
+
+        {meta && <span className="system-card__meta">{meta}</span>}
 
         {description && <p className="system-card__desc">{description}</p>}
         {children}
 
         {media}
 
-        {(footer || external) && (
+        {footer && (
           <div className="system-card__foot">
             <span className="system-card__foot-text">{footer}</span>
-            {external && (
-              <span className="system-card__external">
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="sr-only"> (opens in a new tab)</span>
-              </span>
-            )}
           </div>
         )}
       </div>

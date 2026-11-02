@@ -43,7 +43,6 @@ import EmptyState from './EmptyState';
 import { ListSkeleton } from './Skeleton';
 import {
   EssayRow,
-  FeaturedEssay,
   MediaRow,
   PostCard,
   ReadingRow,
@@ -496,7 +495,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
     if (filteredEssays.length === 0) return null;
 
-    const [featured, ...rest] = filteredEssays;
     const sourceLink = (post: EssaySummary) => post.sourceUrl ? (
       <a
         href={post.sourceUrl}
@@ -524,33 +522,20 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
     return (
       <div className="essay-index">
-        <div className="essay-featured-wrap">
-          <FeaturedEssay
-            essay={featured}
-            href={pathForEssay(featured.slug)}
-            feedbackId={`essay:${featured.slug}`}
-            innerRef={registerCard(featured.slug)}
-            onNavigate={open(featured)}
-          />
-          {sourceLink(featured)}
+        <div className="essay-index__rows">
+          {filteredEssays.map((post) => (
+            <div key={post.slug} className="essay-index__item">
+              <EssayRow
+                essay={post}
+                href={pathForEssay(post.slug)}
+                feedbackId={`essay:${post.slug}`}
+                innerRef={registerCard(post.slug)}
+                onNavigate={open(post)}
+              />
+              {sourceLink(post)}
+            </div>
+          ))}
         </div>
-
-        {rest.length > 0 && (
-          <div className="essay-index__rows">
-            {rest.map((post) => (
-              <div key={post.slug} className="essay-index__item">
-                <EssayRow
-                  essay={post}
-                  href={pathForEssay(post.slug)}
-                  feedbackId={`essay:${post.slug}`}
-                  innerRef={registerCard(post.slug)}
-                  onNavigate={open(post)}
-                />
-                {sourceLink(post)}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     );
   };
