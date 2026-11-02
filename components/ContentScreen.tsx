@@ -800,7 +800,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                   ) : (
                     <>
                       {featuredEpisode && (
-                        <MediaFeature item={featuredEpisode} label="Latest episode" />
+                        <MediaFeature item={featuredEpisode} />
                       )}
                       {groupByYear(hostRest).map(group => (
                         <div key={group.year} className="content-group">
@@ -856,7 +856,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                           <span className="content-venue__count">{sourceGroup.items.length}</span>
                         </p>
                         <div className="media-rows">
-                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} wide />)}
+                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} />)}
                         </div>
                       </div>
                     ))}

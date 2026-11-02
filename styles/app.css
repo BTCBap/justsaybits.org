@@ -2824,27 +2824,30 @@ html[data-motion="reduced"] .essay-prose a {
   padding: 0.5rem 0.7rem;
 }
 
-.media-row .system-card__leading {
+.media-row .system-card__leading,
+.media-feature .system-card__leading {
   width: 2rem;
+  padding-top: 0;
 }
 
 .media-row__title {
   font-size: var(--type-16);
 }
 
-.media-row__play {
+/* One play badge for the featured episode and every episode row. It tops out
+   with the first title line and keeps its size when the title wraps. */
+.media-play {
   display: inline-flex;
-  width: 1.6rem;
-  height: 1.6rem;
+  flex: none;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(110, 168, 255, 0.45);
-  color: var(--accent);
-}
-
-.media-row--wide .media-row__play {
-  width: 1.8rem;
-  height: 1.8rem;
+  border: 1px solid rgba(150, 200, 255, 0.55);
+  border-radius: 50%;
+  background: rgba(30, 70, 140, 0.35);
+  color: #fff;
 }
 
 .media-feature {
@@ -2853,25 +2856,9 @@ html[data-motion="reduced"] .essay-prose a {
   padding: 1rem 1.1rem;
 }
 
-.media-feature .system-card__leading {
-  width: 3.25rem;
-}
-
 .media-feature__title {
   font-size: var(--type-20);
   line-height: 1.3;
-}
-
-.media-feature__play {
-  display: inline-flex;
-  width: 2.6rem;
-  height: 2.6rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(150, 200, 255, 0.55);
-  border-radius: 50%;
-  background: rgba(30, 70, 140, 0.35);
-  color: #fff;
 }
 
 .tutorial-row {

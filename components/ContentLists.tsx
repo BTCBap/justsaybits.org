@@ -116,21 +116,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
 interface MediaFeatureProps {
   item: MediaItem;
-  label: string;
 }
 
-export const MediaFeature: React.FC<MediaFeatureProps> = ({ item, label }) => (
+export const MediaFeature: React.FC<MediaFeatureProps> = ({ item }) => (
   <SystemCard
     href={item.url}
     external
     feedbackId={`media:${item.url}`}
     className="media-feature"
     leading={(
-      <span className="media-feature__play" aria-hidden="true">
-        <Play className="h-4 w-4" fill="currentColor" />
+      <span className="media-play" aria-hidden="true">
+        <Play className="h-3.5 w-3.5" fill="currentColor" />
       </span>
     )}
-    eyebrow={label}
     title={item.title}
     titleClassName="media-feature__title"
     meta={item.date}
@@ -138,15 +136,15 @@ export const MediaFeature: React.FC<MediaFeatureProps> = ({ item, label }) => (
   />
 );
 
-export const MediaRow: React.FC<{ item: MediaItem; wide?: boolean }> = ({ item, wide = false }) => (
+export const MediaRow: React.FC<{ item: MediaItem }> = ({ item }) => (
   <SystemCard
     href={item.url}
     external
     feedbackId={`media:${item.url}`}
-    className={`media-row ${wide ? 'media-row--wide' : ''}`}
+    className="media-row"
     leading={(
-      <span className="media-row__play" aria-hidden="true">
-        <Play className="h-3 w-3" fill="currentColor" />
+      <span className="media-play" aria-hidden="true">
+        <Play className="h-3.5 w-3.5" fill="currentColor" />
       </span>
     )}
     title={item.title}
