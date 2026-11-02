@@ -752,41 +752,30 @@ html[data-motion="reduced"] .boot__skip {
   position: relative;
 }
 
-/* The arrows ride the icon circles, never the labels: the orb's centre sits
-   just above the stage's midpoint because its label adds a line beneath.
-   Touch screens swipe instead, so the controls belong to fine pointers only. */
+/* Arrows sit on the viewport's left and right edges on every device, vertically
+   on the orb row. The stage is clipped inside those gutters so a peeking tile
+   or label can never run underneath a control. */
 .menu-edge {
-  position: absolute;
-  top: calc(50% - 0.9rem);
+  position: fixed;
+  top: 50%;
   transform: translateY(-50%);
-  z-index: 30;
-  display: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .menu-edge {
-    display: flex;
-  }
-}
-
-/* Tuck the controls into the gap either side of the highlighted icon, so a
-   peeking neighbour can never slide under an arrow at any width. */
-.menu-edge--prev {
-  left: calc(50% - 6.0625rem);
+  z-index: 40;
+  display: flex;
+  left: max(0.25rem, env(safe-area-inset-left, 0px));
 }
 
 .menu-edge--next {
-  right: calc(50% - 6.0625rem);
+  left: auto;
+  right: max(0.25rem, env(safe-area-inset-right, 0px));
 }
 
-/* The desktop orb is 22 px wider, so the control steps out with it. */
-@media (min-width: 768px) {
-  .menu-edge--prev {
-    left: calc(50% - 7rem);
-  }
+.menu-stage {
+  clip-path: inset(0 var(--menu-edge-gutter, 3.5rem));
+}
 
-  .menu-edge--next {
-    right: calc(50% - 7rem);
+@media (min-width: 768px) {
+  :root {
+    --menu-edge-gutter: 4rem;
   }
 }
 

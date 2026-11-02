@@ -106,13 +106,35 @@ async def phone_checks(browser):
       };
       return {
         arrow: getComputedStyle(document.querySelector('.menu-edge')).display,
+        prev: box('.menu-edge--prev'),
+        next: box('.menu-edge--next'),
         toggles: box('.menu-toggles'),
         counter: box('.menu-counter'),
         stage: box('.menu-stage'),
         haptics: !!document.querySelector('button[aria-label="Haptics"]'),
       };
     }''')
-    check(layout['arrow'] == 'none', 'phone hides the square arrows')
+    check(layout['arrow'] == 'flex', 'phone shows the edge arrows')
+    check(layout['prev']['x'] <= 8 and layout['next']['x'] + layout['next']['w'] >= 382,
+          'arrows sit on the viewport edges', str([layout['prev'], layout['next']]))
+    check(layout['prev']['w'] >= 44 and layout['prev']['h'] >= 44
+          and layout['next']['w'] >= 44 and layout['next']['h'] >= 44,
+          'arrows keep 44 px tap targets')
+    hits = await page.evaluate('''() => {
+      const arrows = [...document.querySelectorAll('.menu-edge')];
+      const hits = [];
+      for (const arrow of arrows) {
+        const r = arrow.getBoundingClientRect();
+        for (let x = r.left + 2; x < r.right - 1; x += 8) {
+          for (let y = r.top + 2; y < r.bottom - 1; y += 8) {
+            const hit = document.elementFromPoint(x, y);
+            if (hit && hit.closest('.menu-option')) hits.push([x, y]);
+          }
+        }
+      }
+      return hits;
+    }''')
+    check(not hits, 'arrows never sit over a tile pixel', str(hits[:3]))
     check(layout['haptics'], 'phone shows the haptics toggle (iOS fallback)')
     check(abs(layout['toggles']['x'] + layout['toggles']['w'] / 2 - 195) <= 1,
           'toggle row is centred')
@@ -130,8 +152,9 @@ async def phone_checks(browser):
         opened = False
     check(opened, 'one tap opens Social', page.url)
     vibes = await page.evaluate('window.__vibes')
-    check(14 in vibes, 'tap fires the tick haptic', str(vibes))
-    check(22 in vibes, 'open fires the confirm haptic', str(vibes))
+    check(18 in vibes, 'tap fires the 18 ms tick haptic', str(vibes))
+    check(35 in vibes, 'open fires the 35 ms confirm haptic', str(vibes))
+    check(0 not in vibes, 'no vibrate(0) cancels the new pulse', str(vibes))
 
     # Swipe on the slider, then on the empty header, then vertically.
     await open_menu(page)
@@ -143,7 +166,7 @@ async def phone_checks(browser):
     check(await counter(page) == '02 / 06', 'slider swipe moves to 02 / 06', await counter(page))
     check(page.url.rstrip('/') == BASE, 'slider swipe does not open a section', page.url)
     swipe_vibes = await page.evaluate('window.__vibes')
-    check(14 in swipe_vibes, 'swipe fires the tick haptic', str(swipe_vibes))
+    check(18 in swipe_vibes, 'swipe fires the 18 ms tick haptic', str(swipe_vibes))
 
     await swipe(client, 380, 60, 250, 60)
     check(await counter(page) == '03 / 06', 'header swipe moves to 03 / 06', await counter(page))
@@ -289,15 +312,13 @@ async def desktop_checks(browser):
         await page.set_viewport_size({'width': width, 'height': 900})
         await open_menu(page)
         collisions = await page.evaluate('''() => {
-          const rect = element => element.getBoundingClientRect();
-          const arrows = [...document.querySelectorAll('.menu-edge')].map(rect);
-          const marks = [...document.querySelectorAll('.menu-option > span')].map(rect);
           const hits = [];
-          for (const arrow of arrows) {
-            for (const mark of marks) {
-              if (arrow.left < mark.right && arrow.right > mark.left
-                  && arrow.top < mark.bottom && arrow.bottom > mark.top) {
-                hits.push([arrow.left, arrow.top, mark.left, mark.top]);
+          for (const arrow of document.querySelectorAll('.menu-edge')) {
+            const r = arrow.getBoundingClientRect();
+            for (let x = r.left + 2; x < r.right - 1; x += 8) {
+              for (let y = r.top + 2; y < r.bottom - 1; y += 8) {
+                const hit = document.elementFromPoint(x, y);
+                if (hit && hit.closest('.menu-option')) hits.push([x, y]);
               }
             }
           }

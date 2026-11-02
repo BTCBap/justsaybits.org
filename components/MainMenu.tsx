@@ -20,7 +20,7 @@ interface MainMenuProps {
 const DRAG_THRESHOLD = 8;
 const MIN_SNAP_DISTANCE = 48;
 const MIN_SNAP_VELOCITY = 0.35;
-const MOVE_TRANSITION = 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease';
+const MOVE_TRANSITION = 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms cubic-bezier(0.22, 1, 0.36, 1)';
 
 interface DragState {
   pointerId: number;
@@ -59,6 +59,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [spacing, setSpacing] = useState(132);
   const [short, setShort] = useState(false);
   const [hideClock, setHideClock] = useState(false);
+  const [edgeTop, setEdgeTop] = useState<number | null>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -80,6 +81,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
       setSpacing(width < 480 ? 148 : width < 768 ? 172 : width < 1100 ? 200 : 228);
       setShort(height < 560);
       setHideClock(height < 500);
+      const stage = stageRef.current;
+      if (stage) {
+        const rect = stage.getBoundingClientRect();
+        // The arrows ride the orb row, which sits just above the tile's
+        // vertical centre because the label adds a line underneath.
+        setEdgeTop(rect.top + rect.height / 2 - 15);
+      }
     };
     measure();
     window.addEventListener('resize', measure);
@@ -88,7 +96,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
     };
-  }, []);
+  }, [short]);
 
   useEffect(() => () => {
     if (suppressTimer.current !== null) window.clearTimeout(suppressTimer.current);
@@ -123,17 +131,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
     onSelect(section.id, originOf(index));
   }, [sections, onSelect, originOf]);
 
-  const moveTo = useCallback((index: number, source: 'keyboard' | 'gesture') => {
+  const moveTo = useCallback((index: number, source: 'keyboard' | 'gesture' | 'pointer') => {
     const total = sections.length;
     if (!total) return;
     const next = ((index % total) + total) % total;
-    select(next, source, source === 'gesture');
+    select(next, source, source !== 'keyboard');
     if (source === 'keyboard') {
       optionRefs.current.get(sections[next].id)?.focus({ preventScroll: true });
     }
   }, [sections, select]);
 
-  const moveBy = useCallback((direction: 1 | -1, source: 'keyboard' | 'gesture') => {
+  const moveBy = useCallback((direction: 1 | -1, source: 'keyboard' | 'gesture' | 'pointer') => {
     moveTo(activeIndex + direction, source);
   }, [activeIndex, moveTo]);
 
@@ -380,9 +388,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
                     transform,
                     opacity: active ? 1 : Math.max(0.55, 0.78 - (distance - 1) * 0.1),
                     zIndex: 20 - distance,
-                    transition: reducedMotion || dragging
-                      ? 'none'
-                      : `${MOVE_TRANSITION}, opacity 220ms ease`,
+                    transition: reducedMotion || dragging ? 'none' : MOVE_TRANSITION,
                   }}
                 >
                   <span
@@ -406,12 +412,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
             })}
           </div>
 
-          {/* Fine-pointer only: a swipe replaces these on touch screens. */}
+          {/* Small PS2 chevrons at the viewport edges on every device. */}
           <button
             type="button"
             aria-label="Previous section"
             onFocus={() => interaction.interact('cursor', { id: 'menu:prev', source: 'focus' })}
-            onClick={() => moveBy(-1, 'keyboard')}
+            onClick={() => moveBy(-1, 'pointer')}
+            style={{ top: edgeTop ?? undefined }}
             className="menu-edge menu-edge--prev h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -420,7 +427,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
             type="button"
             aria-label="Next section"
             onFocus={() => interaction.interact('cursor', { id: 'menu:next', source: 'focus' })}
-            onClick={() => moveBy(1, 'keyboard')}
+            onClick={() => moveBy(1, 'pointer')}
+            style={{ top: edgeTop ?? undefined }}
             className="menu-edge menu-edge--next h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
           >
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
