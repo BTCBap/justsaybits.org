@@ -32,6 +32,9 @@ class SoundManager {
   private master: GainNode | null = null;
   private toneFilter: BiquadFilterNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
+  /** Output fader: the only node that is ramped to silence on suspend. */
+  private output: GainNode | null = null;
+  private suspendTimer: number | null = null;
   private muted = false;
   private voices = 0;
   private activeSources = new Set<AudioScheduledSourceNode>();
@@ -77,7 +80,9 @@ class SoundManager {
       const master = ctx.createGain();
       const toneFilter = ctx.createBiquadFilter();
       const compressor = ctx.createDynamicsCompressor();
+      const output = ctx.createGain();
       master.gain.value = this.muted ? 0.0001 : MASTER;
+      output.gain.value = 1;
       toneFilter.type = 'lowpass';
       toneFilter.frequency.value = TONE_CUTOFF;
       toneFilter.Q.value = 0.3;
@@ -88,12 +93,14 @@ class SoundManager {
       compressor.release.value = 0.3;
       master.connect(toneFilter);
       toneFilter.connect(compressor);
-      compressor.connect(ctx.destination);
+      compressor.connect(output);
+      output.connect(ctx.destination);
       ctx.onstatechange = () => this.notify();
       this.ctx = ctx;
       this.master = master;
       this.toneFilter = toneFilter;
       this.compressor = compressor;
+      this.output = output;
       this.notify();
       return true;
     } catch {
@@ -103,13 +110,37 @@ class SoundManager {
 
   private teardown(): void {
     this.stopBoot();
+    this.clearSuspendTimer();
     this.ctx = null;
     this.master = null;
     this.toneFilter = null;
     this.compressor = null;
+    this.output = null;
     this.activeSources.clear();
     this.voices = 0;
     this.notify();
+  }
+
+  private clearSuspendTimer(): void {
+    if (this.suspendTimer !== null) {
+      window.clearTimeout(this.suspendTimer);
+      this.suspendTimer = null;
+    }
+  }
+
+  /**
+   * Bring the output fader back after a silent park. The ramp is short but
+   * starts at the fader's current value, so resuming never steps the signal.
+   */
+  private wakeOutput(): void {
+    this.clearSuspendTimer();
+    const ctx = this.ctx;
+    const output = this.output;
+    if (!ctx || !output) return;
+    const now = ctx.currentTime;
+    output.gain.cancelScheduledValues(now);
+    output.gain.setValueAtTime(output.gain.value, now);
+    output.gain.linearRampToValueAtTime(1, now + 0.02);
   }
 
   /**
@@ -136,6 +167,8 @@ class SoundManager {
         // The next gesture retries.
       }
     }
+
+    this.wakeOutput();
 
     try {
       const source = ctx.createBufferSource();
@@ -187,6 +220,7 @@ class SoundManager {
       });
     }
 
+    if ((ctx.state as string) === 'running') this.wakeOutput();
     this.notify();
     return (ctx.state as string) === 'running';
   }
@@ -248,10 +282,12 @@ class SoundManager {
     if (endFrequency) {
       osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFrequency), start + duration);
     }
-    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.setValueAtTime(0, start);
     // A 20 ms attack takes the edge off the note while it stays responsive.
     gain.gain.linearRampToValueAtTime(level, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    // A linear release reaches true zero before the source is stopped, so no
+    // trailing sample is cut mid-waveform.
+    gain.gain.linearRampToValueAtTime(0, start + duration);
     osc.connect(gain);
     gain.connect(destination);
     osc.start(start);
@@ -271,9 +307,9 @@ class SoundManager {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(600, t);
     osc.frequency.exponentialRampToValueAtTime(400, t + 0.055);
-    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.setValueAtTime(0, t);
     gain.gain.linearRampToValueAtTime(0.14, t + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.075);
+    gain.gain.linearRampToValueAtTime(0, t + 0.075);
     osc.connect(gain);
     gain.connect(master);
     osc.start(t);
@@ -315,6 +351,7 @@ class SoundManager {
     // sound is already queued when resume() settles. Only a missing or closed
     // context drops the event.
     if (!this.ready || this.muted) return;
+    this.wakeOutput();
 
     const durations: Record<SoundEvent, number> = {
       cursor: 120,
@@ -364,6 +401,7 @@ class SoundManager {
     const out = ctx.createGain();
     out.gain.value = 0.8;
     out.connect(master);
+    this.wakeOutput();
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -373,11 +411,11 @@ class SoundManager {
 
     const pad = ctx.createGain();
     const peak = short ? 0.1 : 0.12;
-    pad.gain.setValueAtTime(0.0001, t);
-    // A slow one-second swell and a long exponential tail keep it gentle.
+    pad.gain.setValueAtTime(0, t);
+    // A slow one-second swell and a long release to true zero keep it gentle.
     pad.gain.linearRampToValueAtTime(peak, t + (short ? 0.3 : 1));
     pad.gain.setValueAtTime(peak, t + length * 0.58);
-    pad.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    pad.gain.linearRampToValueAtTime(0, t + length);
     filter.connect(pad);
     pad.connect(out);
 
@@ -387,7 +425,9 @@ class SoundManager {
       osc.type = index === 2 ? 'triangle' : 'sine';
       osc.frequency.value = frequency;
       osc.detune.value = index === 2 ? 0 : index === 0 ? -4 : 3;
-      gain.gain.value = index === 2 ? 0.1 : 0.22;
+      const level = index === 2 ? 0.1 : 0.22;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(level, t + 0.015);
       osc.connect(gain);
       gain.connect(filter);
       osc.start(t);
@@ -405,12 +445,13 @@ class SoundManager {
       const now = this.ctx.currentTime;
       const gain = this.bootOut.gain;
       gain.cancelScheduledValues(now);
-      gain.setValueAtTime(Math.max(0.0001, gain.value), now);
-      gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      gain.setValueAtTime(gain.value, now);
+      // A short fade to true zero: stopping mid-waveform is what clicked.
+      gain.linearRampToValueAtTime(0, now + 0.06);
     }
     this.bootOscillators.forEach(osc => {
       try {
-        osc.stop((this.ctx?.currentTime ?? 0) + 0.5);
+        osc.stop((this.ctx?.currentTime ?? 0) + 0.12);
       } catch {
         // Already stopped.
       }
@@ -426,11 +467,25 @@ class SoundManager {
   public quiesce(): void {
     this.stopBoot();
     const ctx = this.ctx;
-    if (ctx) {
-      const now = ctx.currentTime;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const output = this.output;
+
+    // Fade the whole output to true silence first (~40 ms), then stop the
+    // sources once they are inaudible and park the context. Hard-stopping a
+    // running source, or suspending mid-waveform, is what produced the pop.
+    if (output) {
+      output.gain.cancelScheduledValues(now);
+      output.gain.setValueAtTime(output.gain.value, now);
+      output.gain.linearRampToValueAtTime(0, now + 0.045);
+    }
+
+    this.clearSuspendTimer();
+    this.suspendTimer = window.setTimeout(() => {
+      this.suspendTimer = null;
       this.activeSources.forEach(source => {
         try {
-          source.stop(now);
+          source.stop(ctx.currentTime);
         } catch {
           // Already stopped.
         }
@@ -440,17 +495,17 @@ class SoundManager {
           // Already disconnected.
         }
       });
-    }
-    this.activeSources.clear();
-    this.voices = 0;
-    if (ctx && (ctx.state as string) === 'running') {
-      try {
-        void ctx.suspend().catch(() => {});
-      } catch {
-        // The next gesture retries.
+      this.activeSources.clear();
+      this.voices = 0;
+      if ((ctx.state as string) === 'running') {
+        try {
+          void ctx.suspend().catch(() => {});
+        } catch {
+          // The next gesture retries.
+        }
       }
-    }
-    this.notify();
+      this.notify();
+    }, 80);
   }
 }
 

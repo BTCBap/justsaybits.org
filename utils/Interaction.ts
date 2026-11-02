@@ -326,23 +326,16 @@ class InteractionBus {
       void this.unlock();
     };
 
-    // A hidden or restored tab is silent. Stop anything already scheduled and
-    // wait for the next pointer or key gesture to resume the context, so a
-    // queued boot tone can never flush on visibilitychange, pageshow or focus.
+    // Only hiding silences audio. Focus, pageshow and a return to visible all
+    // fire around the first tap on some browsers; quenching there cut the
+    // boot tone at full gain and clicked. The next explicit gesture resumes.
     const suspendAudio = () => {
       this.pending = null;
       soundManager.quiesce();
     };
 
-    const onRestore = () => {
-      suspendAudio();
-      this.syncAudioSession();
-      this.armUnlock();
-    };
-
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') onRestore();
-      else suspendAudio();
+      if (document.visibilityState === 'hidden') suspendAudio();
     };
 
     const onPageHide = () => suspendAudio();
@@ -364,19 +357,13 @@ class InteractionBus {
 
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('pageshow', onRestore);
     window.addEventListener('pagehide', onPageHide);
-    window.addEventListener('focus', onRestore);
-    window.addEventListener('blur', onPageHide);
     document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('pageshow', onRestore);
       window.removeEventListener('pagehide', onPageHide);
-      window.removeEventListener('focus', onRestore);
-      window.removeEventListener('blur', onPageHide);
       document.removeEventListener('visibilitychange', onVisibility);
       this.disarmUnlock();
       unsubscribePreferences();
