@@ -2380,9 +2380,9 @@ html[data-motion="reduced"] .essay-prose a {
   position: relative;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
   background: #0a1526;
-  box-shadow: 16px 16px 26px rgba(0, 0, 0, 0.45), 0 0 30px rgba(70, 130, 255, 0.18);
+  box-shadow: 16px 16px 26px rgba(0, 0, 0, 0.45), 0 0 30px rgba(70, 130, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   transform: rotateY(-8deg) rotateX(1deg);
   transform-origin: left center;
 }
