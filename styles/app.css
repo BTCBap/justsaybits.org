@@ -293,7 +293,7 @@ html[data-motion="reduced"] .panel-shift {
   background: #000;
   color: #fff;
   transition-property: opacity;
-  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .boot--leaving {
@@ -412,20 +412,20 @@ html[data-motion="reduced"] .panel-shift {
   background:
     radial-gradient(ellipse 58% 40% at 50% 64%, rgba(28, 78, 160, 0.62) 0%, rgba(11, 34, 78, 0.38) 42%, rgba(0, 0, 0, 0) 72%),
     linear-gradient(to bottom, #000 0%, #02060f 38%, #061226 62%, #02060d 88%, #000 100%);
-  animation: boot-sky-in 520ms ease-out both;
+  animation: boot-sky-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .boot__camera {
   position: absolute;
   inset: -5% -7%;
-  animation: boot-dolly 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: boot-dolly 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: transform;
 }
 
 .boot__stage {
   position: absolute;
   inset: 0;
-  animation: boot-rise 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: boot-rise 950ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .boot__band {
@@ -466,7 +466,7 @@ html[data-motion="reduced"] .panel-shift {
     rgba(55, 110, 210, 0.09) 42%,
     transparent 72%
   );
-  animation: boot-fog-in 1000ms ease-out 150ms both;
+  animation: boot-fog-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
 }
 
 .boot__fog--low {
@@ -479,7 +479,7 @@ html[data-motion="reduced"] .panel-shift {
     rgba(15, 46, 104, 0.22) 62%,
     transparent 100%
   );
-  animation: boot-fog-in 900ms ease-out 260ms both;
+  animation: boot-fog-in 820ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
 }
 
 .boot__bloom {
@@ -498,7 +498,7 @@ html[data-motion="reduced"] .panel-shift {
     rgba(28, 76, 190, 0.1) 42%,
     transparent 68%
   );
-  animation: boot-bloom 1500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: boot-bloom 1300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .boot__mark {
@@ -510,7 +510,7 @@ html[data-motion="reduced"] .panel-shift {
   align-items: center;
   gap: 1rem;
   transform: translate(-50%, -50%);
-  animation: boot-mark-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 750ms both;
+  animation: boot-mark-in 380ms cubic-bezier(0.22, 1, 0.36, 1) 620ms both;
 }
 
 .boot__mark::before {
@@ -550,7 +550,7 @@ html[data-motion="reduced"] .panel-shift {
   height: 100%;
   background: linear-gradient(90deg, rgba(140, 190, 255, 0.25), #cfeaff);
   transform-origin: left center;
-  animation: boot-progress 1350ms linear both;
+  animation: boot-progress 1150ms linear both;
 }
 
 .boot__skip {
@@ -568,7 +568,7 @@ html[data-motion="reduced"] .panel-shift {
   font-size: var(--type-12);
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  animation: boot-skip-in 320ms ease-out 300ms both;
+  animation: boot-skip-in 300ms cubic-bezier(0.22, 1, 0.36, 1) 260ms both;
   transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
 
