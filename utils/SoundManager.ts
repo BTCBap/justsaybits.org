@@ -1,9 +1,9 @@
 /**
  * Synthesized PS2-style system voices. No samples or trademarked audio.
  *
- * The graph is: voice -> master gain -> compressor -> destination. Every
- * oscillator is scheduled with short envelopes and a hard three-voice cap, so
- * rapid navigation cannot stack an unbounded number of nodes.
+ * The graph is: voice -> master gain -> low-pass -> compressor -> destination.
+ * UI voices use short soft envelopes; the boot pad has a long swell and tail.
+ * A hard three-voice cap keeps rapid navigation from stacking nodes.
  */
 
 export type SoundEvent = 'cursor' | 'confirm' | 'back' | 'error';
