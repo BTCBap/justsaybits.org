@@ -172,6 +172,38 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
   const clickIsSuppressed = () => suppressClick.current;
 
+  // The compatibility click after a tap is retargeted at whatever is under
+  // the finger once the new screen has painted. When a tap opened a section on
+  // pointerup, that element can be the first link of the new screen, outside
+  // the menu. Watch at the window capture phase so the click from that same
+  // tap is swallowed before it reaches any link; the next pointerdown clears
+  // the guard, leaving a deliberate second tap untouched.
+  useEffect(() => {
+    const clear = () => {
+      suppressClick.current = false;
+      if (suppressTimer.current !== null) {
+        window.clearTimeout(suppressTimer.current);
+        suppressTimer.current = null;
+      }
+    };
+    const handlePointerDown = () => clear();
+    const handleCompatibilityClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-haptic-switch]')) return;
+      if (!suppressClick.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      clear();
+    };
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('click', handleCompatibilityClick, true);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('click', handleCompatibilityClick, true);
+    };
+  }, []);
+
   // One tap selects and opens any tile, including a peeking one and one that
   // is still moving after a swipe.
   const activateTile = useCallback((index: number) => {
