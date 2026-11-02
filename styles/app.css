@@ -2378,7 +2378,7 @@ html[data-motion="reduced"] .essay-prose a {
 
 .book-cover {
   position: relative;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   background: #0a1526;
   box-shadow: 16px 16px 26px rgba(0, 0, 0, 0.45), 0 0 30px rgba(70, 130, 255, 0.18),
@@ -2392,7 +2392,7 @@ html[data-motion="reduced"] .essay-prose a {
   height: 100%;
 }
 
-.book-cover__img {
+.safe-image .book-cover__img {
   object-fit: cover;
 }
 
