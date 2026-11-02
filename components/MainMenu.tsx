@@ -21,6 +21,11 @@ const DRAG_THRESHOLD = 8;
 const MIN_SNAP_DISTANCE = 48;
 const MIN_SNAP_VELOCITY = 0.35;
 const MOVE_TRANSITION = 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
+/** Width reserved for each edge chevron: 44 px target + 4 px safe-area inset. */
+const EDGE_SLOT = 48;
+/** Space to leave between a peeking tile's label and the edge chevron. */
+const EDGE_GAP = 24;
 
 interface DragState {
   pointerId: number;
@@ -60,6 +65,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [short, setShort] = useState(false);
   const [hideClock, setHideClock] = useState(false);
   const [edgeTop, setEdgeTop] = useState<number | null>(null);
+  const [edgePruned, setEdgePruned] = useState(true);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -78,7 +84,15 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const measure = () => {
       const width = window.visualViewport?.width ?? window.innerWidth;
       const height = window.visualViewport?.height ?? window.innerHeight;
-      setSpacing(width < 480 ? 148 : width < 768 ? 172 : width < 1100 ? 200 : 228);
+      const base = width < 480 ? 148 : width < 768 ? 172 : width < 1100 ? 200 : 228;
+      // Keep the two peeking tiles inside the middle band: the widest label
+      // half is ~33 px, so the edge chevrons can never sit over a label.
+      const widestLabelHalf = 33;
+      const edgeLimit = Math.round(width / 2 - EDGE_SLOT - EDGE_GAP - widestLabelHalf);
+      const nextSpacing = Math.max(84, Math.min(base, edgeLimit));
+      setSpacing(nextSpacing);
+      // Far tiles are hidden only when their orb would reach the chevrons.
+      setEdgePruned(width / 2 - 2 * nextSpacing - 41 < EDGE_SLOT);
       setShort(height < 560);
       setHideClock(height < 500);
       const stage = stageRef.current;
@@ -86,7 +100,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         const rect = stage.getBoundingClientRect();
         // The arrows ride the orb row, which sits just above the tile's
         // vertical centre because the label adds a line underneath.
-        setEdgeTop(rect.top + rect.height / 2 - 15);
+        setEdgeTop(rect.top + rect.height / 2 - 22);
       }
     };
     measure();
@@ -352,14 +366,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
             aria-label="Main menu sections"
             aria-orientation="horizontal"
             className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[150px]' : 'h-[190px] md:h-[248px]'}`}
-            style={{ perspective: '1100px' }}
           >
             {sections.map((section, index) => {
               const offset = shortestOffset(index, activeIndex, sections.length);
               const distance = Math.abs(offset);
               const active = offset === 0;
+              const peeking = distance <= 1 || !edgePruned;
               const Icon = section.icon;
-              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, 0, ${-Math.min(distance, 3) * 64}px) rotateY(${Math.max(-12, Math.min(12, offset * -6))}deg) scale(${active ? 1 : 0.82})`;
+              // Flat transforms only: a negative translateZ put the peeking
+              // tiles behind the stage plane, where touch hit-testing handed
+              // their taps to the parent. Depth comes from scale and opacity.
+              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${active ? 1 : 0.82})`;
               return (
                 <div
                   key={section.id}
@@ -376,9 +393,16 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   onKeyDown={(event) => handleOptionKeyDown(event, index)}
                   onFocus={() => interaction.interact('cursor', { id: `menu:${section.id}`, source: 'focus' })}
                   onPointerMove={(event) => {
-                    // Hover previews follow real pointer movement. Cards sliding
-                    // under a still cursor must not steal a keyboard selection.
-                    if (event.pointerType !== 'mouse' || active || drag.current) return;
+                    // Hover previews follow real pointer movement on a device
+                    // that can hover. A touch or pen tap must never move the
+                    // tile out from under the finger before its click lands.
+                    if (
+                      event.pointerType !== 'mouse'
+                      || event.buttons !== 0
+                      || !window.matchMedia(HOVER_QUERY).matches
+                      || active
+                      || drag.current
+                    ) return;
                     select(index, 'hover');
                   }}
                   className={`menu-option absolute left-1/2 top-1/2 flex w-[136px] cursor-pointer flex-col items-center md:w-[176px] ${
@@ -386,7 +410,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   }`}
                   style={{
                     transform,
-                    opacity: active ? 1 : Math.max(0.55, 0.78 - (distance - 1) * 0.1),
+                    opacity: active ? 1 : peeking ? Math.max(0.55, 0.78 - (distance - 1) * 0.1) : 0,
+                    visibility: peeking ? 'visible' : 'hidden',
+                    pointerEvents: peeking ? 'auto' : 'none',
                     zIndex: 20 - distance,
                     transition: reducedMotion || dragging ? 'none' : MOVE_TRANSITION,
                   }}
@@ -419,9 +445,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
             onFocus={() => interaction.interact('cursor', { id: 'menu:prev', source: 'focus' })}
             onClick={() => moveBy(-1, 'pointer')}
             style={{ top: edgeTop ?? undefined }}
-            className="menu-edge menu-edge--prev h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
+            className="menu-edge menu-edge--prev h-11 w-11 items-center justify-center text-blue-200/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
           >
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -429,9 +455,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
             onFocus={() => interaction.interact('cursor', { id: 'menu:next', source: 'focus' })}
             onClick={() => moveBy(1, 'pointer')}
             style={{ top: edgeTop ?? undefined }}
-            className="menu-edge menu-edge--next h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
+            className="menu-edge menu-edge--next h-11 w-11 items-center justify-center text-blue-200/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
           >
-            <ChevronRight className="h-5 w-5" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>

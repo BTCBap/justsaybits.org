@@ -1,5 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Tailwind 3.4 emits hover: utilities for touch too unless this is on. A
+  // first tap that only applies :hover consumes the tap on iOS Safari.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   content: [
     './index.html',
     './index.tsx',

@@ -252,8 +252,13 @@ async def ios_fallback_checks(browser):
     check(await page.locator('button[aria-label="Haptics"]').is_visible(),
           'haptics toggle falls back to the iOS switch')
 
-    # The active tile opens with the confirm haptic only, so exactly one
-    # switch click should leave the checkbox checked.
+    # The active tile opens with the confirm haptic, so one more switch click
+    # must flip the checkbox from whatever the boot tick left it at.
+    before = await page.evaluate('''() => {
+      const label = [...document.querySelectorAll('label')]
+        .find(item => item.querySelector('input[switch]'));
+      return label ? label.querySelector('input').checked : null;
+    }''')
     await page.tap('[data-section-id="about"]')
     await page.wait_for_url('**/about', timeout=3000)
     hidden = await page.evaluate('''() => {
@@ -273,7 +278,7 @@ async def ios_fallback_checks(browser):
     check(hidden.get('count') == 1, 'one hidden switch label exists')
     check(hidden.get('ariaHidden') == 'true', 'switch label is aria-hidden')
     check(hidden.get('tabIndex') == -1, 'switch input is out of the tab order')
-    check(hidden.get('checked') is True, 'switch label click fires synchronously')
+    check(hidden.get('checked') is not before, 'switch label click fires synchronously')
     check(hidden.get('opacity') == '0', 'switch label is visually hidden')
 
     # A second visit reuses the same element.
