@@ -3,15 +3,12 @@ import { canUseIOSHapticFallback, canVibrate, isCoarsePointer, preferences } fro
 export type HapticKind = 'tick' | 'confirm' | 'success' | 'error';
 
 const PATTERNS: Record<HapticKind, number | number[]> = {
-  // Android quantizes very short pulses; keep the tick above the floor.
-  tick: 14,
-  confirm: 22,
-  success: [16, 45, 16],
-  error: [28, 55, 28],
+  // Android quantizes short pulses, so keep every pulse at or above 18 ms.
+  tick: 18,
+  confirm: 35,
+  success: [20, 45, 20],
+  error: [30, 55, 30],
 };
-
-const patternLength = (pattern: number | number[]): number =>
-  Array.isArray(pattern) ? pattern.reduce((total, value) => total + value, 0) : pattern;
 
 /**
  * Haptics are an enhancement for touch devices only. Android and other
@@ -22,7 +19,6 @@ const patternLength = (pattern: number | number[]): number =>
 class HapticManager {
   private lastKind: HapticKind | null = null;
   private lastAt = 0;
-  private lastLength = 0;
   private iosSwitch: HTMLLabelElement | null = null;
 
   public get available(): boolean {
@@ -69,24 +65,14 @@ class HapticManager {
     if (kind === 'tick' && (this.lastKind === 'success' || this.lastKind === 'error') && now - this.lastAt < 500) {
       return;
     }
-    // A deliberate new pattern supersedes one that is still running. If the
-    // previous pulse has already finished, do not add an extra cancel call.
-    if (vibrates && this.lastKind && this.lastKind !== kind && now - this.lastAt < this.lastLength) {
-      try {
-        navigator.vibrate(0);
-      } catch {
-        // Vibration can be blocked by the browser.
-      }
-    }
-
+    // A deliberate new pattern supersedes one that is still running. Never
+    // send vibrate(0) first: Android drops the new pulse when it is cancelled
+    // in the same gesture.
     try {
       if (vibrates) {
-        const pattern = PATTERNS[kind];
-        navigator.vibrate(pattern);
-        this.lastLength = patternLength(pattern);
+        navigator.vibrate(PATTERNS[kind]);
       } else {
         this.playIOSSwitch();
-        this.lastLength = patternLength(PATTERNS[kind]);
       }
       this.lastKind = kind;
       this.lastAt = now;
@@ -104,7 +90,6 @@ class HapticManager {
     }
     this.lastKind = null;
     this.lastAt = 0;
-    this.lastLength = 0;
   }
 }
 
