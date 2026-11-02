@@ -30,7 +30,7 @@ import {
   type ContentTabId,
 } from '../utils/router';
 import HelpBar from './HelpBar';
-import SystemSettings from './SystemSettings';
+import SystemToggles from './SystemToggles';
 import Tabs, { tabId, tabPanelId } from './Tabs';
 import { parseEssay } from './EssayBody';
 import { EssayArticle, ReaderBar } from './EssayReader';
@@ -125,13 +125,13 @@ function groupBySource<T extends { source?: string }>(items: T[]): { source: str
   return Array.from(groups, ([source, grouped]) => ({ source, items: grouped }));
 }
 
-const CONTENT_TAB_META: Record<ContentTab, { noun: string; blurb: string }> = {
-  essays: { noun: 'essays', blurb: 'Long-form writing, newest first.' },
-  posts: { noun: 'posts', blurb: 'Top posts by engagement from @BTCBap.' },
-  podcasts: { noun: 'episodes', blurb: 'Host of Value Stack, plus guest appearances.' },
-  lectures: { noun: 'lectures', blurb: 'Talks and panels, grouped by year.' },
-  tutorials: { noun: 'tutorials', blurb: 'Guides and walkthroughs.' },
-  reading: { noun: 'books and essays', blurb: 'Worth your time.' },
+const CONTENT_TAB_META: Record<ContentTab, { noun: string }> = {
+  essays: { noun: 'essays' },
+  posts: { noun: 'posts' },
+  podcasts: { noun: 'episodes' },
+  lectures: { noun: 'lectures' },
+  tutorials: { noun: 'tutorials' },
+  reading: { noun: 'books and essays' },
 };
 
 interface MediaData {
@@ -681,8 +681,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     const countText = current.loading
       ? `Loading ${meta.noun}…`
       : isFiltered
-        ? `${current.shown} of ${current.total} ${meta.noun} · ${meta.blurb}`
-        : `${current.total} ${meta.noun} · ${meta.blurb}`;
+        ? `${current.shown} of ${current.total} ${meta.noun}`
+        : `${current.total} ${meta.noun}`;
 
     const featuredEpisode = filteredValueStack[0];
     const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
@@ -989,7 +989,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
           {getContent()}
         </div>
 
-        {/* One context-aware footer: Back, the shortcuts for this screen, settings */}
+        {/* One context-aware footer: Back, this screen's shortcuts, the system toggles */}
         <div className="shrink-0 border-t border-blue-500/30 flex flex-wrap items-center justify-between gap-x-2 md:gap-x-4 gap-y-1 px-4 md:px-6 py-2 bg-black/40 text-sm">
           <button 
             type="button"
@@ -1007,7 +1007,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
             actions={helpActions}
             description={helpDescription}
           />
-          <SystemSettings compact />
+          <SystemToggles />
         </div>
       </div>
     </div>

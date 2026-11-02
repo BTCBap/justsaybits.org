@@ -94,6 +94,7 @@ export const INVESTMENT_DATA: InvestmentItem[] = [
   { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
   { asset: "Casa Inc.", type: "Equity", status: "Active" },
   { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
+  { asset: "Maple AI", url: "https://maple.ai", type: "Seed", status: "Active" },
   { asset: "Strike Inc.", type: "Series A", status: "Active" },
 ];
 
@@ -179,10 +180,10 @@ export const SOCIAL_LINKS = [
 ];
 
 export const SECTIONS: Section[] = [
-  { id: 'about', title: 'About', icon: IconAbout, description: 'Mission & Values', color: 'blue', component: null },
-  { id: 'social', title: 'Social', icon: IconSocial, description: 'Connect with me', color: 'blue', component: null },
-  { id: 'work', title: 'Work', icon: IconHistory, description: 'Career History', color: 'cyan', component: null },
-  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, description: 'Works & Assets', color: 'blue', component: null },
-  { id: 'book', title: 'Book', icon: IconBook, description: 'The Bitcoin Tao', color: 'blue', component: null },
-  { id: 'content', title: 'Content', icon: IconContent, description: 'Essays, talks & media', color: 'cyan', component: null },
+  { id: 'about', title: 'About', icon: IconAbout, color: 'blue', component: null },
+  { id: 'social', title: 'Social', icon: IconSocial, color: 'blue', component: null },
+  { id: 'work', title: 'Work', icon: IconHistory, color: 'cyan', component: null },
+  { id: 'portfolio', title: 'Portfolio', icon: IconInvestments, color: 'blue', component: null },
+  { id: 'book', title: 'Book', icon: IconBook, color: 'blue', component: null },
+  { id: 'content', title: 'Content', icon: IconContent, color: 'cyan', component: null },
 ];

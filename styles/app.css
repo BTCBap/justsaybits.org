@@ -428,14 +428,6 @@ html[data-motion="reduced"] .panel-shift {
   color: #f2f8ff;
 }
 
-.boot-wordmark__tag {
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(204, 228, 255, 0.8);
-}
-
 /* --- Monolith field ------------------------------------------------------ */
 
 .boot__scene {
@@ -756,8 +748,9 @@ html[data-motion="reduced"] .boot__skip {
 
 /* ---------------------------------------------------------------------------
    Main menu: PS2 system browser
-   One selected-item panel, a row of system icons, one quiet help bar. Layout
-   follows the viewport so menu type is never scaled below its real size.
+   One selected-item panel, a row of system icons, the quiet system toggles and
+   the page counter. Layout follows the viewport so menu type is never scaled
+   below its real size.
 --------------------------------------------------------------------------- */
 
 .menu-panel {
@@ -797,6 +790,56 @@ html[data-motion="reduced"] .boot__skip {
 
 .menu-option:active > span:first-child {
   transform: scale(0.97);
+}
+
+.menu-stage-wrap {
+  position: relative;
+}
+
+/* The arrows ride the icon circles, never the labels: the orb's centre sits
+   12.5 px above the stage's midpoint because its label adds a line beneath. */
+.menu-edge {
+  position: absolute;
+  top: calc(50% - 0.78rem);
+  transform: translateY(-50%);
+  z-index: 30;
+}
+
+/* Tuck the controls into the gap either side of the highlighted icon, so a
+   peeking neighbour can never slide under an arrow at any width. */
+.menu-edge--prev {
+  left: calc(50% - 5.4375rem);
+}
+
+.menu-edge--next {
+  right: calc(50% - 5.4375rem);
+}
+
+/* The desktop orb is 12 px wider, so the control steps out with it. */
+@media (min-width: 768px) {
+  .menu-edge--prev {
+    left: calc(50% - 5.8125rem);
+  }
+
+  .menu-edge--next {
+    right: calc(50% - 5.8125rem);
+  }
+}
+
+/* The three quiet glyphs sit right under the icons. */
+.menu-toggles {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+/* The page counter takes the bottom slot, clear of the home indicator. */
+.menu-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------------------------------------------------------------------------
@@ -1479,13 +1522,6 @@ html[data-motion="reduced"] .essay-prose a {
   font-size: var(--type-14);
 }
 
-.about-now__label {
-  border: 1px solid rgba(143, 224, 184, 0.45);
-  background: rgba(143, 224, 184, 0.08);
-  padding: 0.15rem 0.45rem;
-  color: var(--success);
-}
-
 .about-quote {
   margin: 0;
   border-left: 2px solid var(--accent);
@@ -1828,17 +1864,6 @@ html[data-motion="reduced"] .essay-prose a {
   line-height: 1.3;
 }
 
-.work-now {
-  border: 1px solid rgba(143, 224, 184, 0.5);
-  background: rgba(143, 224, 184, 0.1);
-  padding: 0.1rem 0.4rem;
-  color: var(--success);
-  font-family: var(--font-mono);
-  font-size: var(--type-12);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .work-role {
   margin: 0.2rem 0 0;
   color: var(--text-secondary);
@@ -2031,6 +2056,23 @@ html[data-motion="reduced"] .essay-prose a {
   color: #fff;
   font-size: var(--type-16);
   font-weight: 400;
+}
+
+.investment-asset-link {
+  text-decoration: none;
+}
+
+.investment-asset-link:hover,
+.investment-asset-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.investment-asset__cue {
+  display: inline-block;
+  margin-left: 0.35rem;
+  vertical-align: -0.1em;
+  color: var(--text-muted);
 }
 
 .investment-ticker {

@@ -48,7 +48,6 @@ const WorkScreen: React.FC = () => {
                   <div className="work-title">
                     <h2 className="work-company">
                       {job.company}
-                      {current && <span className="work-now">Now</span>}
                     </h2>
                     <p className="work-role">
                       {job.role ?? (hasSubRoles ? `${subRoles.length} roles` : '')}

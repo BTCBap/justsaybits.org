@@ -4,7 +4,6 @@ export interface Section {
   id: string;
   title: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  description: string;
   color: string;
   component: React.ReactNode;
 }
@@ -32,6 +31,7 @@ export interface DesignItem {
 export interface InvestmentItem {
   asset: string;
   ticker?: string;
+  url?: string;
   type: string;
   status: 'Active' | 'Exited' | 'Watching' | 'Acquired';
 }
