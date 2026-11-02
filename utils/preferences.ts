@@ -1,12 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-/** `auto` follows the OS, `on` forces reduced motion, `off` forces full motion. */
-export type MotionPreference = 'auto' | 'on' | 'off';
-
 export interface Preferences {
   sound: boolean;
   haptics: boolean;
-  motion: MotionPreference;
   soundHintDismissed: boolean;
 }
 
@@ -15,7 +11,6 @@ const STORAGE_KEY = 'jsb.prefs.v1';
 const DEFAULTS: Preferences = {
   sound: true,
   haptics: true,
-  motion: 'auto',
   soundHintDismissed: false,
 };
 
@@ -24,13 +19,22 @@ const read = (): Preferences => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULTS };
-    const parsed = JSON.parse(raw) as Partial<Preferences>;
-    return {
+    const parsed = JSON.parse(raw) as Partial<Preferences> & { motion?: unknown };
+    const stored: Preferences = {
       sound: typeof parsed.sound === 'boolean' ? parsed.sound : DEFAULTS.sound,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULTS.haptics,
-      motion: parsed.motion === 'on' ? 'on' : parsed.motion === 'off' ? 'off' : 'auto',
       soundHintDismissed: parsed.soundHintDismissed === true,
     };
+    // Older builds stored a manual motion override. Drop it so every visitor
+    // follows the device setting again.
+    if ('motion' in parsed) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      } catch {
+        // Keep the sanitized values in memory when storage is read-only.
+      }
+    }
+    return stored;
   } catch {
     return { ...DEFAULTS };
   }
@@ -55,7 +59,6 @@ export const preferences = {
     if (
       next.sound === current.sound &&
       next.haptics === current.haptics &&
-      next.motion === current.motion &&
       next.soundHintDismissed === current.soundHintDismissed
     ) {
       return;
@@ -78,8 +81,6 @@ export const isCoarsePointer = (): boolean => {
 };
 
 export const prefersReducedMotionNow = (): boolean => {
-  if (current.motion === 'on') return true;
-  if (current.motion === 'off') return false;
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
@@ -107,16 +108,7 @@ export function useMediaQuery(query: string): boolean {
 }
 
 export function usePrefersReducedMotion(): boolean {
-  const prefs = usePreferences();
-  const systemReduced = useMediaQuery('(prefers-reduced-motion: reduce)');
-  if (prefs.motion === 'on') return true;
-  if (prefs.motion === 'off') return false;
-  return systemReduced;
-}
-
-export function useHapticsAvailable(): boolean {
-  const coarse = useMediaQuery('(pointer: coarse)');
-  return coarse && canVibrate();
+  return useMediaQuery('(prefers-reduced-motion: reduce)');
 }
 
 export const isIOS = (): boolean => {
@@ -124,3 +116,17 @@ export const isIOS = (): boolean => {
   return /iP(hone|ad|od)/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
+
+/**
+ * iOS Safari has no Vibration API, but a hidden switch checkbox toggled from
+ * a user gesture plays the system haptic on iOS 18+. iPadOS reports itself as
+ * a Mac, so `isIOS` covers both.
+ */
+export const canUseIOSHapticFallback = (): boolean =>
+  isIOS() && typeof document !== 'undefined'
+  && typeof navigator !== 'undefined' && /AppleWebKit/i.test(navigator.userAgent);
+
+export function useHapticsAvailable(): boolean {
+  const coarse = useMediaQuery('(pointer: coarse)');
+  return canUseIOSHapticFallback() || (coarse && canVibrate());
+}

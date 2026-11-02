@@ -16,8 +16,8 @@ interface BootSequenceProps {
  * The visual and the boot pad start from the same gesture, so the chime can
  * never be scheduled late against a suspended context.
  */
-const FULL_TOTAL_MS = 1700;
-const FULL_FADE_AT_MS = 1350;
+const FULL_TOTAL_MS = 1500;
+const FULL_FADE_AT_MS = 1150;
 const FULL_FADE_MS = 350;
 
 const REDUCED_TOTAL_MS = 420;
@@ -29,6 +29,26 @@ const SHORT_FADE_AT_MS = 30;
 const SHORT_FADE_MS = 300;
 
 const SKIP_FADE_MS = 160;
+const FONT_WAIT_MS = 180;
+
+/**
+ * Hold the first frame until the two text faces are ready, but never longer
+ * than a short timeout: a slow font must not become a slow intro.
+ */
+const settleForFonts = (): Promise<void> => {
+  if (typeof document === 'undefined' || !document.fonts) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, FONT_WAIT_MS);
+    document.fonts.ready.then(finish).catch(finish);
+  });
+};
 
 interface Tower {
   left: number;
@@ -184,19 +204,22 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
   const begin = useCallback(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    setStarted(true);
     void interaction.start();
 
     const reduced = reducedRef.current;
     const fadeAt = reduced ? REDUCED_FADE_AT_MS : FULL_FADE_AT_MS;
     const fade = reduced ? REDUCED_FADE_MS : FULL_FADE_MS;
 
-    setFadeMs(fade);
-    schedule(() => {
-      reveal();
-      leave(fade);
-    }, fadeAt);
-    schedule(complete, reduced ? REDUCED_TOTAL_MS : FULL_TOTAL_MS);
+    void settleForFonts().then(() => {
+      if (leavingRef.current || doneRef.current) return;
+      setStarted(true);
+      setFadeMs(fade);
+      schedule(() => {
+        reveal();
+        leave(fade);
+      }, fadeAt);
+      schedule(complete, reduced ? REDUCED_TOTAL_MS : FULL_TOTAL_MS);
+    });
   }, [complete, leave, reveal, schedule]);
 
   const skip = useCallback(() => {
@@ -212,14 +235,21 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
   useEffect(() => {
     if (!short) return;
     startedRef.current = true;
-    setStarted(true);
-    setFadeMs(SHORT_FADE_MS);
-    schedule(() => {
-      reveal();
-      leave(SHORT_FADE_MS);
-    }, SHORT_FADE_AT_MS);
-    schedule(complete, SHORT_TOTAL_MS);
-    return clearTimers;
+    let cancelled = false;
+    void settleForFonts().then(() => {
+      if (cancelled) return;
+      setStarted(true);
+      setFadeMs(SHORT_FADE_MS);
+      schedule(() => {
+        reveal();
+        leave(SHORT_FADE_MS);
+      }, SHORT_FADE_AT_MS);
+      schedule(complete, SHORT_TOTAL_MS);
+    });
+    return () => {
+      cancelled = true;
+      clearTimers();
+    };
   }, [short, clearTimers, complete, leave, reveal, schedule]);
 
   // Any key starts the system; any key after that skips it. Tab is left alone
@@ -269,8 +299,6 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
     if (!leavingRef.current) skip();
   };
 
-  const hint = coarsePointer ? 'Tap anywhere to start' : 'Click or press any key';
-
   return (
     <div
       className={`boot ${reducedMotion ? 'boot--static' : ''} ${short ? 'boot--short' : ''} ${
@@ -286,19 +314,13 @@ const BootSequence: React.FC<BootSequenceProps> = ({ onComplete, onReveal, short
           role="dialog"
           aria-modal="true"
           aria-labelledby="boot-title"
-          aria-describedby="boot-hint"
         >
           <div className="boot__gate-inner">
             <Wordmark decorative />
             <h1 id="boot-title" className="sr-only">justsaybits.org</h1>
-            <p className="boot__status">
-              <span className="boot__status-dot" aria-hidden="true" />
-              System ready
-            </p>
             <button type="button" className="boot__power" autoFocus onClick={begin}>
               Power on
             </button>
-            <p id="boot-hint" className="boot__hint">{hint}</p>
           </div>
         </div>
       ) : (

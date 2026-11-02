@@ -71,10 +71,6 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
             <p className="mb-4 text-base text-blue-100">
               No screen lives at <span className="font-mono text-blue-200">{path}</span>.
             </p>
-            <p className="text-[16px] leading-relaxed text-[var(--text-secondary)]">
-              The link may be mistyped or the file may have moved. The main menu has every screen
-              on the system.
-            </p>
           </div>
         </div>
 
@@ -91,11 +87,7 @@ const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnab
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             <span className="uppercase tracking-[0.14em] font-mono text-xs">Back to Home</span>
           </button>
-          <HelpBar
-            className="order-3 w-full md:order-2 md:w-auto"
-            actions={[{ keys: ['Esc'], label: 'Home', touch: 'Tap Back to return' }]}
-            description="Press Escape to return to the main menu."
-          />
+          <HelpBar description="Press Escape to return to the main menu." />
           <SystemToggles />
         </div>
       </div>

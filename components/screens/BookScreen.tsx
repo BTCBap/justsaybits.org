@@ -19,7 +19,6 @@ const BookScreen: React.FC = () => {
   const book = BOOK_DATA[0];
   if (!book) return null;
 
-  const lead = `${book.thoughts.split('. ')[0].replace(/\.$/, '')}.`;
   const rating = Math.max(0, Math.min(5, Math.round(book.rating)));
 
   return (
@@ -64,7 +63,6 @@ const BookScreen: React.FC = () => {
             <span className="book-rating__text ps2-meta">{rating} / 5</span>
           </div>
 
-          <p className="book-lead">{lead}</p>
           <details className="book-note">
             <summary>Read the author&apos;s note</summary>
             <p>{book.thoughts}</p>
@@ -85,9 +83,7 @@ const BookScreen: React.FC = () => {
             </a>
           )}
 
-          <p className="book-disclosure">
-            Affiliate link: I may earn a commission from purchases made through this link.
-          </p>
+          <p className="book-disclosure">Affiliate link</p>
         </div>
       </article>
     </div>

@@ -44,7 +44,7 @@ const OfflineNotice: React.FC = () => {
         {online ? <RefreshCw className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
       </span>
       <span className="offline-notice__text">
-        {online ? 'Back online.' : 'Offline. Screens already loaded still work.'}
+        {online ? 'Back online.' : 'Offline.'}
       </span>
       {!online && (
         <button type="button" className="offline-notice__action" onClick={() => window.location.reload()}>

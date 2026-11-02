@@ -595,16 +595,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     <ListSkeleton count={count} variant={variant} />
   );
 
-  const renderEmptyState = (
-    title: string,
-    message = 'Try a different search, or clear the filters to see everything.',
-    error = false,
-  ) => {
+  const renderEmptyState = (title: string, error = false) => {
     const filtered = !!query.trim() || yearFilter !== 'all';
     return (
       <EmptyState
         title={title}
-        message={filtered ? message : undefined}
         actionLabel={filtered ? 'Clear filters' : undefined}
         onAction={filtered ? () => { setQuery(''); setYearFilter('all'); } : undefined}
         error={error}
@@ -612,15 +607,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
     );
   };
 
-  const renderYearHeading = (year: string, count: number) => (
+  const renderYearHeading = (year: string) => (
     <h4 className="flex items-center gap-2 border-b border-blue-400/20 pb-1 font-mono text-[12px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-      <span>{year}</span>
-      <span aria-hidden="true" className="text-[var(--accent-soft)]">·</span>
-      <span>{count}</span>
+      {year}
     </h4>
   );
 
-  const renderShowMore = (remaining: number, noun: string, onClick: () => void, id: string) => (
+  const renderShowMore = (noun: string, onClick: () => void, id: string) => (
     <button
       type="button"
       onFocus={() => interaction.interact('cursor', { id, source: 'focus' })}
@@ -630,7 +623,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       }}
       className="w-full min-h-[44px] border border-blue-400/30 bg-blue-900/10 px-4 py-3 font-mono text-xs uppercase tracking-[0.18em] text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
     >
-      Show more {noun} ({remaining} remaining)
+      Show more {noun}
     </button>
   );
 
@@ -642,7 +635,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       || contentTab === 'lectures';
 
     const podcastItems: MediaItem[] = media ? [...media.valueStack, ...media.appearances] : [];
-    const isFiltered = !!normalizedQuery || yearFilter !== 'all';
     const matchesYear = (item: { date?: string }) => yearFilter === 'all' || yearOf(item.date) === yearFilter;
     const filteredPodcasts = podcastItems.filter(item => matchesQuery(item.title, item.source) && matchesYear(item));
     const filteredValueStack: MediaItem[] = (media?.valueStack ?? [])
@@ -669,21 +661,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       .filter(year => year !== 'Undated')
       .sort((a, b) => yearRank(b) - yearRank(a));
 
-    const counts: Record<ContentTab, { total: number; shown: number; loading: boolean }> = {
-      essays: { total: ESSAYS.length, shown: filteredEssays.length, loading: false },
-      posts: { total: rankedPosts.length, shown: filteredPosts.length, loading: posts === null || postsLoading },
-      podcasts: { total: podcastItems.length, shown: filteredPodcasts.length, loading: media === null || mediaLoading },
-      lectures: { total: media?.lectures.length ?? 0, shown: filteredLectures.length, loading: media === null || mediaLoading },
-      tutorials: { total: media?.tutorials.length ?? 0, shown: filteredTutorials.length, loading: media === null || mediaLoading },
-      reading: { total: media?.reading.length ?? 0, shown: filteredReading.length, loading: media === null || mediaLoading },
-    };
-    const current = counts[contentTab];
-    const countText = current.loading
-      ? `Loading ${meta.noun}…`
-      : isFiltered
-        ? `${current.shown} of ${current.total} ${meta.noun}`
-        : `${current.total} ${meta.noun}`;
-
     const featuredEpisode = filteredValueStack[0];
     const hostRest = filteredValueStack.slice(1, 1 + visibleMedia);
     const remainingEpisodes = filteredValueStack.length - 1 - hostRest.length;
@@ -709,11 +686,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
         aria-labelledby={tabId('content', contentTab)}
         className={animatePanel ? 'panel-shift' : undefined}
       >
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <p className="content-count ps2-meta" role="status" aria-live="polite">
-            {countText}
-          </p>
-          {searchable && (
+        {searchable && (
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto">
               <label htmlFor="content-search" className="sr-only">Search {meta.noun}</label>
               <input
@@ -754,8 +728,8 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 </button>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {contentTab === 'essays' && (
           filteredEssays.length === 0
@@ -777,7 +751,6 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                       ))}
                     </div>
                     {filteredPosts.length > visiblePosts && renderShowMore(
-                      filteredPosts.length - visiblePosts,
                       'posts',
                       () => setVisiblePosts(count => count + 20),
                       'posts:show-more',
@@ -793,25 +766,22 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               <div className="content-sections">
                 <section className="content-section" aria-labelledby="podcast-host-heading">
                   <h3 id="podcast-host-heading" className="content-section__head ps2-label">
-                    Value Stack <span className="content-section__count">{filteredValueStack.length}</span>
+                    Value Stack
                   </h3>
-                  {filteredValueStack.length === 0 ? (
-                    <p className="content-section__empty">No host episodes for this filter.</p>
-                  ) : (
+                  {filteredValueStack.length > 0 && (
                     <>
                       {featuredEpisode && (
-                        <MediaFeature item={featuredEpisode} label="Latest episode" />
+                        <MediaFeature item={featuredEpisode} />
                       )}
                       {groupByYear(hostRest).map(group => (
                         <div key={group.year} className="content-group">
-                          {renderYearHeading(group.year, group.items.length)}
+                          {renderYearHeading(group.year)}
                           <div className="media-rows">
                             {group.items.map(item => <MediaRow key={item.url} item={item} />)}
                           </div>
                         </div>
                       ))}
                       {remainingEpisodes > 0 && renderShowMore(
-                        remainingEpisodes,
                         'episodes',
                         () => setVisibleMedia(count => count + 20),
                         'podcasts:show-more',
@@ -822,14 +792,12 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
 
                 <section className="content-section" aria-labelledby="podcast-guest-heading">
                   <h3 id="podcast-guest-heading" className="content-section__head ps2-label">
-                    Guest appearances <span className="content-section__count">{filteredAppearances.length}</span>
+                    Guest appearances
                   </h3>
-                  {filteredAppearances.length === 0 ? (
-                    <p className="content-section__empty">No guest appearances for this filter.</p>
-                  ) : (
+                  {filteredAppearances.length > 0 && (
                     groupByYear(filteredAppearances).map(group => (
                       <div key={group.year} className="content-group">
-                        {renderYearHeading(group.year, group.items.length)}
+                        {renderYearHeading(group.year)}
                         <div className="media-rows">
                           {group.items.map(item => <MediaRow key={item.url} item={item} />)}
                         </div>
@@ -848,15 +816,14 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               <div className="content-sections content-sections--tight">
                 {groupByYear(filteredLectures).map(group => (
                   <section key={group.year} className="content-group">
-                    {renderYearHeading(group.year, group.items.length)}
+                    {renderYearHeading(group.year)}
                     {groupBySource(group.items).map(sourceGroup => (
                       <div key={sourceGroup.source} className="content-venue">
                         <p className="content-venue__head">
                           <span>{sourceGroup.source}</span>
-                          <span className="content-venue__count">{sourceGroup.items.length}</span>
                         </p>
                         <div className="media-rows">
-                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} wide />)}
+                          {sourceGroup.items.map(item => <MediaRow key={item.url} item={item} />)}
                         </div>
                       </div>
                     ))}
@@ -887,7 +854,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
                 <div className="content-sections content-sections--tight">
                   {groupByYear(filteredReading).map(group => (
                     <section key={group.year} className="content-group">
-                      {renderYearHeading(group.year, group.items.length)}
+                      {renderYearHeading(group.year)}
                       <div className="reading-rows">
                         {group.items.map(item => <ReadingRow key={item.url} item={item} />)}
                       </div>
@@ -912,28 +879,11 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
       default: return (
         <EmptyState
           title="That screen is not available"
-          message="Return to the main menu to choose another section."
           error
         />
       );
     }
   };
-
-  const helpActions = selectedEssay
-    ? [
-        { keys: ['Esc'], label: 'Back', touch: 'Tap Back for the list' },
-        { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-      ]
-    : section.id === 'content'
-      ? [
-          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
-          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-          { keys: ['1–6'], label: 'Tabs', touch: 'Tap a tab' },
-        ]
-      : [
-          { keys: ['Esc'], label: 'Home', touch: 'Tap Back to leave' },
-          { keys: ['↑', '↓'], label: 'Scroll', touch: 'Scroll to read' },
-        ];
 
   const helpDescription = selectedEssay
     ? 'Press Escape to return to the essay list. Up and down arrows scroll the essay.'
@@ -1002,11 +952,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ section, onBack, focusEna
               {selectedEssay ? "Return to List" : "Back to Home"}
             </span>
           </button>
-          <HelpBar
-            className="order-3 w-full md:order-2 md:w-auto"
-            actions={helpActions}
-            description={helpDescription}
-          />
+          <HelpBar description={helpDescription} />
           <SystemToggles />
         </div>
       </div>

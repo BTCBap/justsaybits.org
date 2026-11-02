@@ -62,10 +62,6 @@ const AboutScreen: React.FC = () => {
             </span>
           </p>
 
-          <blockquote className="about-quote">
-            Dedicated to advancing individual sovereignty through cryptography.
-          </blockquote>
-
           <p className="about-copy">
             After a decade in traditional finance, I saw the limitations of centralized institutions
             firsthand. My time is now dedicated to building the alternatives that prioritize individual
