@@ -3,5 +3,8 @@
   <rect x="16" y="38" width="7" height="13" rx="1" fill="#cfeaff" fill-opacity="0.55"/>
   <rect x="28.5" y="29" width="7" height="22" rx="1" fill="#cfeaff" fill-opacity="0.78"/>
   <rect x="41" y="18" width="7" height="33" rx="1" fill="#cfeaff"/>
-  <circle cx="51" cy="20" r="3" fill="#fffaf0"/>
+  <g transform="translate(2 3)" fill="#cfeaff">
+    <path fill-rule="evenodd" d="M48 13H52.4V20H48Z M49.5 14H51.3V15.5H49.5Z M49.5 16.5H51.3V19H49.5Z"/>
+    <path d="M49 12H50V13H49Z M51 12H52V13H51Z M49 20H50V21H49Z M51 20H52V21H51Z"/>
+  </g>
 </svg>
