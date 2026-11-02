@@ -91,11 +91,11 @@ export const DESIGN_DATA: DesignItem[] = [
 ];
 
 export const INVESTMENT_DATA: InvestmentItem[] = [
-  { asset: "Maple AI", url: "https://maple.ai", type: "Seed", status: "Active" },
-  { asset: "Strike Inc.", type: "Series A", status: "Active" },
-  { asset: "Foundation Devices, Inc.", type: "Seed", status: "Active" },
-  { asset: "Casa Inc.", type: "Equity", status: "Active" },
-  { asset: "Personal Capital Corporation", type: "Equity", status: "Acquired" },
+  { asset: "Maple AI", url: "https://maple.ai", logo: "/logos/maple.svg" },
+  { asset: "Strike Inc.", url: "https://strike.me", logo: "/logos/strike.webp" },
+  { asset: "Foundation Devices, Inc.", url: "https://foundation.xyz", logo: "/logos/foundation.svg" },
+  { asset: "Casa Inc.", url: "https://casa.io", logo: "/logos/casa.svg" },
+  { asset: "Personal Capital Corporation", url: "https://personalcapital.com", logo: "/logos/personal-capital.webp" },
 ];
 
 export const BOOK_DATA: BookItem[] = [
