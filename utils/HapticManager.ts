@@ -48,7 +48,9 @@ class HapticManager {
     this.iosSwitch.click();
   }
 
-  public play(kind: HapticKind): void {
+  /** `force` is for a call made inside the first live gesture, where the
+   * browser may not report activation yet. */
+  public play(kind: HapticKind, force = false): void {
     if (!this.available) return;
     if (!preferences.get().haptics) return;
 
@@ -56,7 +58,7 @@ class HapticManager {
     const activation = (navigator as Navigator & {
       userActivation?: { isActive: boolean };
     }).userActivation;
-    if (vibrates && activation && !activation.isActive) return;
+    if (!force && vibrates && activation && !activation.isActive) return;
 
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     // One response per action: ignore a duplicate that follows immediately.
