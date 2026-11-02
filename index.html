@@ -50,13 +50,16 @@
     </script>
     <style>
       :root {
-        --app-height: 100vh;
+        /* svh first so browsers without dvh keep a stable height. */
+        --app-height: 100svh;
         --app-height: 100dvh;
       }
       html, body, #root {
-        height: 100%;
-        height: var(--app-height);
-        max-height: var(--app-height);
+        box-sizing: border-box;
+        height: 100vh;
+        height: 100svh;
+        height: 100dvh;
+        max-height: 100dvh;
         overflow: hidden;
       }
       body {
@@ -70,19 +73,6 @@
 </head>
   <body>
     <div id="root"></div>
-  <script>
-    (function () {
-      function setAppHeight() {
-        var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-        document.documentElement.style.setProperty('--app-height', h + 'px');
-      }
-      setAppHeight();
-      window.addEventListener('resize', setAppHeight);
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', setAppHeight);
-      }
-    })();
-  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>

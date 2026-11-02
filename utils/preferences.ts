@@ -6,9 +6,12 @@ export interface Preferences {
   soundHintDismissed: boolean;
 }
 
-const STORAGE_KEY = 'jsb.prefs.v2';
-/** v1 shipped with sound on by default and stored that default as `true`. */
-const LEGACY_STORAGE_KEY = 'jsb.prefs.v1';
+const STORAGE_KEY = 'jsb.prefs.v3';
+/**
+ * Earlier builds stored a sound flag that may be a default rather than a
+ * choice. Only the non-audio preferences migrate; sound starts off again.
+ */
+const LEGACY_STORAGE_KEYS = ['jsb.prefs.v2', 'jsb.prefs.v1'] as const;
 
 const DEFAULTS: Preferences = {
   sound: false,
@@ -17,19 +20,21 @@ const DEFAULTS: Preferences = {
 };
 
 /**
- * Read the v1 record once and write v2. A stored `true` there cannot be told
- * apart from the old default, so every returning visitor starts muted; the
- * sound toggle writes `true` to v2 from now on and keeps it.
+ * Read the newest legacy record once, keep haptics and the hint, and write v3
+ * muted. Sound is off for everyone after migration, including visitors who
+ * turned it on before.
  */
 const migrateLegacy = (): Preferences => {
   let haptics = DEFAULTS.haptics;
   let soundHintDismissed = false;
   try {
-    const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (raw) {
+    for (const key of LEGACY_STORAGE_KEYS) {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
       const parsed = JSON.parse(raw) as Partial<Preferences>;
       if (typeof parsed.haptics === 'boolean') haptics = parsed.haptics;
       soundHintDismissed = parsed.soundHintDismissed === true;
+      break;
     }
   } catch {
     // Unreadable legacy record: fall back to the defaults.
@@ -38,7 +43,7 @@ const migrateLegacy = (): Preferences => {
   const stored: Preferences = { sound: false, haptics, soundHintDismissed };
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    LEGACY_STORAGE_KEYS.forEach(key => window.localStorage.removeItem(key));
   } catch {
     // Keep the migrated values in memory when storage is read-only.
   }
@@ -50,22 +55,12 @@ const read = (): Preferences => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return migrateLegacy();
-    const parsed = JSON.parse(raw) as Partial<Preferences> & { motion?: unknown };
-    const stored: Preferences = {
+    const parsed = JSON.parse(raw) as Partial<Preferences>;
+    return {
       sound: parsed.sound === true,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULTS.haptics,
       soundHintDismissed: parsed.soundHintDismissed === true,
     };
-    // Older builds stored a manual motion override. Drop it so every visitor
-    // follows the device setting again.
-    if ('motion' in parsed) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-      } catch {
-        // Keep the sanitized values in memory when storage is read-only.
-      }
-    }
-    return stored;
   } catch {
     return { ...DEFAULTS };
   }

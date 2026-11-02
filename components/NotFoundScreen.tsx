@@ -8,22 +8,19 @@ import SystemToggles from './SystemToggles';
 interface NotFoundScreenProps {
   path: string;
   onHome: () => void;
-  /** False while the boot gate owns the screen, so focus is not stolen behind it. */
-  focusEnabled?: boolean;
 }
 
 /**
  * Branded 404 for an unknown in-app path. It lives in the same shell as every
  * other screen so a mistyped link does not look like a different site.
  */
-const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome, focusEnabled = true }) => {
+const NotFoundScreen: React.FC<NotFoundScreenProps> = ({ path, onHome }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (!focusEnabled) return;
     headingRef.current?.focus({ preventScroll: true });
-  }, [focusEnabled]);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
