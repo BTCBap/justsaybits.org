@@ -29,6 +29,9 @@ const EDGE_GAP = 24;
 
 interface DragState {
   pointerId: number;
+  pointerType: string;
+  /** The element under the finger when the gesture started, before any motion. */
+  tapTarget: EventTarget | null;
   startX: number;
   startY: number;
   lastX: number;
@@ -145,6 +148,42 @@ const MainMenu: React.FC<MainMenuProps> = ({
     onSelect(section.id, originOf(index));
   }, [sections, onSelect, originOf]);
 
+  // --- Click suppression ---------------------------------------------------
+  // A tap opens on pointerup, so the compatibility click that follows the same
+  // tap must not open the section twice. Suppression is armed only for that
+  // short window and is cleared by the next pointerdown, so a stale flag can
+  // never eat a later tap.
+  const clearClickSuppression = () => {
+    suppressClick.current = false;
+    if (suppressTimer.current !== null) {
+      window.clearTimeout(suppressTimer.current);
+      suppressTimer.current = null;
+    }
+  };
+
+  const armClickSuppression = (duration: number) => {
+    suppressClick.current = true;
+    if (suppressTimer.current !== null) window.clearTimeout(suppressTimer.current);
+    suppressTimer.current = window.setTimeout(() => {
+      suppressClick.current = false;
+      suppressTimer.current = null;
+    }, duration);
+  };
+
+  const clickIsSuppressed = () => suppressClick.current;
+
+  // One tap selects and opens any tile, including a peeking one and one that
+  // is still moving after a swipe.
+  const activateTile = useCallback((index: number) => {
+    const section = sections[index];
+    if (!section) return;
+    if (index !== activeIndex) {
+      onActiveIndexChange(index);
+      hapticManager.play('tick');
+    }
+    openAt(index, 'pointer');
+  }, [activeIndex, sections, onActiveIndexChange, openAt]);
+
   const moveTo = useCallback((index: number, source: 'keyboard' | 'gesture' | 'pointer') => {
     const total = sections.length;
     if (!total) return;
@@ -209,12 +248,51 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
   // --- Direct manipulation -------------------------------------------------
 
+  /**
+   * Resolve the tile a tap intended. The pointerdown target is authoritative:
+   * a tile can move a long way during the tap, but the visitor aimed at where
+   * it was when the finger landed. The pointerup hit test is only a fallback
+   * for a pointerdown that landed between tiles in the first place.
+   */
+  const tileAt = (target: EventTarget | null, x: number, y: number): HTMLElement | null => {
+    if (target instanceof Element) {
+      const fromDown = target.closest<HTMLElement>('[data-section-id]');
+      if (fromDown) return fromDown;
+    }
+    const atUp = typeof document.elementFromPoint === 'function'
+      ? document.elementFromPoint(x, y)
+      : null;
+    return atUp instanceof Element ? atUp.closest<HTMLElement>('[data-section-id]') : null;
+  };
+
   const endDrag = (event: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
     const state = drag.current;
     if (!state || state.pointerId !== event.pointerId) return;
     drag.current = null;
 
-    if (!state.active) return;
+    if (!state.active) {
+      // Touch and pen open on pointerup. iOS Safari drops or delays the click
+      // while a tile is still transitioning, so waiting for it loses the tap.
+      if (
+        !cancelled
+        && (state.pointerType === 'touch' || state.pointerType === 'pen')
+        && !state.decided
+        && !state.moved
+      ) {
+        const deltaX = event.clientX - state.startX;
+        const deltaY = event.clientY - state.startY;
+        if (Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD) {
+          const tile = tileAt(state.tapTarget, event.clientX, event.clientY);
+          const sectionId = tile?.dataset.sectionId;
+          const index = sectionId ? sections.findIndex(section => section.id === sectionId) : -1;
+          if (index >= 0) {
+            armClickSuppression(700);
+            activateTile(index);
+          }
+        }
+      }
+      return;
+    }
 
     const delta = event.clientX - state.startX;
     const shouldCommit = !cancelled
@@ -225,11 +303,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
     if (state.moved) {
       // A drag that ends on a card must not also open it.
-      suppressClick.current = true;
-      if (suppressTimer.current !== null) window.clearTimeout(suppressTimer.current);
-      suppressTimer.current = window.setTimeout(() => {
-        suppressClick.current = false;
-      }, 360);
+      armClickSuppression(360);
     }
 
     if (shouldCommit) {
@@ -240,11 +314,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     // A new gesture starts clean: only the click belonging to the swipe that
     // just ended is suppressed, never a tap that follows it.
-    if (suppressTimer.current !== null) {
-      window.clearTimeout(suppressTimer.current);
-      suppressTimer.current = null;
-    }
-    suppressClick.current = false;
+    clearClickSuppression();
 
     if (drag.current) return;
     if (event.button !== 0 && event.pointerType === 'mouse') return;
@@ -253,6 +323,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
     if (event.pointerType === 'mouse' && (event.target as HTMLElement).closest('button')) return;
     drag.current = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      tapTarget: event.target,
       startX: event.clientX,
       startY: event.clientY,
       lastX: event.clientX,
@@ -301,21 +373,29 @@ const MainMenu: React.FC<MainMenuProps> = ({
   };
 
   const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!suppressClick.current) return;
+    // The iOS haptic fallback toggles a hidden switch outside the menu. Its
+    // click must never reach or consume the menu's one-tap guard.
+    const target = event.target;
+    if (target instanceof Element && target.closest('[data-haptic-switch]')) {
+      event.stopPropagation();
+      return;
+    }
+    if (!clickIsSuppressed()) return;
     event.preventDefault();
     event.stopPropagation();
     suppressClick.current = false;
+    if (suppressTimer.current !== null) {
+      window.clearTimeout(suppressTimer.current);
+      suppressTimer.current = null;
+    }
   };
 
   const handleOptionClick = (index: number) => {
-    if (suppressClick.current) return;
+    // Touch taps already opened on pointerup; this path is mouse and keyboard.
+    if (clickIsSuppressed()) return;
     // One tap on any tile selects and opens it. The confirm tone carries the
     // change, so the cursor blip would only double the sound.
-    if (index !== activeIndex) {
-      onActiveIndexChange(index);
-      hapticManager.play('tick');
-    }
-    openAt(index, 'pointer');
+    activateTile(index);
   };
 
   const orbitScale = typeof window === 'undefined'
