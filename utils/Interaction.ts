@@ -15,8 +15,9 @@
  * capture phase with a one-sample silent buffer (the iOS unlock), schedules
  * the boot pad into it and asks the system for playback audio. `resume()`
  * settles inside that gesture; nothing is queued indefinitely. Once the
- * context is running the priming listeners detach, while visibility and
- * page-restore handlers re-resume an interrupted context.
+ * context is running the priming listeners detach. Hiding or restoring the
+ * page stops every scheduled voice and re-arms the listeners, so only the
+ * next gesture inside the page can start audio again.
  */
 
 import { announce } from './liveRegion';
@@ -222,6 +223,12 @@ class InteractionBus {
       return;
     }
     if (this.startCancelled || !preferences.get().sound) return;
+    // A gesture that began before the tab was backgrounded must not sound
+    // after the resume settles.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      this.bootRequested = false;
+      return;
+    }
     if (!this.bootPlayed) {
       soundManager.playBoot(prefersReducedMotionNow());
       this.bootPlayed = true;
@@ -319,16 +326,26 @@ class InteractionBus {
       void this.unlock();
     };
 
+    // A hidden or restored tab is silent. Stop anything already scheduled and
+    // wait for the next pointer or key gesture to resume the context, so a
+    // queued boot tone can never flush on visibilitychange, pageshow or focus.
+    const suspendAudio = () => {
+      this.pending = null;
+      soundManager.quiesce();
+    };
+
     const onRestore = () => {
+      suspendAudio();
       this.syncAudioSession();
-      void soundManager.resumeIfPossible().then((ok) => {
-        if (!ok) this.armUnlock();
-      });
+      this.armUnlock();
     };
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') onRestore();
+      else suspendAudio();
     };
+
+    const onPageHide = () => suspendAudio();
 
     const unsubscribePreferences = preferences.subscribe(() => {
       const enabled = preferences.get().sound;
@@ -348,12 +365,18 @@ class InteractionBus {
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('pageshow', onRestore);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('focus', onRestore);
+    window.addEventListener('blur', onPageHide);
     document.addEventListener('visibilitychange', onVisibility);
 
     this.cleanup = () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('pageshow', onRestore);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('focus', onRestore);
+      window.removeEventListener('blur', onPageHide);
       document.removeEventListener('visibilitychange', onVisibility);
       this.disarmUnlock();
       unsubscribePreferences();

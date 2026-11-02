@@ -56,21 +56,32 @@ async def open_section(page, section='about'):
 async def reset(page):
     await page.evaluate('window.__sounds = []')
     await page.evaluate('window.__vibes = []')
+    await page.evaluate('window.__voices = []')
     await page.wait_for_timeout(120)
 
 
 async def events(page):
     sounds = await page.evaluate('window.__sounds')
     vibes = await page.evaluate('window.__vibes')
-    return sounds if isinstance(sounds, list) else [], vibes if isinstance(vibes, list) else []
+    voices = await page.evaluate('window.__voices')
+    return (
+        sounds if isinstance(sounds, list) else [],
+        vibes if isinstance(vibes, list) else [],
+        voices if isinstance(voices, list) else [],
+    )
 
 
 async def expect_one(page, label):
-    sounds, vibes = await events(page)
-    backs = sounds.count('back')
-    others = [event for event in sounds if event != 'back']
-    check(backs == 1, f'{label}: exactly one back sound', f'{sounds}')
+    sounds, vibes, voices = await events(page)
+    backs = [sound for sound in sounds if sound.get('event') == 'back']
+    others = [sound for sound in sounds if sound.get('event') != 'back']
+    check(len(backs) == 1, f'{label}: exactly one back sound', f'{sounds}')
+    check(bool(backs) and backs[0].get('voice') == 'tap',
+          f'{label}: the sound is the soft mute tap', f'{backs}')
     check(not others, f'{label}: no cursor, confirm or select sound', f'{others}')
+    check(len(voices) == 1, f'{label}: one oscillator voice', f'{voices}')
+    check(bool(voices) and voices[0].get('type') == 'sine',
+          f'{label}: sine voice, no second triangle/ding layer', f'{voices}')
     check(len(vibes) == 1, f'{label}: exactly one back haptic', f'{len(vibes)} vibrate call(s)')
     check(page.url.rstrip('/') == BASE, f'{label}: returned to the menu', page.url)
 
@@ -88,9 +99,24 @@ async def main():
         await context.add_init_script("""
             window.__sounds = [];
             window.__vibes = [];
+            window.__voices = [];
             window.addEventListener('jsb:sound', (event) => {
-              window.__sounds.push(event.detail && event.detail.event);
+              const detail = event.detail || {};
+              window.__sounds.push({ event: detail.event, voice: detail.voice });
             });
+            const Audio = window.AudioContext || window.webkitAudioContext;
+            if (Audio) {
+              const createOscillator = Audio.prototype.createOscillator;
+              Audio.prototype.createOscillator = function () {
+                const osc = createOscillator.call(this);
+                const start = osc.start.bind(osc);
+                osc.start = function (...args) {
+                  window.__voices.push({ type: osc.type });
+                  start(...args);
+                };
+                return osc;
+              };
+            }
             try {
               Object.defineProperty(Navigator.prototype, 'vibrate', {
                 configurable: true,
