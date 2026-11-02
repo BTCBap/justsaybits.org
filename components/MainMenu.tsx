@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
+import { hapticManager } from '../utils/HapticManager';
 import { isInteractiveTarget } from '../utils/focus';
 import { announce } from '../utils/liveRegion';
 import { usePrefersReducedMotion } from '../utils/preferences';
@@ -45,8 +46,8 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
  * The main menu as a PS2 system browser: one calm selected-item panel, a row
  * of system icons below it, the quiet system toggles, and a page counter in the
  * bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
- * arrows, Home/End, Enter/Space); touch drags the row directly and snaps;
- * pointer hover previews and click confirms.
+ * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
+ * moves one section and a tap opens immediately; pointer hover previews.
  */
 const MainMenu: React.FC<MainMenuProps> = ({
   sections,
@@ -62,6 +63,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef(new Map<string, HTMLDivElement>());
   const drag = useRef<DragState | null>(null);
@@ -102,10 +104,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const section = sections[index];
     if (!section) return;
     onActiveIndexChange(index);
+    if (haptic) hapticManager.play('tick');
     interaction.interact('cursor', {
       id: `menu:${section.id}`,
       source,
-      haptic: haptic ? 'tick' : undefined,
     });
     if (source !== 'hover' && source !== 'focus') {
       announce(section.title);
@@ -219,9 +221,19 @@ const MainMenu: React.FC<MainMenuProps> = ({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (reducedMotion) return;
+    // A new gesture starts clean: only the click belonging to the swipe that
+    // just ended is suppressed, never a tap that follows it.
+    if (suppressTimer.current !== null) {
+      window.clearTimeout(suppressTimer.current);
+      suppressTimer.current = null;
+    }
+    suppressClick.current = false;
+
+    if (drag.current) return;
     if (event.button !== 0 && event.pointerType === 'mouse') return;
-    if ((event.target as HTMLElement).closest('button')) return;
+    // A mouse drag on a control is a miss, not a swipe. Touch may start a
+    // swipe on any control as long as the tap itself stays intact.
+    if (event.pointerType === 'mouse' && (event.target as HTMLElement).closest('button')) return;
     drag.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -251,7 +263,11 @@ const MainMenu: React.FC<MainMenuProps> = ({
         state.decided = true;
         state.active = true;
         setDragging(true);
-        stageRef.current?.setPointerCapture(event.pointerId);
+        try {
+          rootRef.current?.setPointerCapture(event.pointerId);
+        } catch {
+          // The pointer may already be gone; the tap guard still applies.
+        }
       } else if (Math.abs(deltaY) > DRAG_THRESHOLD) {
         drag.current = null;
         return;
@@ -260,18 +276,36 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
     if (state.active) {
       state.moved = state.moved || Math.abs(deltaX) > DRAG_THRESHOLD;
-      const limit = spacing * 1.1;
-      setDragX(Math.max(-limit, Math.min(limit, deltaX)));
+      if (!reducedMotion) {
+        const limit = spacing * 1.1;
+        setDragX(Math.max(-limit, Math.min(limit, deltaX)));
+      }
     }
+  };
+
+  const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressClick.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClick.current = false;
   };
 
   const handleOptionClick = (index: number) => {
     if (suppressClick.current) return;
+    // One tap on any tile selects and opens it. The confirm tone carries the
+    // change, so the cursor blip would only double the sound.
     if (index !== activeIndex) {
-      select(index, 'pointer');
-      return;
+      onActiveIndexChange(index);
+      hapticManager.play('tick');
+      announce(sections[index].title);
     }
     openAt(index, 'pointer');
+  };
+
+  const handlePanelClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (suppressClick.current) return;
+    if ((event.target as HTMLElement).closest('button')) return;
+    openAt(activeIndex, 'pointer');
   };
 
   const orbitScale = typeof window === 'undefined'
@@ -279,7 +313,16 @@ const MainMenu: React.FC<MainMenuProps> = ({
     : (window.visualViewport?.width ?? window.innerWidth) / 1440;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden z-50">
+    <div
+      ref={rootRef}
+      className="relative flex h-full w-full flex-col overflow-hidden z-50"
+      style={{ touchAction: 'pan-y' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={(event) => endDrag(event, false)}
+      onPointerCancel={(event) => endDrag(event, true)}
+      onClickCapture={handleClickCapture}
+    >
 
       {/* Quiet orbit line: background texture, not the structure. */}
       <div
@@ -309,6 +352,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <section
             aria-label="Selected section"
             className="menu-panel w-full max-w-3xl"
+            onClick={handlePanelClick}
           >
             <div className="flex items-start gap-4 px-4 py-4 md:gap-6 md:px-7 md:py-6">
               <span
@@ -345,8 +389,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
       <div className="relative z-10 shrink-0">
         <p className="sr-only">
           Main menu. Left and right arrows browse sections, Home and End jump to the first or last,
-          Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe or
-          use the arrow buttons to browse and tap the highlighted section to open it.
+          Enter opens the highlighted section, and M toggles sound. On a touch screen, swipe to
+          browse and tap a section to open it.
         </p>
 
         <div className="menu-stage-wrap">
@@ -356,11 +400,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
             aria-label="Main menu sections"
             aria-orientation="horizontal"
             className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[116px]' : 'h-[148px] md:h-[172px]'}`}
-            style={{ touchAction: 'pan-y', perspective: '1000px' }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={(event) => endDrag(event, false)}
-            onPointerCancel={(event) => endDrag(event, true)}
+            style={{ perspective: '1000px' }}
           >
             {sections.map((section, index) => {
               const offset = shortestOffset(index, activeIndex, sections.length);
@@ -422,14 +462,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
             })}
           </div>
 
-          {/* Real 44 px targets, centred on the icon circles so the labels
-              beneath them stay clear. */}
+          {/* Fine-pointer only: a swipe replaces these on touch screens. */}
           <button
             type="button"
             aria-label="Previous section"
             onFocus={() => interaction.interact('cursor', { id: 'menu:prev', source: 'focus' })}
             onClick={() => moveBy(-1, 'keyboard')}
-            className="menu-edge menu-edge--prev flex h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
+            className="menu-edge menu-edge--prev h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -438,14 +477,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
             aria-label="Next section"
             onFocus={() => interaction.interact('cursor', { id: 'menu:next', source: 'focus' })}
             onClick={() => moveBy(1, 'keyboard')}
-            className="menu-edge menu-edge--next flex h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
+            className="menu-edge menu-edge--next h-11 w-11 items-center justify-center border border-blue-300/35 bg-black/50 text-blue-100 transition-colors hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white md:h-12 md:w-12"
           >
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         <div className="menu-toggles">
-          <SystemToggles showHint />
+          <SystemToggles />
         </div>
 
         <div className="menu-counter">
