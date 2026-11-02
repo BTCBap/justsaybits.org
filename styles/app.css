@@ -743,7 +743,7 @@ html[data-motion="reduced"] .boot__skip {
 /* ---------------------------------------------------------------------------
    Main menu: PS2 system browser
    A centred row of large system icons carries the menu, with the quiet system
-   toggles and the page counter in the bottom slot. Layout follows the viewport
+   toggles and the page indicator in the bottom slot. Layout follows the viewport
    so menu type is never scaled below its real size.
 --------------------------------------------------------------------------- */
 
@@ -811,7 +811,7 @@ html[data-motion="reduced"] .boot__skip {
   padding-top: 0.25rem;
 }
 
-/* The page counter takes the bottom slot, clear of the home indicator. */
+/* The page indicator takes the bottom slot, clear of the home indicator. */
 .menu-counter {
   display: flex;
   align-items: center;

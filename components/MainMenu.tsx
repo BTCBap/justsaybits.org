@@ -55,7 +55,7 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
 
 /**
  * The main menu as a PS2 system browser: a centred row of large system icons
- * is the whole menu, with the quiet system toggles and the page counter in the
+ * is the whole menu, with the quiet system toggles and the page indicator in the
  * bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
  * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
  * moves one section and a tap opens immediately; pointer hover previews.
@@ -503,9 +503,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
         </div>
 
         <div className="menu-counter">
-          <span className="font-mono text-[12px] tabular-nums tracking-[0.2em] text-blue-200/75">
-            {String(activeIndex + 1).padStart(2, '0')} / {String(sections.length).padStart(2, '0')}
-          </span>
           <span aria-hidden="true" className="flex items-center gap-1.5">
             {sections.map((section, index) => (
               <span
