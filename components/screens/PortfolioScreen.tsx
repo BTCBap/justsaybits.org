@@ -213,6 +213,24 @@ const DesignLightbox: React.FC<DesignLightboxProps> = ({
   );
 };
 
+const DesignTileMedia: React.FC<{ item: (typeof DESIGN_DATA)[number] }> = ({ item }) => (
+  <>
+    <SafeImage
+      src={item.image}
+      srcSet={item.srcSet}
+      sizes={item.sizes}
+      alt={item.alt}
+      className="design-tile__image"
+      frameAspect="1 / 1"
+      imageClassName="design-tile__img"
+    />
+    <span className="design-tile__caption">
+      <span className="design-tile__title">{item.title}</span>
+      <span className="design-tile__type ps2-meta">{item.type}</span>
+    </span>
+  </>
+);
+
 export const DesignTab: React.FC = () => {
   const [active, setActive] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -220,40 +238,41 @@ export const DesignTab: React.FC = () => {
   return (
     <div className="design-wrap">
       <div className="design-grid">
-        {DESIGN_DATA.map((item, index) => (
-          <figure key={item.image} className="design-tile">
-            <button
-              type="button"
-              className="design-tile__button"
-              aria-haspopup="dialog"
-              onClick={(event) => {
-                triggerRef.current = event.currentTarget;
-                interaction.interact('confirm', { source: 'pointer' });
-                setActive(index);
-              }}
-              onFocus={() => interaction.interact('cursor', { id: `design:${item.image}`, source: 'focus' })}
-              onPointerEnter={(event) => {
-                if (event.pointerType === 'mouse') {
-                  interaction.interact('cursor', { id: `design:${item.image}`, source: 'hover' });
-                }
-              }}
-            >
-              <SafeImage
-                src={item.image}
-                srcSet={item.srcSet}
-                sizes={item.sizes}
-                alt={item.alt}
-                className="design-tile__image"
-                frameAspect="1 / 1"
-                imageClassName="design-tile__img"
-              />
-              <span className="design-tile__caption">
-                <span className="design-tile__title">{item.title}</span>
-                <span className="design-tile__type ps2-meta">{item.type}</span>
-              </span>
-            </button>
-          </figure>
-        ))}
+        {DESIGN_DATA.map((item, index) => {
+          // Logos are display-only — no lightbox, no link. Other design
+          // pieces (e.g. profile pictures) still open the viewer.
+          if (item.type === 'Logo') {
+            return (
+              <figure key={item.image} className="design-tile design-tile--static">
+                <div className="design-tile__button design-tile__button--static">
+                  <DesignTileMedia item={item} />
+                </div>
+              </figure>
+            );
+          }
+          return (
+            <figure key={item.image} className="design-tile">
+              <button
+                type="button"
+                className="design-tile__button"
+                aria-haspopup="dialog"
+                onClick={(event) => {
+                  triggerRef.current = event.currentTarget;
+                  interaction.interact('confirm', { source: 'pointer' });
+                  setActive(index);
+                }}
+                onFocus={() => interaction.interact('cursor', { id: `design:${item.image}`, source: 'focus' })}
+                onPointerEnter={(event) => {
+                  if (event.pointerType === 'mouse') {
+                    interaction.interact('cursor', { id: `design:${item.image}`, source: 'hover' });
+                  }
+                }}
+              >
+                <DesignTileMedia item={item} />
+              </button>
+            </figure>
+          );
+        })}
       </div>
 
       {active !== null && (
