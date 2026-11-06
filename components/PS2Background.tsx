@@ -43,7 +43,7 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
     let plate: HTMLCanvasElement | null = null;
     let bloomGradient: CanvasGradient | null = null;
 
-    // A fixed seed keeps the monolith field composed the same way on every
+    // A fixed seed keeps the particle field composed the same way on every
     // load, so the background reads as a designed place rather than noise.
     let seed = 0x9e3779b9;
     const random = () => {
@@ -51,17 +51,6 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       return seed / 4294967296;
     };
 
-    // Towers (floating pillars / memory blocks). Positions are ratios so they
-    // cover any viewport; the depth sort is fixed and done once.
-    const towers = Array.from({ length: 50 }, () => ({
-      xRatio: (random() - 0.5) * 2.5,
-      z: random() * 800 + 200,
-      yRatio: (random() - 0.5) * 1.5,
-      width: random() * 40 + 30,
-      height: random() * 300 + 100,
-      speed: random() * 0.003 + 0.0015,
-      offset: random() * Math.PI * 2,
-    })).sort((a, b) => b.z - a.z);
 
     // Orbiting particles ("seven stars").
     const electrons = Array.from({ length: 7 }, () => ({
@@ -156,7 +145,6 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       // One slow camera pan: the field drifts rather than bobbing in place.
       const camX = Math.sin(time * 0.0008) * 0.035;
       const camY = Math.cos(time * 0.0006) * 0.02;
-      const dolly = 1 + Math.sin(time * 0.0005) * 0.012;
 
       if (plate) {
         ctx.drawImage(plate, 0, 0, w, h);
@@ -175,25 +163,6 @@ const PS2Background: React.FC<PS2BackgroundProps> = ({ paused = false, reducedMo
       const cx = w / 2;
       const cy = h / 2;
 
-      towers.forEach(tower => {
-        const yBob = Math.sin(time * tower.speed + tower.offset) * 50;
-        const xWorld = tower.xRatio * w - camX * w;
-        const yWorld = tower.yRatio * h + yBob - camY * h;
-        const scale = (400 / tower.z) * dolly;
-        const x2d = cx + xWorld * scale;
-        const y2d = cy + yWorld * scale;
-        const w2d = tower.width * scale;
-        const h2d = tower.height * scale;
-
-        if (scale > 0 && x2d > -w2d && x2d < w + w2d && y2d > -h2d && y2d < h + h2d) {
-          const alpha = Math.min(1, Math.max(0, scale * 0.4));
-          ctx.fillStyle = `rgba(110, 168, 255, ${alpha * 0.1})`;
-          ctx.fillRect(x2d - w2d / 2, y2d - h2d / 2, w2d, h2d);
-          ctx.strokeStyle = `rgba(150, 200, 255, ${alpha * 0.25})`;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x2d - w2d / 2, y2d - h2d / 2, w2d, h2d);
-        }
-      });
 
       electrons.forEach(elec => {
         elec.angle += elec.speed * 2;

@@ -333,8 +333,12 @@ html[data-motion="reduced"] .panel-shift {
 }
 
 .menu-option:focus-visible {
+  outline: none;
+}
+
+.menu-option:focus-visible > span:first-child {
   outline: 2px solid #eef7ff;
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .menu-option:active > span:first-child {
@@ -346,8 +350,7 @@ html[data-motion="reduced"] .panel-shift {
 }
 
 /* Arrows sit on the viewport's left and right edges on every device, vertically
-   on the orb row. The stage is clipped inside those gutters so a peeking tile
-   or label can never run underneath a control. */
+   on the orb row. No clip-path on the stage: peeking icons stay whole. */
 .menu-edge {
   position: fixed;
   top: 50%;
@@ -360,16 +363,6 @@ html[data-motion="reduced"] .panel-shift {
 .menu-edge--next {
   left: auto;
   right: max(0.25rem, env(safe-area-inset-right, 0px));
-}
-
-.menu-stage {
-  clip-path: inset(0 var(--menu-edge-gutter, 3.5rem));
-}
-
-@media (min-width: 768px) {
-  :root {
-    --menu-edge-gutter: 4rem;
-  }
 }
 
 /* The page indicator takes the bottom slot, clear of the home indicator. */

@@ -65,7 +65,7 @@ const Tabs: React.FC<TabsProps> = ({
     <div
       role="tablist"
       aria-label={label}
-      className={`tabs ${containerClass} w-full border-b border-blue-400/25 bg-[var(--bg)] px-1 md:px-4 ${className}`}
+      className={`tabs ${containerClass} w-full border-b border-blue-400/25 bg-[var(--bg)] ${className}`}
     >
       {items.map((item, index) => {
         const active = item.id === activeId;
@@ -89,7 +89,7 @@ const Tabs: React.FC<TabsProps> = ({
             }}
             onFocus={() => interaction.interact('cursor', { id: `${baseId}-tab:${item.id}`, source: 'focus' })}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`tab flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 pb-0 pt-0 font-sans text-[12px] uppercase tracking-[0.14em] transition-colors md:flex-1 md:gap-2 md:tracking-[0.16em] ${
+            className={`tab flex h-full min-h-[44px] w-full items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 pb-0 pt-0 font-sans text-[12px] uppercase tracking-[0.14em] transition-colors md:flex-1 md:gap-2 md:tracking-[0.16em] ${
               active
                 ? 'tab--active border-blue-300 bg-blue-500/15 text-white'
                 : 'border-transparent text-[var(--text-secondary)] hover:bg-blue-500/10 hover:text-white'

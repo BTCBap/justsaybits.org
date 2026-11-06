@@ -24,7 +24,6 @@ const now = (): number => (typeof performance !== 'undefined' ? performance.now(
 const isMenuControl = (target: EventTarget | null): boolean =>
   target instanceof Element && !!target.closest('[data-menu-control]');
 const MOVE_TRANSITION = 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms cubic-bezier(0.22, 1, 0.36, 1)';
-const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
 /** Width reserved for each edge chevron: 44 px target + 4 px safe-area inset. */
 const EDGE_SLOT = 48;
 /** Space to leave between a peeking tile's label and the edge chevron. */
@@ -56,7 +55,7 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
  * The main menu as a PS2 system browser: a centred row of large system icons
  * is the whole menu, with the page indicator in the bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
  * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
- * moves one section and a tap opens immediately; pointer hover previews.
+ * moves one section and a tap opens immediately. Hover does not change the selection.
  */
 const MainMenu: React.FC<MainMenuProps> = ({
   sections,
@@ -465,19 +464,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   tabIndex={active ? 0 : -1}
                   onKeyDown={(event) => handleOptionKeyDown(event, index)}
                   onFocus={() => interaction.interact('cursor', { id: `menu:${section.id}`, source: 'focus' })}
-                  onPointerMove={(event) => {
-                    // Hover previews follow real pointer movement on a device
-                    // that can hover. A touch or pen tap must never move the
-                    // tile out from under the finger before its click lands.
-                    if (
-                      event.pointerType !== 'mouse'
-                      || event.buttons !== 0
-                      || !window.matchMedia(HOVER_QUERY).matches
-                      || active
-                      || drag.current
-                    ) return;
-                    select(index, 'hover');
-                  }}
                   className={`menu-option absolute left-1/2 top-1/2 flex w-[136px] cursor-pointer flex-col items-center md:w-[176px] ${
                     active ? 'menu-option--active' : ''
                   }`}
