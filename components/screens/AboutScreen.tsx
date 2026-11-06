@@ -4,7 +4,8 @@ import { WORK_DATA } from '../../constants';
 import ScreenLink from '../ScreenLink';
 
 const BELIEFS = [
-  'Independent freedom from centralized authority, data ownership and privacy are fundamental rights',
+  'We should be independent and free from centralized authority',
+  'Data ownership and privacy are fundamental rights',
   'Time is our scarcest asset',
   "Critical thinking and AI literacy are the major skills you'll need to thrive",
   'Tools should be open and accessible to all',
@@ -15,7 +16,8 @@ const GOALS = [
   'Leveraging AI and automation to win back time',
   'Promoting Bitcoin adoption and freedom technologies',
   'Prioritizing long-term value creation over short-term gains',
-  'Building the world i want the next generation to inherit',
+  'Helping others defend against the encroachment of the surveillance state',
+  'Building the world I want the next generation to inherit',
 ];
 
 /** Small original marks; the text already carries the meaning. */
