@@ -1,47 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Liveline } from 'liveline';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import { BTC_ACCENT, useBtcFeed } from './BtcFeed';
 
-/** Hold the loading wave after series is ready so Liveline's morph always
- *  starts from a visible wave, not a blank canvas first paint. */
-const REVEAL_DWELL_MS = 420;
+const EMPTY: never[] = [];
 
+/**
+ * One Liveline canvas from first paint to live chart — no CSS underlay, no
+ * remount. Boot is Liveline's own loading wave (`loading` + empty data).
+ *
+ * Data and `loading` flip together on the same render: if data arrives while
+ * `loading` is still true, Liveline swaps its 32-point wave for a grey
+ * morph-at-reveal-0 path (visible shape/colour jump). The seed series is
+ * densified to ~1 point/sec across the window (BtcFeed) so the wave→line morph
+ * has enough points to start exactly on the wave and never culls to <2
+ * visible points (Liveline paints nothing — the blank beat).
+ */
 const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const { chartData, chartWindow, value, ready, chartPaused } = useBtcFeed();
   const reducedMotion = usePrefersReducedMotion();
-  // Soft gate: series can land before we clear `loading`, so the wave→line
-  // morph lerps instead of popping. Reset if the feed drops readiness.
-  const [revealed, setRevealed] = useState(false);
+  const live = ready && value !== null;
 
-  useEffect(() => {
-    if (!ready) {
-      setRevealed(false);
-      return undefined;
-    }
-    if (reducedMotion) {
-      setRevealed(true);
-      return undefined;
-    }
-    const timer = window.setTimeout(() => setRevealed(true), REVEAL_DWELL_MS);
-    return () => window.clearTimeout(timer);
-  }, [ready, reducedMotion]);
-
-  // Always keep Liveline mounted — swapping to an empty shell was the blank
-  // beat between skeleton/wave and the first live paint (Family Values).
-  const showWave = !revealed;
   return (
     <div
-      className={`btc-spark ${compact ? 'btc-spark--compact' : ''}${showWave ? ' btc-spark--booting' : ''}`}
+      className={`btc-spark ${compact ? 'btc-spark--compact' : ''}`}
       aria-hidden="true"
-      data-ready={revealed ? 'true' : 'false'}
+      data-ready={live ? 'true' : 'false'}
     >
-      {/* CSS wave underlay: covers canvas size-0 frames so the slot never
-          goes blank before Liveline's first paint. Crossfades out once the
-          live morph is under way. */}
-      <div className="btc-spark__wave" aria-hidden="true" />
       <Liveline
-        data={chartData}
+        data={live ? chartData : EMPTY}
         value={value ?? 0}
         theme="dark"
         color={BTC_ACCENT}
@@ -53,8 +40,8 @@ const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
         exaggerate
         fill
         momentum={false}
-        pulse={!reducedMotion && revealed}
-        loading={showWave}
+        pulse={!reducedMotion && live}
+        loading={!live}
         paused={chartPaused}
         window={chartWindow}
         padding={{ top: 12, right: 22, bottom: 8, left: 8 }}

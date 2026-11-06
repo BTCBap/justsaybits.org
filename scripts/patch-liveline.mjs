@@ -29,6 +29,35 @@ const patches = [
     after: 'var LOADING_ALPHA_SPEED = 0.07',
   },
 
+  // Liveline only lerps its smoothed value inside the has-data branch, so a
+  // boot spent in `loading` leaves it at the mount value (0). On reveal the
+  // tip and Y-range then sweep up from $0 — the abrupt first morph. Snap to
+  // the live value whenever the range is (re)initialising.
+  {
+    name: 'reveal value snap',
+    before: 'const effectivePoints = useStash ? lastDataRef.current : points;',
+    after:
+      'const effectivePoints = useStash ? lastDataRef.current : points; if (!rangeInitedRef.current && !useStash) displayValueRef.current = cfg.value;',
+  },
+  // Morph stroke starts grey (gridLabel) while the loading wave is drawn in
+  // the line colour — a colour flash on the first live frame. Keep the line
+  // colour through the morph so wave → line is one continuous stroke.
+  {
+    name: 'reveal stroke colour',
+    before: 'blendColor(palette.gridLabel, palette.line, colorT)',
+    after: 'blendColor(palette.line, palette.line, colorT)',
+  },
+
+  // Y-range floor of ~0.02% of price (~$20 on BTC). With `exaggerate`, a $1
+  // tick after a flat boot seed filled the full height — a cliff on the first
+  // live move. Keeps sub-$20 jitter as gentle wiggle.
+  {
+    name: 'min price range',
+    before: 'const minRange = rawRange * (exaggerate ? 0.02 : 0.1) || (exaggerate ? 0.04 : 0.4);',
+    after:
+      'const minRange = Math.max(rawRange * (exaggerate ? 0.02 : 0.1) || (exaggerate ? 0.04 : 0.4), Math.abs(targetMax) * 2e-4);',
+  },
+
   {
     name: 'dash guide',
     before: 'skipDashLine = false',
@@ -56,7 +85,8 @@ for (const target of targets) {
   let source = fs.readFileSync(target, 'utf8');
   let changed = false;
   for (const patch of patches) {
-    if (source.includes(patch.after) && !source.includes(patch.before)) {
+    // `after` may contain `before` (prefix patches) — check `after` first.
+    if (source.includes(patch.after)) {
       console.log(`[patch-liveline] already patched ${patch.name} in ${path.basename(target)}`);
       continue;
     }
@@ -68,7 +98,7 @@ for (const target of targets) {
     }
     source = source.replaceAll(patch.before, patch.after);
     changed = true;
-    console.log(`[patch-liveline] disabled ${patch.name} in ${path.basename(target)}`);
+    console.log(`[patch-liveline] applied ${patch.name} in ${path.basename(target)}`);
   }
   if (changed) {
     fs.writeFileSync(target, source);
