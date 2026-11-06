@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';import { Link2 } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';import { Link2, Share2 } from 'lucide-react';
 import type { EssaySummary } from '../types';
 import { interaction } from '../utils/Interaction';
 import { announce } from '../utils/liveRegion';
@@ -47,6 +47,9 @@ export const ReaderBar: React.FC<ReaderBarProps> = ({ essay, headings, bodyRef, 
   const contentsRef = useRef<HTMLDetailsElement>(null);
   const copiedTimer = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const shareWrapRef = useRef<HTMLDivElement>(null);
 
   const readMinutes = Number.parseInt(essay.readTime, 10) || 0;
   // Reserve the contents row as soon as the essay is known: waiting for the
@@ -105,6 +108,40 @@ export const ReaderBar: React.FC<ReaderBarProps> = ({ essay, headings, bodyRef, 
     }
   }, [essay.slug]);
 
+  const essayUrl = canonicalUrl(pathForEssay(essay.slug));
+  const xShareUrl = `https://x.com/intent/post?url=${encodeURIComponent(essayUrl)}&text=${encodeURIComponent(essay.title)}`;
+
+  useEffect(() => {
+    setCanNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
+
+  useEffect(() => {
+    if (!shareOpen) return;
+    const onPointer = (event: MouseEvent | PointerEvent) => {
+      if (!shareWrapRef.current?.contains(event.target as Node)) setShareOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShareOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [shareOpen]);
+
+  const shareNative = useCallback(async () => {
+    try {
+      if (!navigator.share) return;
+      await navigator.share({ title: essay.title, url: essayUrl });
+      setShareOpen(false);
+      interaction.interact('confirm', { source: 'pointer' });
+    } catch {
+      // User cancel is fine.
+    }
+  }, [essay.title, essayUrl]);
+
   return (
     <div className="reader-bar shrink-0">
       <div className="flex items-center gap-3 px-4 py-2 md:px-6">
@@ -112,16 +149,52 @@ export const ReaderBar: React.FC<ReaderBarProps> = ({ essay, headings, bodyRef, 
           <p className="reader-bar__meta">{essay.date}</p>
           <p className="reader-bar__title">{essay.title}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void copyLink()}
-          onFocus={() => interaction.interact('cursor', { id: 'essay:copy', source: 'focus' })}
-          className="reader-action shrink-0"
-          aria-label={copied ? 'Link copied' : 'Copy link to this essay'}
-        >
-          <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{copied ? 'Copied' : 'Copy link'}</span>
-        </button>
+        <div className="share-wrap shrink-0" ref={shareWrapRef}>
+          <button
+            type="button"
+            onClick={() => setShareOpen((open) => !open)}
+            onFocus={() => interaction.interact('cursor', { id: 'essay:share', source: 'focus' })}
+            className="reader-action"
+            aria-expanded={shareOpen}
+            aria-haspopup="menu"
+            aria-label="Share this essay"
+          >
+            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Share</span>
+          </button>
+          {shareOpen && (
+            <div className="share-menu" role="menu" aria-label="Share this essay">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  void copyLink();
+                  setShareOpen(false);
+                }}
+              >
+                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {copied ? 'Copied' : 'Copy link'}
+              </button>
+              <a
+                role="menuitem"
+                href={xShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  interaction.interact('confirm', { source: 'pointer' });
+                  setShareOpen(false);
+                }}
+              >
+                Share on X
+              </a>
+              {canNativeShare && (
+                <button type="button" role="menuitem" onClick={() => void shareNative()}>
+                  More…
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {showContents && (

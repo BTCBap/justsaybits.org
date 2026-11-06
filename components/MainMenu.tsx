@@ -82,6 +82,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const touchTapActivated = useRef(false);
   /** Wall clock of the swipe that just ended: its tail click is not a tap. */
   const swipeEndedAt = useRef(-Infinity);
+  /** Last rendered slot offset per section; a wrap jump skips the slide tween. */
+  const prevOffsets = useRef(new Map<string, number>());
 
   const activeSection = sections[activeIndex] ?? sections[0];
 
@@ -446,6 +448,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
               // tiles behind the stage plane, where touch hit-testing handed
               // their taps to the parent. Depth comes from scale and opacity.
               const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${active ? 1 : 0.82})`;
+              // Circular wrap: a tile that jumps to the other side must not tween
+              // through the centre (that read as sliding in from behind). Neighbors
+              // that only move one slot keep the same slide either direction.
+              const previous = prevOffsets.current.get(section.id);
+              const wrapped = previous !== undefined && Math.abs(offset - previous) > 1;
+              prevOffsets.current.set(section.id, offset);
               return (
                 <div
                   key={section.id}
@@ -466,10 +474,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
                   style={{
                     transform,
                     opacity: active ? 1 : peeking ? Math.max(0.55, 0.78 - (distance - 1) * 0.1) : 0,
-                    visibility: peeking ? 'visible' : 'hidden',
+                    visibility: peeking || distance <= maxPeers + 1 ? 'visible' : 'hidden',
                     pointerEvents: peeking ? 'auto' : 'none',
                     zIndex: 20 - distance,
-                    transition: reducedMotion || dragging ? 'none' : MOVE_TRANSITION,
+                    transition: reducedMotion || dragging || wrapped ? 'none' : MOVE_TRANSITION,
                   }}
                 >
                   <span
