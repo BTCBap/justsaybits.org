@@ -29,7 +29,7 @@ export const PORTFOLIO_DATA: PortfolioItem[] = [
   },
   {
     title: "The Space Education Foundation",
-    role: "Co-Founder",
+    role: "President / Co-Founder",
     year: "2024",
     description: "A thriving member-operated bitcoin community and nonprofit organization building the premier place for collaboration, education, and freedom technology in the Rocky Mountain Region.",
     tech: ["Community", "Bitcoin", "Non-profit"],
@@ -138,12 +138,12 @@ export const WORK_DATA: JobItem[] = [
   {
     company: "The Space Education Foundation",
     logo: "/logos/the-space.webp",
-    period: "3 yrs 1 mo",
+    period: "3 yrs",
     location: "Denver, Colorado",
     highlights: [],
     subRoles: [
-      { title: "Co-Founder and Board Member", period: "Apr 2024 - Jan 2026" },
-      { title: "President", period: "Jan 2023 - Jan 2026" }
+      { title: "Chairman of the Board", period: "Oct 2024 - Jan 2026" },
+      { title: "President / Co-Founder", period: "Jan 2023 - Oct 2024" }
     ]
   },
   {
