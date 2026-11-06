@@ -64,9 +64,9 @@ const App: React.FC = () => {
     const id = previous.section;
     const frame = requestAnimationFrame(() => {
       const menu = menuRef.current;
-      const target = id
-        ? menu?.querySelector<HTMLElement>(`[data-section-id="${id}"]`)
-        : menu?.querySelector<HTMLElement>('[data-section-id][aria-selected="true"]');
+      // Prefer the selected tile so arrow keys and Enter both land on it.
+      const target = menu?.querySelector<HTMLElement>('[data-section-id][aria-selected="true"]')
+        ?? (id ? menu?.querySelector<HTMLElement>(`[data-section-id="${id}"]`) : null);
       target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
