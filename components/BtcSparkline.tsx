@@ -35,7 +35,7 @@ const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
         loading={!ready}
         paused={chartPaused}
         window={BTC_WINDOW_SECS}
-        padding={{ top: 6, right: 4, bottom: 4, left: 4 }}
+        padding={{ top: 12, right: 22, bottom: 16, left: 8 }}
         lineWidth={2}
         lerpSpeed={reducedMotion ? 1 : 0.12}
         emptyText=""

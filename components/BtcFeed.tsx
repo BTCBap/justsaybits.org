@@ -3,7 +3,7 @@ import { usePrefersReducedMotion } from '../utils/preferences';
 
 const TICKER_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/ticker';
 const CANDLES_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60';
-const POLL_MS = 5_000;
+const POLL_MS = 2_000;
 export const BTC_WINDOW_SECS = 900;
 export const BTC_ACCENT = '#6ea8ff';
 const MAX_POINTS = 180;
@@ -135,18 +135,95 @@ export const useBtcFeed = (): BtcFeedState => {
   return ctx;
 };
 
+/** Frame-rate-independent lerp — same curve liveline uses for smoothValue. */
+const lerpPrice = (current: number, target: number, speed: number, dt: number): number => {
+  const factor = 1 - Math.pow(1 - speed, dt / 16.67);
+  return current + (target - current) * factor;
+};
+
+const PRICE_LERP_SPEED = 0.12;
+
+/**
+ * Price readout with fluid digit motion. Liveline used to drive this via
+ * `showValue` (RAF textContent of its lerped smoothValue). Splitting the
+ * chrome into a plain React label made updates snap on each poll — restore
+ * the same lerp so dollars roll instead of jump.
+ */
 export const BtcPriceLabel: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
-  const { value, failed } = useBtcFeed();
-  const text = value !== null ? formatUsd(value) : failed ? '—' : '…';
+  const { value, failed, chartPaused } = useBtcFeed();
+  const reducedMotion = usePrefersReducedMotion();
+  const valueElRef = useRef<HTMLDivElement>(null);
+  const displayRef = useRef<number | null>(null);
+  const targetRef = useRef<number | null>(null);
+  const [announced, setAnnounced] = useState<string | null>(null);
+
+  useEffect(() => {
+    targetRef.current = value;
+    if (value === null) return;
+    // First tick or reduced/paused chrome: land on the value immediately.
+    if (displayRef.current === null || reducedMotion || chartPaused) {
+      displayRef.current = value;
+      const text = formatUsd(value);
+      if (valueElRef.current) valueElRef.current.textContent = text;
+      setAnnounced(text);
+    }
+  }, [value, reducedMotion, chartPaused]);
+
+  useEffect(() => {
+    if (!(failed && value === null)) return;
+    displayRef.current = null;
+    targetRef.current = null;
+    if (valueElRef.current) valueElRef.current.textContent = '—';
+    setAnnounced(null);
+  }, [failed, value]);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 50);
+      last = now;
+      const target = targetRef.current;
+      const current = displayRef.current;
+      if (
+        target !== null &&
+        current !== null &&
+        !reducedMotion &&
+        !chartPaused &&
+        valueElRef.current
+      ) {
+        let next = lerpPrice(current, target, PRICE_LERP_SPEED, dt);
+        // formatUsd rounds to dollars — snap when within half a dollar.
+        if (Math.abs(next - target) < 0.5) next = target;
+        displayRef.current = next;
+        const text = formatUsd(next);
+        if (valueElRef.current.textContent !== text) {
+          valueElRef.current.textContent = text;
+          setAnnounced(text);
+        }
+      }
+      raf = window.requestAnimationFrame(tick);
+    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [reducedMotion, chartPaused]);
+
+  const loading = value === null && !failed;
+  const ariaLabel =
+    announced !== null ? `Bitcoin ${announced}` : failed ? 'Bitcoin price unavailable' : 'Bitcoin price loading';
+
   return (
     <div
       className={`btc-price ps2-tnum ${compact ? 'btc-price--compact' : ''}`}
       role="status"
       aria-live="polite"
-      aria-label={value !== null ? `Bitcoin ${formatUsd(value)}` : 'Bitcoin price loading'}
+      aria-label={ariaLabel}
     >
-      <div className="btc-price__value">{text}</div>
-      <div className="btc-price__label">BTC</div>
+      <div ref={valueElRef} className="btc-price__value">
+        {loading ? '…' : failed && value === null ? '—' : null}
+      </div>
     </div>
   );
 };
