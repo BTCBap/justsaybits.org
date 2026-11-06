@@ -3,7 +3,7 @@ import { usePrefersReducedMotion } from '../utils/preferences';
 
 const TICKER_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/ticker';
 const CANDLES_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60';
-const POLL_MS = 5_000;
+const POLL_MS = 2_000;
 export const BTC_WINDOW_SECS = 900;
 export const BTC_ACCENT = '#6ea8ff';
 const MAX_POINTS = 180;
@@ -146,7 +146,6 @@ export const BtcPriceLabel: React.FC<{ compact?: boolean }> = ({ compact = false
       aria-label={value !== null ? `Bitcoin ${formatUsd(value)}` : 'Bitcoin price loading'}
     >
       <div className="btc-price__value">{text}</div>
-      <div className="btc-price__label">BTC</div>
     </div>
   );
 };
