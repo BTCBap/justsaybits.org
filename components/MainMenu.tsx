@@ -55,7 +55,7 @@ const shortestOffset = (index: number, activeIndex: number, length: number): num
  * The main menu as a PS2 system browser: a centred row of large system icons
  * is the whole menu, with the page indicator in the bottom slot. Keyboard input follows the listbox pattern (roving tabindex,
  * arrows, Home/End, Enter/Space); a horizontal swipe anywhere on the screen
- * moves one section and a tap opens immediately. Hover does not change the selection.
+ * moves one section on a circular strip and a tap opens immediately. Hover does not change the selection.
  */
 const MainMenu: React.FC<MainMenuProps> = ({
   sections,
@@ -69,7 +69,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [short, setShort] = useState(false);
   const [hideClock, setHideClock] = useState(false);
   const [edgeTop, setEdgeTop] = useState<number | null>(null);
-  const [edgePruned, setEdgePruned] = useState(true);
+  const [maxPeers, setMaxPeers] = useState(1);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -99,8 +99,11 @@ const MainMenu: React.FC<MainMenuProps> = ({
       const edgeLimit = Math.round(width / 2 - EDGE_SLOT - EDGE_GAP - widestLabelHalf);
       const nextSpacing = Math.max(84, Math.min(base, edgeLimit));
       setSpacing(nextSpacing);
-      // Far tiles are hidden only when their orb would reach the chevrons.
-      setEdgePruned(width / 2 - 2 * nextSpacing - 41 < EDGE_SLOT);
+      // Same number of neighbors on each side for every selection, so the
+      // strip always looks like one infinite loop instead of changing shape.
+      const orbRadius = width < 768 ? 41 : 52;
+      const peers = Math.max(1, Math.floor((width / 2 - EDGE_SLOT - orbRadius) / nextSpacing));
+      setMaxPeers(Math.min(peers, Math.max(1, Math.floor((sections.length - 1) / 2))));
       setShort(height < 560);
       setHideClock(height < 500);
       const stage = stageRef.current;
@@ -118,7 +121,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
     };
-  }, [short]);
+  }, [short, sections.length]);
 
   const select = useCallback((
     index: number,
@@ -184,7 +187,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
       if (!sections.length) return;
-      if (isInteractiveTarget(event.target)) return;
+      const target = event.target;
+      const onMenuChrome = target instanceof Element && !!target.closest('.menu-edge, [data-menu-control]');
+      // Chevron / indicator focus must not eat arrow keys. Other controls still win.
+      if (isInteractiveTarget(target) && !onMenuChrome) return;
 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
@@ -444,7 +450,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
               const offset = shortestOffset(index, activeIndex, sections.length);
               const distance = Math.abs(offset);
               const active = offset === 0;
-              const peeking = distance <= 1 || !edgePruned;
+              const peeking = distance <= maxPeers;
               const Icon = section.icon;
               // Flat transforms only: a negative translateZ put the peeking
               // tiles behind the stage plane, where touch hit-testing handed
@@ -501,8 +507,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <button
             type="button"
             aria-label="Previous section"
+            data-menu-control
+            onMouseDown={(event) => event.preventDefault()}
             onFocus={() => interaction.interact('cursor', { id: 'menu:prev', source: 'focus' })}
-            onClick={() => moveBy(-1, 'pointer')}
+            onClick={() => {
+              moveBy(-1, 'pointer');
+              const id = sections[((activeIndex - 1) % sections.length + sections.length) % sections.length]?.id;
+              if (id) optionRefs.current.get(id)?.focus({ preventScroll: true });
+            }}
             style={{ top: edgeTop ?? undefined }}
             className="menu-edge menu-edge--prev h-11 w-11 items-center justify-center text-blue-200/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
           >
@@ -511,8 +523,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <button
             type="button"
             aria-label="Next section"
+            data-menu-control
+            onMouseDown={(event) => event.preventDefault()}
             onFocus={() => interaction.interact('cursor', { id: 'menu:next', source: 'focus' })}
-            onClick={() => moveBy(1, 'pointer')}
+            onClick={() => {
+              moveBy(1, 'pointer');
+              const id = sections[(activeIndex + 1) % sections.length]?.id;
+              if (id) optionRefs.current.get(id)?.focus({ preventScroll: true });
+            }}
             style={{ top: edgeTop ?? undefined }}
             className="menu-edge menu-edge--next h-11 w-11 items-center justify-center text-blue-200/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
           >
