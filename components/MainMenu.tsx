@@ -51,6 +51,22 @@ const ringOffset = (index: number, cursor: number, length: number): number => {
   return index + Math.round((cursor - index) / length) * length - cursor;
 };
 
+/**
+ * Slot on the ring for `index`. With an even count the tile opposite the
+ * cursor is a tie; park it on the side the strip just came from so the next
+ * step in the same direction slides it in, never pops it.
+ */
+const slotOffset = (index: number, cursor: number, length: number, dir: 1 | -1): number => {
+  const offset = ringOffset(index, cursor, length);
+  if (length % 2 === 0 && Math.abs(offset) === length / 2) return dir > 0 ? -length / 2 : length / 2;
+  return offset;
+};
+
+const tileTransform = (offset: number, spacing: number, dragX = 0): string => {
+  const distance = Math.abs(offset);
+  return `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${offset === 0 ? 1 : 0.82})`;
+};
+
 const modIndex = (index: number, length: number): number => {
   if (length <= 0) return 0;
   return ((index % length) + length) % length;
@@ -79,6 +95,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [dragging, setDragging] = useState(false);
   /** Unbounded carousel position; ±1 per step so every swipe animates the same. */
   const [ringCursor, setRingCursor] = useState(activeIndex);
+  /** Direction of the last step; decides which side the opposite tile waits on. */
+  const [ringDir, setRingDir] = useState<1 | -1>(1);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -90,8 +108,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const touchTapActivated = useRef(false);
   /** Wall clock of the swipe that just ended: its tail click is not a tap. */
   const swipeEndedAt = useRef(-Infinity);
-  /** Last rendered slot offset per section; a wrap jump skips the slide tween. */
+  /** Last committed slot per section and cursor; a wrapping tile is FLIP-ed in. */
   const prevOffsets = useRef(new Map<string, number>());
+  const prevCursor = useRef<number | null>(null);
 
   const activeSection = sections[activeIndex] ?? sections[0];
   const sectionCount = sections.length;
@@ -102,15 +121,39 @@ const MainMenu: React.FC<MainMenuProps> = ({
     setRingCursor((cursor) => {
       const shown = modIndex(cursor, sectionCount);
       if (shown === activeIndex) return cursor;
-      return cursor + ringOffset(activeIndex, cursor, sectionCount);
+      const step = ringOffset(activeIndex, cursor, sectionCount);
+      setRingDir(step < 0 ? -1 : 1);
+      return cursor + step;
     });
   }, [activeIndex, sectionCount]);
 
+  // Constant rotunda: on a ±1 step every tile moves exactly one slot. The one
+  // tile that wraps to the far side is first placed one slot outside its new
+  // position (off-screen, opacity 0), then tweens in like its neighbours.
   useLayoutEffect(() => {
+    const lastCursor = prevCursor.current;
+    const delta = lastCursor === null ? 0 : ringCursor - lastCursor;
+    const flips: Array<{ element: HTMLDivElement; offset: number }> = [];
     sections.forEach((section, index) => {
-      prevOffsets.current.set(section.id, ringOffset(index, ringCursor, sectionCount));
+      const offset = slotOffset(index, ringCursor, sectionCount, ringDir);
+      const previous = prevOffsets.current.get(section.id);
+      prevOffsets.current.set(section.id, offset);
+      if (previous === undefined || delta === 0 || reducedMotion) return;
+      if (offset - previous === -delta) return;
+      const element = optionRefs.current.get(section.id);
+      if (!element) return;
+      element.style.transition = 'none';
+      element.style.transform = tileTransform(Math.abs(delta) === 1 ? offset + delta : offset, spacing);
+      flips.push({ element, offset });
     });
-  }, [ringCursor, sections, sectionCount]);
+    prevCursor.current = ringCursor;
+    if (!flips.length) return;
+    void stageRef.current?.offsetWidth; // commit the pre-position before tweening
+    flips.forEach(({ element, offset }) => {
+      element.style.transition = MOVE_TRANSITION;
+      element.style.transform = tileTransform(offset, spacing);
+    });
+  }, [ringCursor, ringDir, sections, sectionCount, spacing, reducedMotion]);
 
   // Layout follows the viewport instead of scaling a whole subtree, so menu
   // labels stay at their real type size on a phone.
@@ -205,6 +248,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
     const total = sections.length;
     if (!total) return;
     setRingCursor((cursor) => cursor + direction);
+    setRingDir(direction);
     moveTo(activeIndex + direction, source);
   }, [activeIndex, moveTo, sections.length]);
 
@@ -473,7 +517,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
             className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[150px]' : 'h-[190px] md:h-[248px]'}`}
           >
             {sections.map((section, index) => {
-              const offset = ringOffset(index, ringCursor, sectionCount);
+              const offset = slotOffset(index, ringCursor, sectionCount, ringDir);
               const distance = Math.abs(offset);
               const active = offset === 0;
               const peeking = distance <= maxPeers;
@@ -481,11 +525,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
               // Flat transforms only: a negative translateZ put the peeking
               // tiles behind the stage plane, where touch hit-testing handed
               // their taps to the parent. Depth comes from scale and opacity.
-              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${active ? 1 : 0.82})`;
-              // Only the tile that wraps to the other side skips the tween;
-              // every ±1 neighbor slides the same way on a constant rotunda.
-              const previous = prevOffsets.current.get(section.id);
-              const wrapped = previous !== undefined && Math.abs(offset - previous) > 1.5;
+              const transform = tileTransform(offset, spacing, dragX);
               return (
                 <div
                   key={section.id}
@@ -509,7 +549,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
                     visibility: peeking || distance <= maxPeers + 1 ? 'visible' : 'hidden',
                     pointerEvents: peeking ? 'auto' : 'none',
                     zIndex: 20 - distance,
-                    transition: reducedMotion || dragging || wrapped ? 'none' : MOVE_TRANSITION,
+                    transition: reducedMotion || dragging ? 'none' : MOVE_TRANSITION,
                   }}
                 >
                   <span
