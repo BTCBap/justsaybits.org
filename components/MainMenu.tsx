@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
 import { hapticManager } from '../utils/HapticManager';
-import { isInteractiveTarget } from '../utils/focus';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
 
@@ -179,23 +178,26 @@ const MainMenu: React.FC<MainMenuProps> = ({
     moveTo(activeIndex + direction, source);
   }, [activeIndex, moveTo]);
 
-  // Global arrow/Home/End support for the menu once nothing else owns focus.
-  // Enter and Space stay on the focused option, so a button never opens a
-  // section by accident.
+  // Arrow/Home/End always belong to the menu while it is active. Enter/Space
+  // stay on the focused option so a leftover button never opens a section.
+  // Do not bail for role=option or the edge chevrons: after Back or a chevron
+  // click, focus often sits there and used to kill the keys.
   useEffect(() => {
     if (!keyboardEnabled) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
       if (!sections.length) return;
       const target = event.target;
-      const onMenuChrome = target instanceof Element && !!target.closest('.menu-edge, [data-menu-control]');
-      // Chevron / indicator focus must not eat arrow keys. Other controls still win.
-      if (isInteractiveTarget(target) && !onMenuChrome) return;
+      if (target instanceof Element) {
+        if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+        // Tabs and in-page links only exist on open screens, where this effect is off.
+        if (target.closest('[role="tab"], a[href], summary')) return;
+      }
 
-      if (event.key === 'ArrowRight') {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         moveBy(1, 'keyboard');
-      } else if (event.key === 'ArrowLeft') {
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
         event.preventDefault();
         moveBy(-1, 'keyboard');
       } else if (event.key === 'Home') {
@@ -212,19 +214,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
   const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, index: number) => {
     if (!keyboardEnabled || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      moveBy(1, 'keyboard');
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      moveBy(-1, 'keyboard');
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      moveTo(0, 'keyboard');
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      moveTo(sections.length - 1, 'keyboard');
-    } else if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
       openAt(index, 'keyboard');
     }
