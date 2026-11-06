@@ -3007,7 +3007,8 @@ html[data-motion="reduced"] .book-cover {
   }
 }
 
-/* Liveline sizes itself from the parent box — do not force canvas to 100vh. */
+/* Liveline sizes itself from the parent box — do not force canvas to 100vh.
+   Wave underlay shares this absolute slot at z-index 0; Liveline sits above. */
 .btc-spark > div {
   position: absolute !important;
   inset: 0 !important;
@@ -3015,6 +3016,56 @@ html[data-motion="reduced"] .book-cover {
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+  z-index: 1;
+}
+
+.btc-spark > .btc-spark__wave {
+  z-index: 0;
+}
+
+/* CSS loading wave under the canvas — Family Values continuity so the slot
+   never blanks while Liveline sizes or morphs from loading → live. */
+.btc-spark__wave {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 55%, rgba(110, 168, 255, 0.14), transparent 70%),
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(110, 168, 255, 0.05) 20%,
+      rgba(110, 168, 255, 0.16) 50%,
+      rgba(110, 168, 255, 0.05) 80%,
+      transparent 100%
+    );
+  background-size: 100% 100%, 220% 100%;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 40' preserveAspectRatio='none'%3E%3Cpath d='M0 22 C 12 10, 24 30, 36 20 S 60 8, 72 22 96 34, 120 18' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 40' preserveAspectRatio='none'%3E%3Cpath d='M0 22 C 12 10, 24 30, 36 20 S 60 8, 72 22 96 34, 120 18' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.btc-spark--booting .btc-spark__wave {
+  opacity: 1;
+  animation: btc-spark-wave-drift 1.8s ease-in-out infinite;
+}
+
+@keyframes btc-spark-wave-drift {
+  0%, 100% { background-position: 0 0, 0% 0; opacity: 0.55; }
+  50% { background-position: 0 0, 100% 0; opacity: 0.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btc-spark--booting .btc-spark__wave {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 .btc-spark--empty {

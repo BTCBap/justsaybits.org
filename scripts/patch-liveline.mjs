@@ -16,6 +16,19 @@ const targets = ['index.js', 'index.cjs'].map((name) =>
 
 /** @type {Array<{ name: string; before: string; after: string }>} */
 const patches = [
+  // Softer loading → live morph (Family Values continuity). Defaults are
+  // 0.09 fwd / 0.14 alpha — a touch abrupt after a cold boot.
+  {
+    name: 'reveal speed fwd',
+    before: 'var CHART_REVEAL_SPEED_FWD = 0.09',
+    after: 'var CHART_REVEAL_SPEED_FWD = 0.045',
+  },
+  {
+    name: 'loading alpha speed',
+    before: 'var LOADING_ALPHA_SPEED = 0.14',
+    after: 'var LOADING_ALPHA_SPEED = 0.07',
+  },
+
   {
     name: 'dash guide',
     before: 'skipDashLine = false',
