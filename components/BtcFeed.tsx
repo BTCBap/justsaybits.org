@@ -200,7 +200,8 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ children }) =>
         setData(points.slice(-MAX_POINTS));
         setFailed(false);
       } catch {
-        if (!cancelled && valueRef.current === null) setFailed(true);
+        // Candles are optional shape seed only — never blank the sparkline
+        // on a candles miss. Ticker poll owns `failed`.
       }
     };
 
