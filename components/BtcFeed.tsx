@@ -64,21 +64,47 @@ const liveTicks = (points: BtcPoint[], nowSec: number): BtcPoint[] => {
   return ticks;
 };
 
+/** Seed resolution: ~1 point/sec so Liveline's wave→line morph (which samples
+ *  its loading curve at each point's X) starts exactly on the wave, and so the
+ *  left edge never culls to <2 visible points (Liveline paints a blank frame). */
+const SEED_STEP_SECS = 1;
+const SEED_LEAD_SECS = 3;
+
 export const createDensifyLock = (
   ticks: BtcPoint[],
   windowSecs: number,
   nowSec: number,
 ): DensifyLock => {
   const tMin = ticks[0].time;
-  const span = Math.max(1, nowSec - tMin);
+  const span = Math.max(1e-3, nowSec - tMin);
   const left = nowSec - windowSecs;
-  return {
-    seed: ticks.map((point) => ({
-      time: left + ((point.time - tMin) / span) * windowSecs,
-      value: point.value,
-    })),
-    seedRealMax: ticks[ticks.length - 1].time,
+  // Stretch the tick run once into [left, now], then resample on a fixed grid.
+  const stretched = ticks.map((point) => ({
+    time: left + ((point.time - tMin) / span) * windowSecs,
+    value: point.value,
+  }));
+  const valueAt = (t: number): number => {
+    if (t <= stretched[0].time) return stretched[0].value;
+    for (let i = 1; i < stretched.length; i += 1) {
+      const a = stretched[i - 1];
+      const b = stretched[i];
+      if (t <= b.time) {
+        const frac = b.time > a.time ? (t - a.time) / (b.time - a.time) : 1;
+        return a.value + (b.value - a.value) * frac;
+      }
+    }
+    return stretched[stretched.length - 1].value;
   };
+  // Start a few seconds off-screen left so the line always enters from the
+  // left edge, even between React renders.
+  const seed: BtcPoint[] = [];
+  const start = left - SEED_LEAD_SECS;
+  const steps = Math.ceil((nowSec - start) / SEED_STEP_SECS);
+  for (let i = 0; i <= steps; i += 1) {
+    const time = Math.min(nowSec, start + i * SEED_STEP_SECS);
+    seed.push({ time, value: valueAt(time) });
+  }
+  return { seed, seedRealMax: ticks[ticks.length - 1].time };
 };
 
 export const applyDensifyLock = (
@@ -87,8 +113,10 @@ export const applyDensifyLock = (
   windowSecs: number,
   nowSec: number,
 ): BtcPoint[] => {
+  // Keep a few seconds past the left edge so Liveline (which culls at
+  // leftEdge-2 between React renders) always has a point off-screen left.
   const left = nowSec - windowSecs;
-  const out: BtcPoint[] = lock.seed.filter((point) => point.time >= left - 1);
+  const out: BtcPoint[] = lock.seed.filter((point) => point.time >= left - 4);
   for (const tick of ticks) {
     if (tick.time > lock.seedRealMax) out.push(tick);
   }
@@ -212,12 +240,13 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ children }) =>
       try {
         const response = await fetch(TICKER_URL);
         if (!response.ok) throw new Error('ticker');
-        const json: { price?: string; time?: string } = await response.json();
+        const json: { price?: string } = await response.json();
         const price = Number(json.price);
-        const time = json.time
-          ? Math.floor(new Date(json.time).getTime() / 1000)
-          : Math.floor(Date.now() / 1000);
-        applyTick(price, time);
+        // Client receipt time, not Coinbase trade time: the seed and Liveline's
+        // viewport both run on the client clock. Trade time stalls in quiet
+        // markets and skews vs the local clock — ticks then land off-screen or
+        // collapse into one point and the chart culls to blank.
+        applyTick(price, Date.now() / 1000);
       } catch {
         if (!cancelled && valueRef.current === null) setFailed(true);
       }
@@ -246,7 +275,7 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ children }) =>
     const built = buildChartSeries(
       data,
       BTC_WINDOW_SECS,
-      Math.floor(Date.now() / 1000),
+      Date.now() / 1000,
       densifyLockRef.current,
     );
     densifyLockRef.current = built.lock;
