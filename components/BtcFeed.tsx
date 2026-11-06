@@ -6,8 +6,8 @@ const CANDLES_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/candles?
 /** Ticker-only poll. Coinbase public REST allows 10 req/s/IP (burst 15); 1 Hz
  *  stays ~10× under that. Candles load once on mount — do not re-poll them. */
 const POLL_MS = 1_000;
-/** 5-minute sparkline window — shorter than 15m so each tick moves more. */
-export const BTC_WINDOW_SECS = 300;
+/** 2-minute sparkline window — 1s ticks fill it quickly. */
+export const BTC_WINDOW_SECS = 120;
 export const BTC_ACCENT = '#6ea8ff';
 const MAX_POINTS = 180;
 
@@ -83,8 +83,9 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
           .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value))
           .reverse();
         if (cancelled || points.length === 0) return;
+        // Seed shape only — do not set price from the last candle close.
+        // Price stays … and liveline stays loading until the first live ticker.
         setData(points.slice(-MAX_POINTS));
-        setValue(points[points.length - 1].value);
         setFailed(false);
       } catch {
         if (!cancelled && valueRef.current === null) setFailed(true);
@@ -120,6 +121,7 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
     };
   }, [paused]);
 
+  // Gate the liveline morph on a live ticker (value) plus enough points to draw.
   const ready = value !== null && data.length > 1;
   const chartPaused = paused || hidden || reducedMotion;
   const state = useMemo(
