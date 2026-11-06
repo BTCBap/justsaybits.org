@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
 import { hapticManager } from '../utils/HapticManager';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
+
+const BtcTicker = lazy(() => import('./BtcTicker'));
 
 interface MainMenuProps {
   sections: Section[];
@@ -412,8 +414,13 @@ const MainMenu: React.FC<MainMenuProps> = ({
         style={{ opacity: Math.min(1, Math.max(0.35, orbitScale)) }}
       />
 
-      {/* Clock only: the menu itself is the label. */}
-      <header className="relative z-10 flex shrink-0 items-center justify-end gap-4 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6">
+      {/* BTC ticker + clock: the menu itself is the label. */}
+      <header className="relative z-10 flex shrink-0 items-center justify-end gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:gap-4 md:px-10 md:pt-6">
+        <div className={hideClock ? 'invisible' : ''}>
+          <Suspense fallback={<div className="btc-ticker btc-ticker--pending" aria-hidden="true" />}>
+            <BtcTicker compact={short} paused={!keyboardEnabled} />
+          </Suspense>
+        </div>
         <div className={`text-right font-mono leading-tight ${hideClock ? 'invisible' : ''}`}>
           <Clock compact={short} />
         </div>

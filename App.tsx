@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy } from 'react';
 import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion';
 
 import PS2Background from './components/PS2Background';
@@ -7,7 +7,7 @@ import LiveStatus from './components/LiveStatus';
 import NotFoundScreen from './components/NotFoundScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineNotice from './components/OfflineNotice';
-import { ScreenSkeleton } from './components/Skeleton';
+import { SoftScreenSuspense } from './components/Skeleton';
 import { SECTIONS } from './constants';
 import { interaction } from './utils/Interaction';
 import { usePrefersReducedMotion } from './utils/preferences';
@@ -115,17 +115,16 @@ const App: React.FC = () => {
             </div>
 
             <ErrorBoundary>
-              <Suspense fallback={<ScreenSkeleton />}>
               {activeSection ? (
-                <ContentScreen
-                  key={activeSection.id}
-                  section={activeSection}
-                  onBack={closeSection}
-                />
+                <SoftScreenSuspense key={activeSection.id}>
+                  <ContentScreen
+                    section={activeSection}
+                    onBack={closeSection}
+                  />
+                </SoftScreenSuspense>
               ) : route.notFound ? (
                 <NotFoundScreen path={route.path} onHome={closeSection} />
               ) : null}
-              </Suspense>
             </ErrorBoundary>
           </div>
 
