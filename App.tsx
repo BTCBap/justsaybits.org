@@ -94,8 +94,8 @@ const App: React.FC = () => {
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
       <LazyMotion features={domAnimation} strict>
         {/* Session-scoped BTC feed: survives menu ↔ screen hops so the sparkline
-            keeps its tick history instead of reseeding on every return. */}
-        <BtcFeedProvider paused={screenOpen}>
+            keeps tick history and keeps animating (no freeze/catch-up on return). */}
+        <BtcFeedProvider>
           <div className="app-shell relative w-full overflow-hidden bg-[var(--bg)] text-white font-sans">
 
             {/* Background Layer */}
