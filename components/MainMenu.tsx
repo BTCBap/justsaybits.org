@@ -1,12 +1,12 @@
-import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
 import { hapticManager } from '../utils/HapticManager';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
+import MenuBtcHeader from './MenuBtcHeader';
 
-const BtcTicker = lazy(() => import('./BtcTicker'));
 
 interface MainMenuProps {
   sections: Section[];
@@ -45,11 +45,15 @@ interface DragState {
   target: EventTarget | null;
 }
 
-const shortestOffset = (index: number, activeIndex: number, length: number): number => {
-  let offset = index - activeIndex;
-  if (offset > length / 2) offset -= length;
-  if (offset < -length / 2) offset += length;
-  return offset;
+/** Nearest replica of `index` on the number line around `cursor`, minus cursor. */
+const ringOffset = (index: number, cursor: number, length: number): number => {
+  if (length <= 0) return 0;
+  return index + Math.round((cursor - index) / length) * length - cursor;
+};
+
+const modIndex = (index: number, length: number): number => {
+  if (length <= 0) return 0;
+  return ((index % length) + length) % length;
 };
 
 /**
@@ -73,6 +77,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [maxPeers, setMaxPeers] = useState(1);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+  /** Unbounded carousel position; ±1 per step so every swipe animates the same. */
+  const [ringCursor, setRingCursor] = useState(activeIndex);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -88,6 +94,23 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const prevOffsets = useRef(new Map<string, number>());
 
   const activeSection = sections[activeIndex] ?? sections[0];
+  const sectionCount = sections.length;
+
+  // Keep the unbounded cursor aligned when a tap, Home/End, or route sets activeIndex.
+  useEffect(() => {
+    if (!sectionCount) return;
+    setRingCursor((cursor) => {
+      const shown = modIndex(cursor, sectionCount);
+      if (shown === activeIndex) return cursor;
+      return cursor + ringOffset(activeIndex, cursor, sectionCount);
+    });
+  }, [activeIndex, sectionCount]);
+
+  useLayoutEffect(() => {
+    sections.forEach((section, index) => {
+      prevOffsets.current.set(section.id, ringOffset(index, ringCursor, sectionCount));
+    });
+  }, [ringCursor, sections, sectionCount]);
 
   // Layout follows the viewport instead of scaling a whole subtree, so menu
   // labels stay at their real type size on a phone.
@@ -179,8 +202,11 @@ const MainMenu: React.FC<MainMenuProps> = ({
   }, [sections, select]);
 
   const moveBy = useCallback((direction: 1 | -1, source: 'keyboard' | 'gesture' | 'pointer') => {
+    const total = sections.length;
+    if (!total) return;
+    setRingCursor((cursor) => cursor + direction);
     moveTo(activeIndex + direction, source);
-  }, [activeIndex, moveTo]);
+  }, [activeIndex, moveTo, sections.length]);
 
   // Arrow/Home/End always belong to the menu while it is active. Enter/Space
   // stay on the focused option so a leftover button never opens a section.
@@ -414,16 +440,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
         style={{ opacity: Math.min(1, Math.max(0.35, orbitScale)) }}
       />
 
-      {/* BTC ticker + clock: the menu itself is the label. */}
-      <header className="relative z-10 flex shrink-0 items-center justify-end gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:gap-4 md:px-10 md:pt-6">
-        <div className={hideClock ? 'invisible' : ''}>
-          <Suspense fallback={<div className="btc-ticker btc-ticker--pending" aria-hidden="true" />}>
-            <BtcTicker compact={short} paused={!keyboardEnabled} />
-          </Suspense>
-        </div>
-        <div className={`text-right font-mono leading-tight ${hideClock ? 'invisible' : ''}`}>
-          <Clock compact={short} />
-        </div>
+      {/* Price | sparkline | clock — menu itself is the label. */}
+      <header
+        className={`menu-chrome relative z-10 shrink-0 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6 ${
+          hideClock ? 'invisible' : ''
+        }`}
+      >
+        <MenuBtcHeader
+          compact={short}
+          paused={!keyboardEnabled}
+          clock={<Clock compact={short} />}
+        />
       </header>
 
       <div aria-hidden="true" className="mx-5 mt-3 h-px shrink-0 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent md:mx-10" />
@@ -446,7 +473,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
             className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[150px]' : 'h-[190px] md:h-[248px]'}`}
           >
             {sections.map((section, index) => {
-              const offset = shortestOffset(index, activeIndex, sections.length);
+              const offset = ringOffset(index, ringCursor, sectionCount);
               const distance = Math.abs(offset);
               const active = offset === 0;
               const peeking = distance <= maxPeers;
@@ -455,12 +482,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
               // tiles behind the stage plane, where touch hit-testing handed
               // their taps to the parent. Depth comes from scale and opacity.
               const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${active ? 1 : 0.82})`;
-              // Circular wrap: a tile that jumps to the other side must not tween
-              // through the centre (that read as sliding in from behind). Neighbors
-              // that only move one slot keep the same slide either direction.
+              // Only the tile that wraps to the other side skips the tween;
+              // every ±1 neighbor slides the same way on a constant rotunda.
               const previous = prevOffsets.current.get(section.id);
-              const wrapped = previous !== undefined && Math.abs(offset - previous) > 1;
-              prevOffsets.current.set(section.id, offset);
+              const wrapped = previous !== undefined && Math.abs(offset - previous) > 1.5;
               return (
                 <div
                   key={section.id}
