@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { usePrefersReducedMotion } from '../utils/preferences';
 
 export const SkeletonLine: React.FC<{ width?: string; className?: string }> = ({
   width = '100%',
@@ -43,7 +44,7 @@ export const ListSkeleton: React.FC<{
 /** Full-screen fallback for the lazy section chunk. */
 export const ScreenSkeleton: React.FC = () => (
   <div
-    className="screen-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60"
+    className="screen-backdrop skeleton-backdrop fixed inset-x-0 top-0 z-50 flex items-stretch justify-center px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] md:p-12 bg-black/60"
     style={{ height: 'var(--app-height)' }}
     role="status"
     aria-live="polite"
@@ -73,3 +74,60 @@ export const ScreenSkeleton: React.FC = () => (
     </div>
   </div>
 );
+
+const SuspenseFallback: React.FC<{ onShow: () => void }> = ({ onShow }) => {
+  useLayoutEffect(() => {
+    onShow();
+  }, [onShow]);
+  return <ScreenSkeleton />;
+};
+
+/**
+ * Suspense that keeps section chrome continuous (Stage Show / Family Values):
+ * cold chunk → skeleton at final panel geometry → real screen crossfades in
+ * without a second scale pop. Warm chunk skips the skeleton entirely.
+ */
+export const SoftScreenSuspense: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const didSuspend = useRef(false);
+  const [exiting, setExiting] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  const onShow = useCallback(() => {
+    didSuspend.current = true;
+  }, []);
+
+  const onReady = useCallback(() => {
+    if (!didSuspend.current || reducedMotion) return undefined;
+    setExiting(true);
+    const timer = window.setTimeout(() => setExiting(false), 260);
+    return () => window.clearTimeout(timer);
+  }, [reducedMotion]);
+
+  return (
+    <>
+      {exiting ? (
+        <div className="skeleton-hold skeleton-hold--exit" aria-hidden="true">
+          <ScreenSkeleton />
+        </div>
+      ) : null}
+      <Suspense fallback={<SuspenseFallback onShow={onShow} />}>
+        <ReadyReveal fromSkeleton={didSuspend.current} onReady={onReady}>
+          {children}
+        </ReadyReveal>
+      </Suspense>
+    </>
+  );
+};
+
+const ReadyReveal: React.FC<{
+  fromSkeleton: boolean;
+  onReady: () => void | (() => void);
+  children: React.ReactNode;
+}> = ({ fromSkeleton, onReady, children }) => {
+  useLayoutEffect(() => onReady(), [onReady]);
+  return (
+    <div className={fromSkeleton ? 'screen-from-skeleton' : undefined}>
+      {children}
+    </div>
+  );
+};

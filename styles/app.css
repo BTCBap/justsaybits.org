@@ -2458,7 +2458,14 @@ html[data-motion="reduced"] .essay-prose a {
 .skeleton-block {
   display: block;
   border-radius: 1px;
-  background: rgba(42, 78, 138, 0.35);
+  background:
+    linear-gradient(
+      105deg,
+      rgba(42, 78, 138, 0.28) 0%,
+      rgba(110, 168, 255, 0.38) 45%,
+      rgba(42, 78, 138, 0.28) 90%
+    );
+  background-size: 220% 100%;
 }
 
 .skeleton-line {
@@ -2467,7 +2474,14 @@ html[data-motion="reduced"] .essay-prose a {
 
 .skeleton-line--title {
   height: 1rem;
-  background: rgba(52, 96, 168, 0.45);
+  background:
+    linear-gradient(
+      105deg,
+      rgba(52, 96, 168, 0.34) 0%,
+      rgba(130, 180, 255, 0.48) 45%,
+      rgba(52, 96, 168, 0.34) 90%
+    );
+  background-size: 220% 100%;
 }
 
 .skeleton-list {
@@ -2486,11 +2500,16 @@ html[data-motion="reduced"] .essay-prose a {
 }
 
 .skeleton-item--card {
+  min-height: 5.5rem;
   padding: 1rem;
 }
 
+.skeleton-item--row {
+  min-height: 5.5rem;
+}
+
 .skeleton-item--media {
-  min-height: 4.2rem;
+  min-height: 5.5rem;
 }
 
 .skeleton-square {
@@ -2498,7 +2517,14 @@ html[data-motion="reduced"] .essay-prose a {
   width: 1.5rem;
   height: 1.5rem;
   border: 1px solid rgba(90, 140, 235, 0.35);
-  background: rgba(42, 78, 138, 0.3);
+  background:
+    linear-gradient(
+      105deg,
+      rgba(42, 78, 138, 0.3) 0%,
+      rgba(110, 168, 255, 0.42) 45%,
+      rgba(42, 78, 138, 0.3) 90%
+    );
+  background-size: 220% 100%;
 }
 
 .skeleton-screen__tabs {
@@ -2509,10 +2535,47 @@ html[data-motion="reduced"] .essay-prose a {
   padding: 0.7rem 1rem;
 }
 
-.skeleton-screen .skeleton-line,
-.skeleton-screen .skeleton-block,
+.skeleton-line,
+.skeleton-block,
+.skeleton-square,
 .safe-image__skeleton {
-  animation: skeleton-pulse 1.4s ease-in-out infinite;
+  animation: skeleton-shimmer 2.4s ease-in-out infinite;
+}
+
+.skeleton-hold {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.skeleton-hold--exit {
+  animation: skeleton-hold-out 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.skeleton-hold--exit .skeleton-backdrop,
+.skeleton-hold--exit .skeleton-screen {
+  animation: none !important;
+  opacity: 1;
+}
+
+/* Skeleton sits at final panel size — no scale pop while waiting. */
+.skeleton-backdrop {
+  animation: screen-backdrop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.skeleton-screen.screen-panel {
+  animation: skeleton-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* After a cold chunk, morph in with opacity only so chrome does not re-scale. */
+.screen-from-skeleton .screen-backdrop {
+  animation: none;
+  opacity: 1;
+}
+
+.screen-from-skeleton .screen-panel {
+  animation: screen-panel-morph 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .state-panel {
@@ -2751,9 +2814,30 @@ html[data-motion="reduced"] .essay-prose a {
   50% { opacity: 0.95; }
 }
 
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; opacity: 0.62; }
+  50% { opacity: 0.92; }
+  100% { background-position: -100% 0; opacity: 0.62; }
+}
+
 @keyframes skeleton-sweep {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
+}
+
+@keyframes skeleton-panel-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes skeleton-hold-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes screen-panel-morph {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes offline-in {
@@ -2764,6 +2848,11 @@ html[data-motion="reduced"] .essay-prose a {
 html[data-motion="reduced"] .safe-image__skeleton,
 html[data-motion="reduced"] .skeleton-line,
 html[data-motion="reduced"] .skeleton-block,
+html[data-motion="reduced"] .skeleton-square,
+html[data-motion="reduced"] .skeleton-hold--exit,
+html[data-motion="reduced"] .skeleton-backdrop,
+html[data-motion="reduced"] .skeleton-screen,
+html[data-motion="reduced"] .screen-from-skeleton .screen-panel,
 html[data-motion="reduced"] .book-cover,
 html[data-motion="reduced"] .offline-notice,
 html[data-motion="reduced"] .design-tile__button,
@@ -2780,6 +2869,11 @@ html[data-motion="reduced"] .book-cover {
   .safe-image__skeleton,
   .skeleton-line,
   .skeleton-block,
+  .skeleton-square,
+  .skeleton-hold--exit,
+  .skeleton-backdrop,
+  .skeleton-screen,
+  .screen-from-skeleton .screen-panel,
   .offline-notice {
     animation: none !important;
   }
@@ -2787,4 +2881,56 @@ html[data-motion="reduced"] .book-cover {
   .book-cover {
     transform: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   BTC ticker (liveline) — compact sparkline beside the menu clock
+--------------------------------------------------------------------------- */
+.btc-ticker {
+  width: 148px;
+  height: 52px;
+  flex: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.btc-ticker--compact {
+  width: 124px;
+  height: 44px;
+}
+
+.btc-ticker--pending,
+.btc-ticker--muted {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.btc-ticker__chart {
+  width: 100%;
+  height: 100%;
+}
+
+.btc-ticker__fallback {
+  text-align: right;
+  line-height: 1.15;
+}
+
+.btc-ticker__price {
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: rgba(191, 219, 254, 0.45);
+}
+
+.btc-ticker--compact .btc-ticker__price {
+  font-size: 16px;
+}
+
+.btc-ticker__label {
+  margin-top: 0.15rem;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
