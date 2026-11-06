@@ -3,8 +3,11 @@ import { usePrefersReducedMotion } from '../utils/preferences';
 
 const TICKER_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/ticker';
 const CANDLES_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60';
-const POLL_MS = 2_000;
-export const BTC_WINDOW_SECS = 900;
+/** Ticker-only poll. Coinbase public REST allows 10 req/s/IP (burst 15); 1 Hz
+ *  stays ~10× under that. Candles load once on mount — do not re-poll them. */
+const POLL_MS = 1_000;
+/** 5-minute sparkline window — shorter than 15m so each tick moves more. */
+export const BTC_WINDOW_SECS = 300;
 export const BTC_ACCENT = '#6ea8ff';
 const MAX_POINTS = 180;
 

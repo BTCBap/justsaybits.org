@@ -1,18 +1,36 @@
 /**
- * Liveline has no prop to hide the dashed live-price guide. `grid={false}` only
- * removes Y-axis grid lines. Flip the drawLine default so our header sparkline
- * stays clean. Idempotent — safe to re-run on every install.
+ * Liveline has no props for a few header-sparkline chrome bits we want gone.
+ * `grid={false}` only removes Y-axis grid lines; the dashed live-price guide,
+ * X-axis time labels, and the baseline axis line still draw. Flip those
+ * defaults / early-return so the header sparkline stays clean. Idempotent —
+ * safe to re-run on every install.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const before = 'skipDashLine = false';
-const after = 'skipDashLine = true';
 const targets = ['index.js', 'index.cjs'].map((name) =>
   path.join(root, 'node_modules', 'liveline', 'dist', name),
 );
+
+/** @type {Array<{ name: string; before: string; after: string }>} */
+const patches = [
+  {
+    name: 'dash guide',
+    before: 'skipDashLine = false',
+    after: 'skipDashLine = true',
+  },
+  // No-op the time axis (baseline + tick labels like 21:10:00). Keep the
+  // function signature so call sites stay valid.
+  {
+    name: 'time axis',
+    before:
+      'function drawTimeAxis(ctx, layout, palette, windowSecs, targetWindowSecs, formatTime, state, dt) {',
+    after:
+      'function drawTimeAxis(ctx, layout, palette, windowSecs, targetWindowSecs, formatTime, state, dt) { return;',
+  },
+];
 
 if (!targets.some((t) => fs.existsSync(t))) {
   console.warn('[patch-liveline] liveline not installed; skip');
@@ -22,18 +40,27 @@ if (!targets.some((t) => fs.existsSync(t))) {
 let patched = 0;
 for (const target of targets) {
   if (!fs.existsSync(target)) continue;
-  const source = fs.readFileSync(target, 'utf8');
-  if (source.includes(after) && !source.includes(before)) {
-    console.log(`[patch-liveline] already patched ${path.basename(target)}`);
-    continue;
+  let source = fs.readFileSync(target, 'utf8');
+  let changed = false;
+  for (const patch of patches) {
+    if (source.includes(patch.after) && !source.includes(patch.before)) {
+      console.log(`[patch-liveline] already patched ${patch.name} in ${path.basename(target)}`);
+      continue;
+    }
+    if (!source.includes(patch.before)) {
+      console.warn(
+        `[patch-liveline] expected ${patch.name} pattern not found in ${path.basename(target)}; skip`,
+      );
+      continue;
+    }
+    source = source.replaceAll(patch.before, patch.after);
+    changed = true;
+    console.log(`[patch-liveline] disabled ${patch.name} in ${path.basename(target)}`);
   }
-  if (!source.includes(before)) {
-    console.warn(`[patch-liveline] expected default not found in ${path.basename(target)}; skip`);
-    continue;
+  if (changed) {
+    fs.writeFileSync(target, source);
+    patched += 1;
   }
-  fs.writeFileSync(target, source.replaceAll(before, after));
-  patched += 1;
-  console.log(`[patch-liveline] disabled dash guide in ${path.basename(target)}`);
 }
 
 if (patched === 0) {

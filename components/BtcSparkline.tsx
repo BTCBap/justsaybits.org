@@ -30,12 +30,12 @@ const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
         degen={false}
         exaggerate
         fill
-        momentum={!reducedMotion}
+        momentum={false}
         pulse={!reducedMotion}
         loading={!ready}
         paused={chartPaused}
         window={BTC_WINDOW_SECS}
-        padding={{ top: 12, right: 22, bottom: 16, left: 8 }}
+        padding={{ top: 12, right: 22, bottom: 8, left: 8 }}
         lineWidth={2}
         lerpSpeed={reducedMotion ? 1 : 0.12}
         emptyText=""
