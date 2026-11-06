@@ -1,12 +1,12 @@
-import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Section } from '../types';
 import { interaction } from '../utils/Interaction';
 import { hapticManager } from '../utils/HapticManager';
 import { usePrefersReducedMotion } from '../utils/preferences';
 import type { NavOrigin } from '../utils/router';
+import MenuBtcHeader from './MenuBtcHeader';
 
-const BtcTicker = lazy(() => import('./BtcTicker'));
 
 interface MainMenuProps {
   sections: Section[];
@@ -45,11 +45,31 @@ interface DragState {
   target: EventTarget | null;
 }
 
-const shortestOffset = (index: number, activeIndex: number, length: number): number => {
-  let offset = index - activeIndex;
-  if (offset > length / 2) offset -= length;
-  if (offset < -length / 2) offset += length;
+/** Nearest replica of `index` on the number line around `cursor`, minus cursor. */
+const ringOffset = (index: number, cursor: number, length: number): number => {
+  if (length <= 0) return 0;
+  return index + Math.round((cursor - index) / length) * length - cursor;
+};
+
+/**
+ * Slot on the ring for `index`. With an even count the tile opposite the
+ * cursor is a tie; park it on the side the strip just came from so the next
+ * step in the same direction slides it in, never pops it.
+ */
+const slotOffset = (index: number, cursor: number, length: number, dir: 1 | -1): number => {
+  const offset = ringOffset(index, cursor, length);
+  if (length % 2 === 0 && Math.abs(offset) === length / 2) return dir > 0 ? -length / 2 : length / 2;
   return offset;
+};
+
+const tileTransform = (offset: number, spacing: number, dragX = 0): string => {
+  const distance = Math.abs(offset);
+  return `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${offset === 0 ? 1 : 0.82})`;
+};
+
+const modIndex = (index: number, length: number): number => {
+  if (length <= 0) return 0;
+  return ((index % length) + length) % length;
 };
 
 /**
@@ -73,6 +93,10 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [maxPeers, setMaxPeers] = useState(1);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+  /** Unbounded carousel position; ±1 per step so every swipe animates the same. */
+  const [ringCursor, setRingCursor] = useState(activeIndex);
+  /** Direction of the last step; decides which side the opposite tile waits on. */
+  const [ringDir, setRingDir] = useState<1 | -1>(1);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -84,10 +108,52 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const touchTapActivated = useRef(false);
   /** Wall clock of the swipe that just ended: its tail click is not a tap. */
   const swipeEndedAt = useRef(-Infinity);
-  /** Last rendered slot offset per section; a wrap jump skips the slide tween. */
+  /** Last committed slot per section and cursor; a wrapping tile is FLIP-ed in. */
   const prevOffsets = useRef(new Map<string, number>());
+  const prevCursor = useRef<number | null>(null);
 
   const activeSection = sections[activeIndex] ?? sections[0];
+  const sectionCount = sections.length;
+
+  // Keep the unbounded cursor aligned when a tap, Home/End, or route sets activeIndex.
+  useEffect(() => {
+    if (!sectionCount) return;
+    setRingCursor((cursor) => {
+      const shown = modIndex(cursor, sectionCount);
+      if (shown === activeIndex) return cursor;
+      const step = ringOffset(activeIndex, cursor, sectionCount);
+      setRingDir(step < 0 ? -1 : 1);
+      return cursor + step;
+    });
+  }, [activeIndex, sectionCount]);
+
+  // Constant rotunda: on a ±1 step every tile moves exactly one slot. The one
+  // tile that wraps to the far side is first placed one slot outside its new
+  // position (off-screen, opacity 0), then tweens in like its neighbours.
+  useLayoutEffect(() => {
+    const lastCursor = prevCursor.current;
+    const delta = lastCursor === null ? 0 : ringCursor - lastCursor;
+    const flips: Array<{ element: HTMLDivElement; offset: number }> = [];
+    sections.forEach((section, index) => {
+      const offset = slotOffset(index, ringCursor, sectionCount, ringDir);
+      const previous = prevOffsets.current.get(section.id);
+      prevOffsets.current.set(section.id, offset);
+      if (previous === undefined || delta === 0 || reducedMotion) return;
+      if (offset - previous === -delta) return;
+      const element = optionRefs.current.get(section.id);
+      if (!element) return;
+      element.style.transition = 'none';
+      element.style.transform = tileTransform(Math.abs(delta) === 1 ? offset + delta : offset, spacing);
+      flips.push({ element, offset });
+    });
+    prevCursor.current = ringCursor;
+    if (!flips.length) return;
+    void stageRef.current?.offsetWidth; // commit the pre-position before tweening
+    flips.forEach(({ element, offset }) => {
+      element.style.transition = MOVE_TRANSITION;
+      element.style.transform = tileTransform(offset, spacing);
+    });
+  }, [ringCursor, ringDir, sections, sectionCount, spacing, reducedMotion]);
 
   // Layout follows the viewport instead of scaling a whole subtree, so menu
   // labels stay at their real type size on a phone.
@@ -179,8 +245,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
   }, [sections, select]);
 
   const moveBy = useCallback((direction: 1 | -1, source: 'keyboard' | 'gesture' | 'pointer') => {
+    const total = sections.length;
+    if (!total) return;
+    setRingCursor((cursor) => cursor + direction);
+    setRingDir(direction);
     moveTo(activeIndex + direction, source);
-  }, [activeIndex, moveTo]);
+  }, [activeIndex, moveTo, sections.length]);
 
   // Arrow/Home/End always belong to the menu while it is active. Enter/Space
   // stay on the focused option so a leftover button never opens a section.
@@ -414,16 +484,17 @@ const MainMenu: React.FC<MainMenuProps> = ({
         style={{ opacity: Math.min(1, Math.max(0.35, orbitScale)) }}
       />
 
-      {/* BTC ticker + clock: the menu itself is the label. */}
-      <header className="relative z-10 flex shrink-0 items-center justify-end gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:gap-4 md:px-10 md:pt-6">
-        <div className={hideClock ? 'invisible' : ''}>
-          <Suspense fallback={<div className="btc-ticker btc-ticker--pending" aria-hidden="true" />}>
-            <BtcTicker compact={short} paused={!keyboardEnabled} />
-          </Suspense>
-        </div>
-        <div className={`text-right font-mono leading-tight ${hideClock ? 'invisible' : ''}`}>
-          <Clock compact={short} />
-        </div>
+      {/* Price | sparkline | clock — menu itself is the label. */}
+      <header
+        className={`menu-chrome relative z-10 shrink-0 px-5 pt-[max(1rem,env(safe-area-inset-top,0px))] md:px-10 md:pt-6 ${
+          hideClock ? 'invisible' : ''
+        }`}
+      >
+        <MenuBtcHeader
+          compact={short}
+          paused={!keyboardEnabled}
+          clock={<Clock compact={short} />}
+        />
       </header>
 
       <div aria-hidden="true" className="mx-5 mt-3 h-px shrink-0 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent md:mx-10" />
@@ -446,7 +517,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
             className={`menu-stage relative mx-auto w-full select-none ${short ? 'h-[150px]' : 'h-[190px] md:h-[248px]'}`}
           >
             {sections.map((section, index) => {
-              const offset = shortestOffset(index, activeIndex, sections.length);
+              const offset = slotOffset(index, ringCursor, sectionCount, ringDir);
               const distance = Math.abs(offset);
               const active = offset === 0;
               const peeking = distance <= maxPeers;
@@ -454,13 +525,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
               // Flat transforms only: a negative translateZ put the peeking
               // tiles behind the stage plane, where touch hit-testing handed
               // their taps to the parent. Depth comes from scale and opacity.
-              const transform = `translate(-50%, -50%) translate3d(${offset * spacing + dragX}px, ${distance * 4}px, 0) scale(${active ? 1 : 0.82})`;
-              // Circular wrap: a tile that jumps to the other side must not tween
-              // through the centre (that read as sliding in from behind). Neighbors
-              // that only move one slot keep the same slide either direction.
-              const previous = prevOffsets.current.get(section.id);
-              const wrapped = previous !== undefined && Math.abs(offset - previous) > 1;
-              prevOffsets.current.set(section.id, offset);
+              const transform = tileTransform(offset, spacing, dragX);
               return (
                 <div
                   key={section.id}
@@ -484,7 +549,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
                     visibility: peeking || distance <= maxPeers + 1 ? 'visible' : 'hidden',
                     pointerEvents: peeking ? 'auto' : 'none',
                     zIndex: 20 - distance,
-                    transition: reducedMotion || dragging || wrapped ? 'none' : MOVE_TRANSITION,
+                    transition: reducedMotion || dragging ? 'none' : MOVE_TRANSITION,
                   }}
                 >
                   <span

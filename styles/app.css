@@ -2884,53 +2884,137 @@ html[data-motion="reduced"] .book-cover {
 }
 
 /* ---------------------------------------------------------------------------
-   BTC ticker (liveline) — compact sparkline beside the menu clock
+   Menu chrome: price | sparkline | clock
 --------------------------------------------------------------------------- */
-.btc-ticker {
-  width: 148px;
-  height: 52px;
-  flex: none;
-  overflow: hidden;
-  pointer-events: none;
+.menu-chrome__feed {
+  display: contents;
 }
 
-.btc-ticker--compact {
-  width: 124px;
-  height: 44px;
+.menu-chrome {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) minmax(4.5rem, auto);
+  align-items: center;
+  column-gap: 0.65rem;
+  row-gap: 0.35rem;
 }
 
-.btc-ticker--pending,
-.btc-ticker--muted {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
+.menu-chrome__price {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
 }
 
-.btc-ticker__chart {
-  width: 100%;
-  height: 100%;
+.menu-chrome__chart {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: stretch;
+  min-width: 0;
 }
 
-.btc-ticker__fallback {
-  text-align: right;
-  line-height: 1.15;
+.menu-chrome__clock {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
 
-.btc-ticker__price {
-  font-size: 20px;
+@media (min-width: 768px) {
+  /* Price + sparkline grouped left; clock stays top-right. */
+  .menu-chrome {
+    grid-template-columns: auto minmax(180px, 280px) 1fr auto;
+    grid-template-rows: auto;
+    column-gap: 0.85rem;
+    align-items: center;
+  }
+
+  .menu-chrome__price {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: center;
+  }
+
+  .menu-chrome__chart {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: stretch;
+    align-self: center;
+    width: 100%;
+  }
+
+  .menu-chrome__clock {
+    grid-column: 4;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+}
+
+.btc-price {
+  line-height: 1.1;
+  text-align: left;
+}
+
+.btc-price__value {
+  font-size: 18px;
   font-weight: 300;
   letter-spacing: 0.12em;
-  color: rgba(191, 219, 254, 0.45);
+  color: #eff6ff;
 }
 
-.btc-ticker--compact .btc-ticker__price {
-  font-size: 16px;
+.btc-price--compact .btc-price__value {
+  font-size: 15px;
 }
 
-.btc-ticker__label {
+.btc-price__label {
   margin-top: 0.15rem;
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.btc-spark {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 44px;
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint size;
+  border-radius: 2px;
+}
+
+.btc-spark--compact {
+  height: 36px;
+}
+
+@media (min-width: 768px) {
+  .btc-spark {
+    height: 64px;
+  }
+}
+
+/* Liveline sizes itself from the parent box — do not force canvas to 100vh. */
+.btc-spark > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+.btc-spark--empty {
+  background: linear-gradient(90deg, transparent, rgba(110, 168, 255, 0.08), transparent);
+}
+
+.btc-ticker-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 160px;
+}
+
+.btc-ticker-stack--compact {
+  width: 132px;
 }
