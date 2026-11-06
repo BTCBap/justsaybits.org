@@ -1,10 +1,10 @@
 import React from 'react';
 import { Liveline } from 'liveline';
 import { usePrefersReducedMotion } from '../utils/preferences';
-import { BTC_ACCENT, BTC_WINDOW_SECS, useBtcFeed } from './BtcFeed';
+import { BTC_ACCENT, useBtcFeed } from './BtcFeed';
 
 const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
-  const { chartData, value, ready, chartPaused, failed } = useBtcFeed();
+  const { chartData, chartWindow, value, ready, chartPaused, failed } = useBtcFeed();
   const reducedMotion = usePrefersReducedMotion();
 
   if (failed && value === null) {
@@ -34,7 +34,7 @@ const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
         pulse={!reducedMotion}
         loading={!ready}
         paused={chartPaused}
-        window={BTC_WINDOW_SECS}
+        window={chartWindow}
         padding={{ top: 12, right: 22, bottom: 8, left: 8 }}
         lineWidth={2}
         lerpSpeed={reducedMotion ? 1 : 0.12}
