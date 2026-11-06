@@ -22,18 +22,27 @@ const candlesUrl = (nowSec: number): string => {
 };
 
 /**
- * Build liveline series with *stable* real timestamps.
+ * Build liveline series without per-poll X remapping (the boot blink/resize).
  *
  * densifyWindow used to re-stretch every tick across a fixed 60s viewport, so
- * historical X positions jumped every poll (blink/jitter). Instead:
+ * historical X positions jumped every poll. A growing `window` prop also
+ * resized the chart every second on boot. Instead:
  *   1. Keep only the contiguous ~1s tick run (drop minute candles).
- *   2. Anchor the viewport to the first live tick and grow until windowSecs.
- *   3. Then slide [now - windowSecs, now] — never remap past points.
+ *   2. On first reveal (≥2 ticks), stretch that seed ONCE into [now-60, now]
+ *      and freeze those absolute chart times.
+ *   3. Append later ticks with real timestamps; viewport stays windowSecs.
+ * Past seed points never move; window never resizes → no blink on boot.
  */
 export interface ChartSeries {
   points: BtcPoint[];
-  /** Liveline `window` — grows from first tick until BTC_WINDOW_SECS, then fixed. */
   windowSecs: number;
+}
+
+/** Frozen one-shot densify baseline — absolute chart times, not recomputed. */
+export interface DensifyLock {
+  seed: BtcPoint[];
+  /** Newest real tick time included in the seed stretch. */
+  seedRealMax: number;
 }
 
 const liveTicks = (points: BtcPoint[], nowSec: number): BtcPoint[] => {
@@ -55,26 +64,54 @@ const liveTicks = (points: BtcPoint[], nowSec: number): BtcPoint[] => {
   return ticks;
 };
 
+export const createDensifyLock = (
+  ticks: BtcPoint[],
+  windowSecs: number,
+  nowSec: number,
+): DensifyLock => {
+  const tMin = ticks[0].time;
+  const span = Math.max(1, nowSec - tMin);
+  const left = nowSec - windowSecs;
+  return {
+    seed: ticks.map((point) => ({
+      time: left + ((point.time - tMin) / span) * windowSecs,
+      value: point.value,
+    })),
+    seedRealMax: ticks[ticks.length - 1].time,
+  };
+};
+
+export const applyDensifyLock = (
+  ticks: BtcPoint[],
+  lock: DensifyLock,
+  windowSecs: number,
+  nowSec: number,
+): BtcPoint[] => {
+  const left = nowSec - windowSecs;
+  const out: BtcPoint[] = lock.seed.filter((point) => point.time >= left - 1);
+  for (const tick of ticks) {
+    if (tick.time > lock.seedRealMax) out.push(tick);
+  }
+  return out;
+};
+
 export const buildChartSeries = (
   points: BtcPoint[],
   windowSecs: number,
   nowSec: number = Math.floor(Date.now() / 1000),
-): ChartSeries => {
+  lock: DensifyLock | null = null,
+): { series: ChartSeries; lock: DensifyLock | null } => {
   const ticks = liveTicks(points, nowSec);
-  if (ticks.length === 0) return { points: [], windowSecs: Math.max(1, windowSecs) };
-
-  const first = ticks[0].time;
-  const elapsed = Math.max(1, nowSec - first);
-
-  if (elapsed < windowSecs) {
-    // Growing LTR viewport anchored at the first live tick — real times only.
-    return { points: ticks, windowSecs: elapsed };
+  if (ticks.length < 2) {
+    return { series: { points: [], windowSecs }, lock: null };
   }
-
-  const left = nowSec - windowSecs;
+  const nextLock = lock ?? createDensifyLock(ticks, windowSecs, nowSec);
   return {
-    points: ticks.filter((point) => point.time >= left - 1),
-    windowSecs,
+    series: {
+      points: applyDensifyLock(ticks, nextLock, windowSecs, nowSec),
+      windowSecs,
+    },
+    lock: nextLock,
   };
 };
 
@@ -83,16 +120,16 @@ export const densifyWindow = (
   points: BtcPoint[],
   windowSecs: number,
   nowSec: number = Math.floor(Date.now() / 1000),
-): BtcPoint[] => buildChartSeries(points, windowSecs, nowSec).points;
+): BtcPoint[] => buildChartSeries(points, windowSecs, nowSec).series.points;
 
 export const formatUsd = (v: number): string =>
   `$${Math.round(v).toLocaleString('en-US')}`;
 
 export interface BtcFeedState {
   data: BtcPoint[];
-  /** Live-tick series for liveline — real timestamps, no remapping. */
+  /** Chart series for liveline — frozen seed + real appends, fixed window. */
   chartData: BtcPoint[];
-  /** Growing-then-sliding liveline window in seconds. */
+  /** Fixed liveline window (BTC_WINDOW_SECS) — never resizes after boot. */
   chartWindow: number;
   value: number | null;
   failed: boolean;
@@ -116,6 +153,8 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ children }) =>
     () => typeof document !== 'undefined' && document.hidden,
   );
   const valueRef = useRef<number | null>(null);
+  /** One-shot densify baseline — set on first reveal, never recomputed. */
+  const densifyLockRef = useRef<DensifyLock | null>(null);
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
@@ -196,12 +235,22 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ children }) =>
     };
   }, []);
 
-  // Gate the liveline morph on a live ticker. Chart uses real tick times with
-  // a viewport that grows from the first tick until BTC_WINDOW_SECS, then slides.
-  const series = useMemo(
-    () => (value === null ? { points: [], windowSecs: 1 } : buildChartSeries(data, BTC_WINDOW_SECS)),
-    [data, value],
-  );
+  // Gate the liveline morph on a live ticker. Stretch the first tick run once,
+  // then append with real times — fixed 60s window, no per-poll remap/resize.
+  const series = useMemo(() => {
+    if (value === null) {
+      densifyLockRef.current = null;
+      return { points: [], windowSecs: BTC_WINDOW_SECS };
+    }
+    const built = buildChartSeries(
+      data,
+      BTC_WINDOW_SECS,
+      Math.floor(Date.now() / 1000),
+      densifyLockRef.current,
+    );
+    densifyLockRef.current = built.lock;
+    return built.series;
+  }, [data, value]);
   const chartData = series.points;
   const chartWindow = series.windowSecs;
   const ready = value !== null && chartData.length > 1;
