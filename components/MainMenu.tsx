@@ -492,7 +492,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
       >
         <MenuBtcHeader
           compact={short}
-          paused={!keyboardEnabled}
           clock={<Clock compact={short} />}
         />
       </header>

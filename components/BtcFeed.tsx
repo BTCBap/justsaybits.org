@@ -2,25 +2,82 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { usePrefersReducedMotion } from '../utils/preferences';
 
 const TICKER_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/ticker';
-const CANDLES_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60';
 /** Ticker-only poll. Coinbase public REST allows 10 req/s/IP (burst 15); 1 Hz
  *  stays ~10× under that. Candles load once on mount — do not re-poll them. */
 const POLL_MS = 1_000;
-/** 2-minute sparkline window — 1s ticks fill it quickly. */
-export const BTC_WINDOW_SECS = 120;
+/** 1-minute sparkline window — matches ~1s tick density without a long empty left. */
+export const BTC_WINDOW_SECS = 60;
 export const BTC_ACCENT = '#6ea8ff';
-const MAX_POINTS = 180;
+const MAX_POINTS = 120;
 
 export interface BtcPoint {
   time: number;
   value: number;
 }
 
+const candlesUrl = (nowSec: number): string => {
+  const start = new Date((nowSec - BTC_WINDOW_SECS * 4) * 1000).toISOString();
+  const end = new Date(nowSec * 1000).toISOString();
+  return `https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start=${start}&end=${end}`;
+};
+
+/**
+ * Liveline maps X across a fixed [now - window, now] range, so a short tick
+ * history leaves an empty left pad. Remap real tick times onto the full window
+ * until we have ~windowSecs of history; after that, pass through. Flat
+ * forward-fill looked empty under exaggerate + the left fade mask.
+ *
+ * Minute candles are skipped for chart geometry — at 60s spacing they cannot
+ * fill a 60s window and recreate the gap Zach saw.
+ */
+export const densifyWindow = (
+  points: BtcPoint[],
+  windowSecs: number,
+  nowSec: number = Math.floor(Date.now() / 1000),
+): BtcPoint[] => {
+  if (points.length === 0) return points;
+  const sorted = [...points]
+    .filter((point) => point.time <= nowSec + 1)
+    .sort((a, b) => a.time - b.time);
+
+  // Keep a run of near-1s samples from the newest point backward. Stop at the
+  // first gap >5s so minute candles do not join the series.
+  const newest = sorted[sorted.length - 1];
+  const ticks: BtcPoint[] = [newest];
+  for (let i = sorted.length - 2; i >= 0; i -= 1) {
+    const point = sorted[i];
+    const newer = ticks[0];
+    if (newer.time - point.time > 5) break;
+    ticks.unshift(point);
+  }
+
+  if (ticks.length === 1) {
+    return [
+      { time: nowSec - windowSecs, value: ticks[0].value },
+      { time: nowSec, value: ticks[0].value },
+    ];
+  }
+
+  const tMin = ticks[0].time;
+  const span = Math.max(1, nowSec - tMin);
+  if (span >= windowSecs * 0.9) {
+    const left = nowSec - windowSecs;
+    return ticks.filter((point) => point.time >= left - 1);
+  }
+  const left = nowSec - windowSecs;
+  return ticks.map((point) => ({
+    time: left + ((point.time - tMin) / span) * windowSecs,
+    value: point.value,
+  }));
+};
+
 export const formatUsd = (v: number): string =>
   `$${Math.round(v).toLocaleString('en-US')}`;
 
 export interface BtcFeedState {
   data: BtcPoint[];
+  /** Densified series for liveline — always spans BTC_WINDOW_SECS. */
+  chartData: BtcPoint[];
   value: number | null;
   failed: boolean;
   ready: boolean;
@@ -44,7 +101,6 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
     () => typeof document !== 'undefined' && document.hidden,
   );
   const valueRef = useRef<number | null>(null);
-
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
@@ -55,6 +111,8 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  // Mount once per provider lifetime. Pause only freezes the chart visual;
+  // the effect must not re-run or it reseeds candles and wipes tick history.
   useEffect(() => {
     let cancelled = false;
     const applyTick = (price: number, time: number) => {
@@ -75,13 +133,13 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
 
     const loadHistory = async () => {
       try {
-        const response = await fetch(CANDLES_URL);
+        const response = await fetch(candlesUrl(Math.floor(Date.now() / 1000)));
         if (!response.ok) throw new Error('candles');
         const candles: number[][] = await response.json();
         const points = candles
           .map((row) => ({ time: row[0], value: row[4] }))
           .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value))
-          .reverse();
+          .sort((a, b) => a.time - b.time);
         if (cancelled || points.length === 0) return;
         // Seed shape only — do not set price from the last candle close.
         // Price stays … and liveline stays loading until the first live ticker.
@@ -93,7 +151,10 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
     };
 
     const poll = async () => {
-      if (document.hidden || paused) return;
+      // Keep collecting ticks while a content screen covers the menu so the
+      // sparkline has continuous history on return. Only the tab being hidden
+      // (or chartPaused below) freezes work.
+      if (document.hidden) return;
       try {
         const response = await fetch(TICKER_URL);
         if (!response.ok) throw new Error('ticker');
@@ -119,14 +180,19 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [paused]);
+  }, []);
 
-  // Gate the liveline morph on a live ticker (value) plus enough points to draw.
-  const ready = value !== null && data.length > 1;
+  // Gate the liveline morph on a live ticker. Densify turns one tick into a
+  // full-width series so we do not wait on sparse candle geometry.
+  const chartData = useMemo(
+    () => (value === null ? [] : densifyWindow(data, BTC_WINDOW_SECS)),
+    [data, value],
+  );
+  const ready = value !== null && chartData.length > 1;
   const chartPaused = paused || hidden || reducedMotion;
   const state = useMemo(
-    () => ({ data, value, failed, ready, chartPaused }),
-    [data, value, failed, ready, chartPaused],
+    () => ({ data, chartData, value, failed, ready, chartPaused }),
+    [data, chartData, value, failed, ready, chartPaused],
   );
 
   return <BtcFeedContext.Provider value={state}>{children}</BtcFeedContext.Provider>;
@@ -135,7 +201,7 @@ export const BtcFeedProvider: React.FC<BtcFeedProviderProps> = ({ paused = false
 export const useBtcFeed = (): BtcFeedState => {
   const ctx = useContext(BtcFeedContext);
   if (!ctx) {
-    return { data: [], value: null, failed: true, ready: false, chartPaused: true };
+    return { data: [], chartData: [], value: null, failed: true, ready: false, chartPaused: true };
   }
   return ctx;
 };

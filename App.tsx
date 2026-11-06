@@ -3,6 +3,7 @@ import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion';
 
 import PS2Background from './components/PS2Background';
 import MainMenu from './components/MainMenu';
+import { BtcFeedProvider } from './components/BtcFeed';
 import LiveStatus from './components/LiveStatus';
 import NotFoundScreen from './components/NotFoundScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -92,48 +93,52 @@ const App: React.FC = () => {
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
       <LazyMotion features={domAnimation} strict>
-        <div className="app-shell relative w-full overflow-hidden bg-[var(--bg)] text-white font-sans">
-          
-          {/* Background Layer */}
-          <PS2Background paused={screenOpen} reducedMotion={reducedMotion} />
+        {/* Session-scoped BTC feed: survives menu ↔ screen hops so the sparkline
+            keeps its tick history instead of reseeding on every return. */}
+        <BtcFeedProvider paused={screenOpen}>
+          <div className="app-shell relative w-full overflow-hidden bg-[var(--bg)] text-white font-sans">
 
-          {/* Main Content Layer */}
-          <div className="relative z-10 w-full h-full">
-            <div
-              ref={menuRef}
-              className="w-full h-full"
-              aria-hidden={screenOpen ? true : undefined}
-              inert={screenOpen || undefined}
-            >
-              <MainMenu
-                sections={SECTIONS}
-                onSelect={openSection}
-                activeIndex={activeMenuIndex}
-                onActiveIndexChange={setActiveMenuIndex}
-                keyboardEnabled={!screenOpen}
-              />
+            {/* Background Layer */}
+            <PS2Background paused={screenOpen} reducedMotion={reducedMotion} />
+
+            {/* Main Content Layer */}
+            <div className="relative z-10 w-full h-full">
+              <div
+                ref={menuRef}
+                className="w-full h-full"
+                aria-hidden={screenOpen ? true : undefined}
+                inert={screenOpen || undefined}
+              >
+                <MainMenu
+                  sections={SECTIONS}
+                  onSelect={openSection}
+                  activeIndex={activeMenuIndex}
+                  onActiveIndexChange={setActiveMenuIndex}
+                  keyboardEnabled={!screenOpen}
+                />
+              </div>
+
+              <ErrorBoundary>
+                {activeSection ? (
+                  <SoftScreenSuspense key={activeSection.id}>
+                    <ContentScreen
+                      section={activeSection}
+                      onBack={closeSection}
+                    />
+                  </SoftScreenSuspense>
+                ) : route.notFound ? (
+                  <NotFoundScreen path={route.path} onHome={closeSection} />
+                ) : null}
+              </ErrorBoundary>
             </div>
 
-            <ErrorBoundary>
-              {activeSection ? (
-                <SoftScreenSuspense key={activeSection.id}>
-                  <ContentScreen
-                    section={activeSection}
-                    onBack={closeSection}
-                  />
-                </SoftScreenSuspense>
-              ) : route.notFound ? (
-                <NotFoundScreen path={route.path} onHome={closeSection} />
-              ) : null}
-            </ErrorBoundary>
+            {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
+            <div className="crt-overlay pointer-events-none fixed inset-0 z-[5]" />
+
+            <LiveStatus />
+            <OfflineNotice />
           </div>
-
-          {/* CRT Scanline Effect Overlay — behind the panels, never over text */}
-          <div className="crt-overlay pointer-events-none fixed inset-0 z-[5]" />
-
-          <LiveStatus />
-          <OfflineNotice />
-        </div>
+        </BtcFeedProvider>
       </LazyMotion>
     </MotionConfig>
   );

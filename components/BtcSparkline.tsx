@@ -4,7 +4,7 @@ import { usePrefersReducedMotion } from '../utils/preferences';
 import { BTC_ACCENT, BTC_WINDOW_SECS, useBtcFeed } from './BtcFeed';
 
 const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
-  const { data, value, ready, chartPaused, failed } = useBtcFeed();
+  const { chartData, value, ready, chartPaused, failed } = useBtcFeed();
   const reducedMotion = usePrefersReducedMotion();
 
   if (failed && value === null) {
@@ -19,7 +19,7 @@ const BtcSparkline: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   return (
     <div className={`btc-spark ${compact ? 'btc-spark--compact' : ''}`} aria-hidden="true">
       <Liveline
-        data={data}
+        data={chartData}
         value={value ?? 0}
         theme="dark"
         color={BTC_ACCENT}

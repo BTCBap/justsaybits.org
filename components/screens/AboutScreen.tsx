@@ -4,18 +4,18 @@ import { WORK_DATA } from '../../constants';
 import ScreenLink from '../ScreenLink';
 
 const BELIEFS = [
-  'Financial freedom from centralized authority',
-  'Data ownership and privacy as fundamental rights',
+  'Independent freedom from centralized authority, data ownership and privacy are fundamental rights',
   'Time is our scarcest asset',
   "Critical thinking and AI literacy are the major skills you'll need to thrive",
   'Tools should be open and accessible to all',
 ];
 
-const OBJECTIVES = [
+const GOALS = [
   'Building open source tools',
   'Leveraging AI and automation to win back time',
   'Promoting Bitcoin adoption and freedom technologies',
   'Prioritizing long-term value creation over short-term gains',
+  'Building the world i want the next generation to inherit',
 ];
 
 /** Small original marks; the text already carries the meaning. */
@@ -65,7 +65,7 @@ const AboutScreen: React.FC = () => {
           <p className="about-copy">
             After a decade in traditional finance, I saw the limitations of centralized institutions
             firsthand. My time is now dedicated to building the alternatives that prioritize individual
-            freedom, ensuring users retain control over their assets and digital lives.
+            freedom, ensuring users retain control over their assets and autonomy over their lives.
           </p>
 
           <nav className="about-links" aria-label="More about Zach">
@@ -95,13 +95,13 @@ const AboutScreen: React.FC = () => {
           </ul>
         </section>
 
-        <section className="about-panel" aria-labelledby="about-objectives">
-          <h2 id="about-objectives" className="ps2-label about-panel__label">Current Objectives</h2>
+        <section className="about-panel" aria-labelledby="about-goals">
+          <h2 id="about-goals" className="ps2-label about-panel__label">Current goals</h2>
           <ul className="about-list">
-            {OBJECTIVES.map((objective) => (
-              <li key={objective}>
+            {GOALS.map((goal) => (
+              <li key={goal}>
                 <RingGlyph />
-                <span>{objective}</span>
+                <span>{goal}</span>
               </li>
             ))}
           </ul>
