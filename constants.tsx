@@ -142,7 +142,8 @@ export const WORK_DATA: JobItem[] = [
     location: "Denver, Colorado",
     highlights: [],
     subRoles: [
-      { title: "Chairman of the Board", period: "Oct 2024 - Jan 2026" },
+      { title: "Board Member", period: "Oct 2025 - Jan 2026" },
+      { title: "Chairman of the Board", period: "Oct 2024 - Oct 2025" },
       { title: "President / Co-Founder", period: "Jan 2023 - Oct 2024" }
     ]
   },
