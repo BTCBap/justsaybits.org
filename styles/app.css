@@ -2196,8 +2196,19 @@ html[data-motion="reduced"] .essay-prose a {
 .essay-index__item {
   display: flex;
   flex-direction: column;
+  min-height: 5.5rem;
   border: 1px solid rgba(90, 140, 235, 0.22);
   background: rgba(9, 24, 50, 0.38);
+}
+
+/* The item owns the reserved card height so the published tag can sit
+   under the date in the leftover space instead of stretching the card. */
+.essay-index__item .essay-row.content-card {
+  min-height: 0;
+}
+
+.essay-index__item:has(.essay-source) .essay-row {
+  padding-bottom: 0;
 }
 
 .essay-index__rows {
@@ -2234,12 +2245,10 @@ html[data-motion="reduced"] .essay-prose a {
 .essay-source {
   display: inline-flex;
   align-self: flex-start;
-  min-height: 40px;
   align-items: center;
   gap: 0.3rem;
-  margin: 0 0.9rem 0.65rem;
-  padding: 0.45rem 0 0;
-  border-top: 1px solid rgba(90, 140, 235, 0.18);
+  margin: 0.25rem 0.9rem 0.35rem;
+  padding: 0;
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: var(--type-12);
